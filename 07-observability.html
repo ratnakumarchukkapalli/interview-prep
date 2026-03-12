@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 7: Observability — OpenTelemetry, Datadog, Structured Logging</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d1a;
+      --surface: #0f1826;
+      --surface2: #141f35;
+      --border: #1d2d4f;
+      --text: #dce8f5;
+      --text-muted: #7a9ab5;
+      --accent: #22c55e;
+      --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8;
+      --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b;
+      --accent3-dim: rgba(245,158,11,0.12);
+      --code-bg: #060a13;
+      --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      --radius: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .hero {
+      background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3rem 2rem 2.5rem;
+    }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .badge-green { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.025em;
+    }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    /* THEME TOGGLE */
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      z-index: 100;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2rem;
+      gap: 2.5rem;
+    }
+
+    /* TOC */
+    .toc { width: 195px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 0.63rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a {
+      display: block;
+      padding: 0.28rem 0.6rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .toc-list a:hover, .toc-list a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    /* MAIN */
+    .main-content { flex: 1; min-width: 0; }
+
+    /* SECTIONS */
+    .section { margin-bottom: 3.5rem; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .section h3 {
+      font-size: 0.93rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin: 1.5rem 0 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-mono);
+    }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    tbody td {
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+    .td-green { color: var(--accent) !important; font-weight: 500; }
+    .td-blue { color: var(--accent2) !important; }
+    .td-amber { color: var(--accent3) !important; }
+    .td-muted { color: var(--text-muted) !important; font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2) !important; }
+
+    /* COMPONENT GRID */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      transition: border-color 0.15s;
+    }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+    .card-ip {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--accent2);
+      background: var(--code-bg);
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+
+    /* CODE BLOCK */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: none;
+      padding: 0;
+    }
+    /* Inline code */
+    p code, li code, .info-box code, .warn-box code, .blockquote code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+    }
+
+    /* DIAGRAM */
+    .diagram-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .diagram-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow: auto; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+
+    /* INFO / WARN BOXES */
+    .info-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .info-box strong { color: var(--accent2); }
+    .warn-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent3);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .warn-box strong { color: var(--accent3); }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-top: 0.15rem;
+    }
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    /* BLOCKQUOTE */
+    .blockquote {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      font-style: italic;
+    }
+    .blockquote strong { color: var(--text); font-style: normal; }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      max-width: 1240px;
+      margin: 0 auto 3rem;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .bottom-nav a {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent2);
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--text); }
+    .bottom-nav .nav-index { color: var(--text-muted); }
+    .bottom-nav .nav-index:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      .toc { display: none; }
+      .layout { padding: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
+      .bottom-nav { flex-direction: column; }
+    }
+
+    /* LIGHT MODE */
+    body.light {
+      --bg: #f2f6fc;
+      --surface: #ffffff;
+      --surface2: #eaeff8;
+      --border: #c8d6e8;
+      --text: #1a2535;
+      --text-muted: #4f6880;
+      --code-bg: #e2eaf5;
+      --code-text: #1d5fa0;
+    }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">OpenTelemetry</span>
+      <span class="badge badge-amber">Datadog</span>
+    </div>
+    <h1>Section 7: Observability</h1>
+    <p class="hero-sub">OpenTelemetry, Datadog, Structured Logging, Prometheus Metrics</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Platform</span>
+        <span class="hero-meta-value">40+ microservices on AWS EKS Outposts</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Tools</span>
+        <span class="hero-meta-value">Datadog APM + Log Management + Metrics</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Last Updated</span>
+        <span class="hero-meta-value">2026-03-12</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#three-pillars">Three Pillars</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#helm-env-vars">Helm Env Vars</a></li>
+        <li><a href="#helm-env-vars" class="toc-sub">Python vs .NET</a></li>
+        <li><a href="#otel">OpenTelemetry</a></li>
+        <li><a href="#otel" class="toc-sub">Instrumentation Points</a></li>
+        <li><a href="#otel" class="toc-sub">agent_span() Helper</a></li>
+        <li><a href="#otel" class="toc-sub">Exporter Modes</a></li>
+        <li><a href="#structured-logging">Structured Logging</a></li>
+        <li><a href="#structured-logging" class="toc-sub">Log Events</a></li>
+        <li><a href="#prometheus">Prometheus Metrics</a></li>
+        <li><a href="#dd-queries">Datadog Queries</a></li>
+        <li><a href="#before-after">Before vs After OTEL</a></li>
+        <li><a href="#data-flow">Data Flow</a></li>
+        <li><a href="#log-indexes">Log Indexes</a></li>
+        <li><a href="#volume-mounts">Volume Mounts</a></li>
+        <li><a href="#trace-log-gap">Trace-Log Linking Gap</a></li>
+        <li><a href="#interview-qa">Interview Q&amp;A</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- 7.1 THREE PILLARS -->
+    <section class="section" id="three-pillars">
+      <div class="section-header">
+        <span class="section-num">7.1</span>
+        <h2>Why Observability Matters (The Three Pillars)</h2>
+      </div>
+      <p>Observability answers: <strong>"What is happening inside my system right now, and why?"</strong></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Pillar</th><th>What It Is</th><th>Tool We Use</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Logs</strong></td>
+              <td>Discrete events with context</td>
+              <td>Datadog Log Management</td>
+              <td><code>"error": "connection refused", "service": "pricing-be", "env": "qa"</code></td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>Traces</strong></td>
+              <td>Request journey across services</td>
+              <td>Datadog APM + OpenTelemetry</td>
+              <td>Request &rarr; API Gateway &rarr; Pricing &rarr; DB &rarr; Response (with timing)</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Metrics</strong></td>
+              <td>Aggregated measurements over time</td>
+              <td>Datadog Metrics + Prometheus</td>
+              <td>CPU usage 75%, request latency p99 = 2.3s, error rate 0.5%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info-box">
+        <strong>Interview distinction:</strong> <em>Monitoring</em> = "Is the system up?" (dashboards, alerts). <em>Observability</em> = "Why is the system slow/broken?" (drill into any request, any service, any time).
+      </div>
+      <p>You need all 3 pillars together. Logs without traces = you know something failed but can't follow the request. Traces without metrics = you can debug one request but miss system-wide patterns. Metrics without logs = you know latency spiked but can't find the root cause.</p>
+    </section>
+
+    <!-- 7.2 ARCHITECTURE -->
+    <section class="section" id="architecture">
+      <div class="section-header">
+        <span class="section-num">7.2</span>
+        <h2>Our Observability Architecture</h2>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">EKS Pod &rarr; Datadog Agent &rarr; Datadog Backend</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d1')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#38bdf8', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    subgraph POD["EKS Pod"]
+        APP["App Container\n.NET / Python\nStructured JSON logs → stdout"]
+        ISTIO["Istio Sidecar\nEnvoy proxy\nAccess logs · mTLS metrics"]
+    end
+
+    subgraph AGENT["Datadog Agent DaemonSet (per node)"]
+        LOGS_C["Collects logs from\npod stdout"]
+        APM_C["Receives APM traces\nport 8126"]
+        OTEL_C["Receives OTEL spans\nport 4317 gRPC"]
+        PROM_C["Scrapes Prometheus\n/metrics endpoint"]
+    end
+
+    subgraph DD["Datadog Backend"]
+        LOG_M["Log Management\nSearch · Filter · Alerts"]
+        APM_M["APM\nFlame graphs · Service map"]
+        MET_M["Metrics\nDashboards · Monitors · SLOs"]
+        INFRA["Infrastructure\nHost map · Container view"]
+    end
+
+    APP -->|"DD_AGENT_HOST\nport 8126 + 4317"| AGENT
+    ISTIO -->|"Node metrics"| AGENT
+    AGENT -->|"HTTPS → intake.datadoghq.com"| DD
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>Key infrastructure fact:</strong> The Datadog Agent runs as a <strong>DaemonSet</strong> &mdash; one pod per EKS worker node. Every application pod on that node sends data to the local agent via <code>DD_AGENT_HOST</code> (the node's IP). This avoids cross-node network hops.
+      </div>
+    </section>
+
+    <!-- 7.3 HELM ENV VARS -->
+    <section class="section" id="helm-env-vars">
+      <div class="section-header">
+        <span class="section-num">7.3</span>
+        <h2>How Our 40+ Services Send Data to Datadog</h2>
+      </div>
+      <p>Every service in our platform gets these Datadog environment variables in their Helm <code>rollout.yaml</code>:</p>
+      <pre><code># Common across ALL 40+ services (Python + .NET)
+env:
+  - name: DD_AGENT_HOST
+    valueFrom:
+      fieldRef:
+        fieldPath: status.hostIP          # Node IP where DD agent runs
+  - name: DD_SERVICE
+    value: {{ .Chart.Name }}              # e.g., "confirmation-pricing-be"
+  - name: DD_ENV
+    value: {{ .Values.environment }}      # ci, demo, qa, preprod
+  - name: DD_VERSION
+    value: "v{{ .Chart.AppVersion }}"     # Semantic version
+  - name: DD_TAGS
+    value: "layer:api,team:devops,asset:207804"
+  - name: DD_TRACE_SAMPLE_RATE
+    value: "1"                            # 100% trace sampling
+  - name: DD_LOGS_INJECTION
+    value: "true"                         # Inject trace_id into logs
+  - name: DD_PROFILING_ENABLED
+    value: "true"                         # CPU/memory profiling
+  - name: DD_TRACE_AGENT_PORT
+    value: "8126"                         # APM trace port
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://$(DD_AGENT_HOST):4317" # OpenTelemetry gRPC endpoint</code></pre>
+
+      <h3>Python vs .NET Instrumentation</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspect</th><th>.NET Services (30+)</th><th>Python Services (6)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-muted">Instrumentation</td>
+              <td>Automatic &mdash; CLR profiler hooks into runtime</td>
+              <td>Manual &mdash; explicit OTEL SDK calls</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Tracer</td>
+              <td>Datadog .NET tracer (<code>/opt/datadog/</code>)</td>
+              <td>OpenTelemetry Python SDK</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Profiler</td>
+              <td>CLR profiler (<code>CORECLR_PROFILER</code>)</td>
+              <td>Native Python profiler</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Extra Env Vars</td>
+              <td><code>CORECLR_ENABLE_PROFILING=true</code>, <code>CORECLR_PROFILER_PATH</code>, <code>DD_DOTNET_TRACER_HOME</code></td>
+              <td>None (OTEL SDK configured in code)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Log Injection</td>
+              <td>Automatic (DD tracer injects <code>dd.trace_id</code>)</td>
+              <td>Needs <code>ddtrace-run</code> wrapper</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Trace Port</td>
+              <td>8126 (DD native)</td>
+              <td>8126 (DD native) + 4317 (OTEL gRPC)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7.4 OPENTELEMETRY -->
+    <section class="section" id="otel">
+      <div class="section-header">
+        <span class="section-num">7.4</span>
+        <h2>OpenTelemetry &mdash; What I Built for k8s-ops-assistant</h2>
+      </div>
+      <p><strong>What is OpenTelemetry (OTEL)?</strong> A <strong>vendor-neutral</strong> observability framework. Instead of coding directly to Datadog's SDK (vendor lock-in), you code to OTEL's SDK and export to any backend.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">OTEL Vendor Neutrality</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d2', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d2', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d2')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d2">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    CODE["Your Code"] --> SDK["OTEL SDK"]
+    SDK --> OTLP["OTLP Protocol"]
+    OTLP --> DD["Datadog"]
+    OTLP --> GRAF["Grafana / Tempo"]
+    OTLP --> JAEG["Jaeger"]
+    OTLP --> NR["New Relic"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="blockquote">
+        "We chose OpenTelemetry over Datadog's native SDK because it's vendor-neutral. If we ever need to switch from Datadog to Grafana Stack, we change one environment variable (<code>OTEL_EXPORTER_OTLP_ENDPOINT</code>) &mdash; zero code changes."
+      </div>
+
+      <h3>3 Instrumentation Points in base_agent.py</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Point</th><th>Span Name</th><th>What It Captures</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Top-level request</strong></td>
+              <td><code>devops_assistant.agent.handle</code></td>
+              <td>Total request duration, agent name, request_id, model</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>LLM call</strong></td>
+              <td><code>devops_assistant.agent.llm_call</code></td>
+              <td>Iteration count, input/output tokens, LLM latency, model</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Tool execution</strong></td>
+              <td><code>devops_assistant.agent.tool_call</code></td>
+              <td>Tool name, duration, success/error, iteration</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Span Hierarchy (Datadog APM)</h3>
+      <pre><code>devops_assistant.agent.handle (4200ms total)
+  ├── devops_assistant.agent.llm_call (790ms, iteration=1, tokens_in=4821, tokens_out=180)
+  ├── devops_assistant.agent.tool_call (1840ms, tool=query_logs, status=success)
+  └── devops_assistant.agent.llm_call (1520ms, iteration=2, tokens_in=7200, tokens_out=640)</code></pre>
+
+      <h3>The agent_span() Context Manager</h3>
+      <pre><code># framework/telemetry.py — helper for clean instrumentation
+@contextmanager
+def agent_span(name, attributes=None):
+    tracer = get_tracer()
+    with tracer.start_as_current_span(name) as span:
+        if attributes:
+            for k, v in attributes.items():
+                span.set_attribute(k, v)
+        try:
+            yield span
+            span.set_status(StatusCode.OK)
+        except Exception as e:
+            span.set_status(StatusCode.ERROR, str(e))
+            span.record_exception(e)
+            raise</code></pre>
+
+      <h3>Usage in base_agent.py</h3>
+      <pre><code># Instrumentation point 1: Top-level request
+async def handle(self, query, request_id):
+    with agent_span("devops_assistant.agent.handle", {
+        "agent.name": self.agent_name,
+        "request.id": request_id,
+        "gen_ai.request.model": self.model,
+    }) as span:
+        # ... agent loop runs here ...
+        span.set_attribute("duration_ms", elapsed)
+
+# Instrumentation point 2: LLM call
+with agent_span("devops_assistant.agent.llm_call", {
+    "agent.iteration": iteration,
+    "gen_ai.system": "anthropic",
+    "gen_ai.usage.input_tokens": usage.input_tokens,
+    "gen_ai.usage.output_tokens": usage.output_tokens,
+}) as span:
+    response = await self.client.messages.create(...)
+
+# Instrumentation point 3: Tool execution
+with agent_span("devops_assistant.agent.tool_call", {
+    "tool.name": tool_name,
+    "agent.iteration": iteration,
+}) as span:
+    result = await tool_function(**args)
+    span.set_attribute("tool.status", "success")
+    span.set_attribute("tool.duration_ms", elapsed)</code></pre>
+
+      <h3>Dual Exporter Modes</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Mode</th><th>When</th><th>Config</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>OTLP/gRPC</strong> (production)</td>
+              <td><code>OTEL_EXPORTER_OTLP_ENDPOINT</code> is set</td>
+              <td>Sends to Datadog Agent port 4317</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>Console</strong> (debug)</td>
+              <td><code>OTEL_CONSOLE_SPANS=true</code></td>
+              <td>Prints JSON spans to stdout</td>
+            </tr>
+            <tr>
+              <td class="td-muted"><strong>Silent</strong> (default)</td>
+              <td>Neither set</td>
+              <td>Spans created but not exported (zero overhead)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7.5 STRUCTURED LOGGING -->
+    <section class="section" id="structured-logging">
+      <div class="section-header">
+        <span class="section-num">7.5</span>
+        <h2>Structured Logging (JSON to Datadog)</h2>
+      </div>
+      <p><strong>Why structured logging matters:</strong></p>
+      <pre><code># BAD — unstructured log (grep-able, not queryable)
+2026-03-10 14:30:22 INFO Processing request for user john
+
+# GOOD — structured JSON (fully queryable in Datadog)
+{"timestamp": "2026-03-10T14:30:22Z", "level": "INFO", "event": "chat_stream_complete",
+ "request_id": "req-abc123", "duration_ms": 4200, "agent": "datadog", "model": "opus-4.5"}</code></pre>
+
+      <h3>JSONFormatter Implementation</h3>
+      <pre><code>class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_entry = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        # Add all extra fields (event, request_id, duration_ms, etc.)
+        for key, value in record.__dict__.items():
+            if key not in standard_fields:
+                log_entry[key] = value
+        return json.dumps(log_entry)</code></pre>
+
+      <h3>Request ID Propagation</h3>
+      <pre><code># Middleware generates request_id for every HTTP request
+request_id = f"req-{uuid.uuid4().hex[:12]}"
+request_id_var.set(request_id)  # ContextVar — available everywhere in this request
+response.headers["X-Request-ID"] = request_id  # Returned to client</code></pre>
+
+      <h3>Key Log Events We Emit</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Event</th><th>When</th><th>Useful Fields</th></tr></thead>
+          <tbody>
+            <tr><td><code>chat_stream_complete</code></td><td>Chat request finished</td><td><code>duration_ms</code>, <code>agent</code>, <code>model</code>, <code>request_id</code></td></tr>
+            <tr><td><code>agent_request_start</code></td><td>Agent begins processing</td><td><code>agent</code>, <code>query</code>, <code>request_id</code></td></tr>
+            <tr><td><code>tool_execution_complete</code></td><td>Tool finished</td><td><code>tool</code>, <code>duration_ms</code>, <code>iteration</code>, <code>status</code></td></tr>
+            <tr><td><code>tool_execution_error</code></td><td>Tool failed</td><td><code>tool</code>, <code>error</code>, <code>iteration</code></td></tr>
+            <tr><td><code>llm_response</code></td><td>Claude responded</td><td><code>stop_reason</code>, <code>tool_calls_count</code>, <code>tokens</code></td></tr>
+            <tr><td><code>llm_api_error</code></td><td>Claude API failed</td><td><code>status_code</code>, <code>error_body</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7.6 PROMETHEUS -->
+    <section class="section" id="prometheus">
+      <div class="section-header">
+        <span class="section-num">7.6</span>
+        <h2>Prometheus Metrics (The Third Pillar)</h2>
+      </div>
+      <p>We also expose a <code>/metrics</code> endpoint for Prometheus-format metrics. Datadog Agent scrapes this.</p>
+      <pre><code># api/metrics.py — metric definitions
+from prometheus_client import Counter, Histogram, Gauge
+
+# Request metrics
+chat_requests_total = Counter("chat_requests_total", "Total chat requests", ["status", "agent"])
+chat_request_duration = Histogram("chat_request_duration_seconds", "Chat latency",
+    ["agent"], buckets=[1, 2, 5, 10, 30, 60, 120])
+
+# LLM metrics
+llm_calls_total = Counter("llm_calls_total", "Claude API calls", ["model", "status"])
+llm_call_duration = Histogram("llm_call_duration_seconds", "LLM latency",
+    ["model"], buckets=[0.5, 1, 2, 5, 10, 30, 60])
+llm_tokens_total = Counter("llm_tokens_total", "Token usage", ["direction"])  # input/output
+
+# Tool metrics
+tool_calls_total = Counter("tool_calls_total", "Tool executions", ["tool_name", "status"])
+tool_call_duration = Histogram("tool_call_duration_seconds", "Tool latency",
+    ["tool_name"], buckets=[0.1, 0.5, 1, 2, 5, 15, 30])
+
+# Session metrics
+active_sessions = Gauge("active_sessions", "Current concurrent sessions")</code></pre>
+
+      <h3>Why Both OTEL Traces AND Prometheus Metrics?</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>OTEL Traces</th><th>Prometheus Metrics</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Per-request</strong> detail (drill into ONE slow request)</td>
+              <td><strong>Aggregated</strong> view (what's the p99 latency across ALL requests?)</td>
+            </tr>
+            <tr>
+              <td>Flame graphs, span trees</td>
+              <td>Time-series graphs, dashboards</td>
+            </tr>
+            <tr>
+              <td>"Why was this specific request slow?"</td>
+              <td>"Is the system getting slower over time?"</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7.7 DATADOG QUERIES -->
+    <section class="section" id="dd-queries">
+      <div class="section-header">
+        <span class="section-num">7.7</span>
+        <h2>Datadog Queries I Use Daily</h2>
+      </div>
+      <p>These are the queries I run constantly &mdash; <strong>memorize these for the interview</strong>:</p>
+      <pre><code># 1. Find all real chat requests (filter out health checks and noise)
+env:ci service:audit-devops-assistant @event:chat_stream_complete
+
+# 2. Follow one request end-to-end (every log line for that request)
+env:ci service:audit-devops-assistant @request_id:req-abc123def456
+
+# 3. Agent + tool activity (see what the AI actually did)
+env:ci service:audit-devops-assistant @event:(agent_request_start OR tool_execution_complete)
+
+# 4. Errors only (skip NeMo guardrails FutureWarning noise)
+env:ci service:audit-devops-assistant status:error -message:FutureWarning
+
+# 5. All structured logs (filter out raw uvicorn access lines)
+env:ci service:audit-devops-assistant @event:*
+
+# 6. Slow requests (&gt; 5 seconds)
+env:ci service:audit-devops-assistant @duration_ms:&gt;5000
+
+# 7. Token cost tracking
+env:ci service:audit-devops-assistant @event:llm_response @gen_ai.usage.input_tokens:&gt;1000</code></pre>
+
+      <h3>Query Syntax Breakdown</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Pattern</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>env:ci</code></td><td>Environment tag = ci</td></tr>
+            <tr><td><code>service:pricing-be</code></td><td>Service tag (DD_SERVICE env var)</td></tr>
+            <tr><td><code>@event:chat_stream_complete</code></td><td>Facet search on structured field</td></tr>
+            <tr><td><code>status:error</code></td><td>Log level = ERROR</td></tr>
+            <tr><td><code>-message:FutureWarning</code></td><td>Exclude lines containing "FutureWarning"</td></tr>
+            <tr><td><code>@duration_ms:&gt;5000</code></td><td>Numeric facet filter (greater than 5000ms)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="warn-box">
+        <strong>Important gotcha:</strong> Datadog uses <code>env:</code> tags, NOT <code>kube_namespace:</code> for filtering.<br>
+        Correct: <code>query = f"env:{environment} service:{service_name}"</code><br>
+        Wrong: <code>query = f"kube_namespace:207804-confirmation-qa service:{service_name}"</code>
+      </div>
+
+      <div class="info-box">
+        <strong>Service name gotcha for .NET services:</strong> .NET service "pricing-be" &rarr; Datadog tag is <code>confirmation-pricing-be</code>. Our Python service &rarr; Datadog tag is <code>audit-devops-assistant</code> (matches directly).
+      </div>
+    </section>
+
+    <!-- 7.8 BEFORE VS AFTER -->
+    <section class="section" id="before-after">
+      <div class="section-header">
+        <span class="section-num">7.8</span>
+        <h2>What OTEL Gave Us (Before vs After)</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Capability</th><th>Before OTEL</th><th>After OTEL</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Spot real requests in log noise</td>
+              <td>50 logs, all look identical</td>
+              <td class="td-green"><code>@event:chat_stream_complete</code> &rarr; instantly find real requests</td>
+            </tr>
+            <tr>
+              <td>Request duration</td>
+              <td>Invisible</td>
+              <td class="td-green"><code>duration_ms: 10098.99</code> on every chat response</td>
+            </tr>
+            <tr>
+              <td>Follow one request</td>
+              <td>Impossible</td>
+              <td class="td-green"><code>@request_id:&lt;id&gt;</code> pulls every log line for that request</td>
+            </tr>
+            <tr>
+              <td>Find slow requests</td>
+              <td>Manual grep</td>
+              <td class="td-green"><code>@duration_ms:&gt;5000</code> query</td>
+            </tr>
+            <tr>
+              <td>Agent/tool activity</td>
+              <td>None</td>
+              <td class="td-green"><code>@event:tool_execution_complete</code> &rarr; tool name, iteration, duration</td>
+            </tr>
+            <tr>
+              <td>Token costs</td>
+              <td>None</td>
+              <td class="td-green"><code>gen_ai.usage.input_tokens</code> per LLM call</td>
+            </tr>
+            <tr>
+              <td>Error root cause</td>
+              <td>Read full log dump</td>
+              <td class="td-green">Exception stack trace attached to span</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="blockquote">
+        "Before I added OpenTelemetry, debugging the AI assistant meant reading raw log dumps. After OTEL, I can trace any request end-to-end &mdash; I see exactly how long the LLM call took, which tool was invoked, how many tokens were used, and where time was spent. If a request is slow, I query <code>@duration_ms:&gt;5000</code> in Datadog and immediately see the flame graph showing the bottleneck &mdash; whether it's the Claude API, a Datadog log query, or a Kubernetes API call."
+      </div>
+    </section>
+
+    <!-- 7.9 DATA FLOW -->
+    <section class="section" id="data-flow">
+      <div class="section-header">
+        <span class="section-num">7.9</span>
+        <h2>The Data Flow &mdash; All Three Pillars Together</h2>
+      </div>
+      <p><strong>A real request through the observability pipeline:</strong></p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Request Lifecycle: Logs + Traces + Metrics</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d3', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d3', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d3')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d3">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    USER["User: Why is pricing-be\nrestarting in QA?"] --> MW["FastAPI Middleware\nrequest_id: req-7f3a2b\nLOG + METRIC"]
+    MW --> ORCH["Orchestrator\nRoutes to DatadogAgent\nLOG + TRACE span"]
+    ORCH --> LLM1["LLM Call #1 to Claude\ntokens_in=4821, 790ms\nTRACE + METRIC"]
+    LLM1 --> TOOL["Tool: query_logs\nDatadog API call, 1840ms\nLOG + TRACE + METRIC"]
+    TOOL --> LLM2["LLM Call #2 to Claude\ntokens_in=7200, 1520ms\nTRACE + METRIC"]
+    LLM2 --> RESP["Response Streamed\nduration_ms=4200\nLOG + TRACE + METRIC"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p><strong>Step-by-step with all 3 pillars annotated:</strong></p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">User asks: "Why is pricing-be restarting in QA?"</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">FastAPI middleware generates <code>request_id: req-7f3a2b</code></div>
+            <div class="step-desc">LOG: <code>{"event": "request_start", "request_id": "req-7f3a2b"}</code> &middot; METRIC: <code>chat_requests_total{agent="datadog"}</code></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Orchestrator routes to DatadogAgent</div>
+            <div class="step-desc">LOG: <code>{"event": "agent_request_start", "agent": "datadog"}</code> &middot; TRACE: <code>devops_assistant.agent.handle</code> span created</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">LLM call to Claude (790ms)</div>
+            <div class="step-desc">TRACE: <code>devops_assistant.agent.llm_call</code> span &middot; METRIC: <code>llm_calls_total{model="opus-4.5"}</code>, <code>llm_tokens_total{direction="input"} += 4821</code></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-title">Claude calls <code>query_logs</code> tool (1840ms)</div>
+            <div class="step-desc">TRACE: <code>devops_assistant.agent.tool_call</code> span &middot; LOG: <code>{"event": "tool_execution_complete", "tool": "query_logs", "duration_ms": 1840}</code> &middot; METRIC: <code>tool_calls_total{tool="query_logs", status="success"}</code></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-content">
+            <div class="step-title">Response streamed back (4200ms total)</div>
+            <div class="step-desc">LOG: <code>{"event": "chat_stream_complete", "duration_ms": 4200}</code> &middot; TRACE: top-level span closed &middot; METRIC: <code>chat_request_duration{agent="datadog"}.observe(4.2)</code></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>In Datadog, all 3 pillars are correlated:</strong><br>
+        <strong>Logs:</strong> <code>@request_id:req-7f3a2b</code> &rarr; shows every log line for this request<br>
+        <strong>Traces:</strong> Flame graph shows handle &rarr; llm_call &rarr; tool_call &rarr; llm_call<br>
+        <strong>Metrics:</strong> Dashboard shows this request contributed to the p99 latency spike
+      </div>
+    </section>
+
+    <!-- 7.10 LOG INDEXES -->
+    <section class="section" id="log-indexes">
+      <div class="section-header">
+        <span class="section-num">7.10</span>
+        <h2>Datadog Log Indexes</h2>
+      </div>
+      <p>Datadog routes logs to different indexes based on filters. Each index has its own retention period and query performance.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Index</th><th>What Goes In</th><th>Retention</th></tr></thead>
+          <tbody>
+            <tr><td><code>a207804-k8s-logs-preprod</code></td><td>All K8s pod logs from non-prod clusters</td><td>15 days</td></tr>
+            <tr><td><code>a209014-ait-demo-preprod</code></td><td>AIT team demo/preprod logs</td><td>15 days</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><code># Our Datadog tools query both indexes by default
+DEFAULT_INDEXES = ["a207804-k8s-logs-preprod", "a209014-ait-demo-preprod"]</code></pre>
+    </section>
+
+    <!-- 7.11 VOLUME MOUNTS -->
+    <section class="section" id="volume-mounts">
+      <div class="section-header">
+        <span class="section-num">7.11</span>
+        <h2>Volume Mounts for Observability</h2>
+      </div>
+      <p>One gotcha with Datadog on read-only filesystem pods &mdash; the tracer needs a writable temp directory:</p>
+      <pre><code># In rollout.yaml — every service needs this
+volumeMounts:
+  - name: datadog-temp
+    mountPath: /tmp-datadog         # DD_TRACE_LOG_DIRECTORY points here
+  - name: api-temp
+    mountPath: /tmp                 # General temp (uvicorn, etc.)
+volumes:
+  - name: datadog-temp
+    emptyDir: {}                    # Writable emptyDir on read-only FS
+  - name: api-temp
+    emptyDir: {}</code></pre>
+      <div class="info-box">
+        <strong>Why?</strong> Our security standard is <code>readOnlyRootFilesystem: true</code>. But the Datadog tracer writes temporary files. Solution: mount <code>emptyDir</code> volumes at <code>/tmp</code> and <code>/tmp-datadog</code>. The data lives in the node's memory, not on disk, and is wiped when the pod dies.
+      </div>
+    </section>
+
+    <!-- 7.12 TRACE-LOG GAP -->
+    <section class="section" id="trace-log-gap">
+      <div class="section-header">
+        <span class="section-num">7.12</span>
+        <h2>Known Gap &mdash; Trace-to-Log Linking</h2>
+      </div>
+      <p><strong>Current state:</strong> OTEL spans exist in Datadog APM, structured logs exist in Datadog Log Management, but they're <strong>not linked</strong> in the flame graph UI.</p>
+      <p><strong>Root cause:</strong> The Python application needs <code>ddtrace-run</code> wrapper to inject <code>dd.trace_id</code> into log output. Without it, Datadog can't correlate logs to specific traces.</p>
+
+      <h3>Fix Needed</h3>
+      <pre><code># Helm rollout.yaml — add if not present
+- name: DD_LOGS_INJECTION
+  value: "true"
+
+# Dockerfile CMD — wrap with ddtrace-run
+CMD ["ddtrace-run", "uvicorn", "audit_devops_assistant.api.main:app", ...]</code></pre>
+
+      <div class="warn-box">
+        <strong>Interview talking point:</strong> This shows you understand the gap AND know the fix. Demonstrates awareness of production observability maturity levels.
+      </div>
+    </section>
+
+    <!-- 7.13 INTERVIEW Q&A -->
+    <section class="section" id="interview-qa">
+      <div class="section-header">
+        <span class="section-num">7.13</span>
+        <h2>Interview Questions &mdash; Scenario-Based</h2>
+      </div>
+
+      <h3>Q: "A service is throwing 500 errors in production. Walk me through how you debug it."</h3>
+      <div class="blockquote">
+        1. <strong>Datadog Log Management:</strong> Query <code>env:prod service:confirmation-pricing-be status:error</code> &mdash; find the error messages and stack traces<br>
+        2. <strong>Request ID:</strong> Pick one error, grab the <code>request_id</code>, then query <code>@request_id:&lt;id&gt;</code> &mdash; see the full request lifecycle<br>
+        3. <strong>APM Flame Graph:</strong> If traces are linked, click into the trace &mdash; see exactly which span failed and how long each step took<br>
+        4. <strong>Metrics Dashboard:</strong> Check <code>chat_requests_total{status=error}</code> &mdash; is this a spike or constant? When did it start?<br>
+        5. <strong>Compare:</strong> Check if the error correlates with a deployment (DD_VERSION tag), a config change, or an upstream dependency failure<br>
+        6. <strong>Kubernetes:</strong> If it's a pod issue (OOMKilled, CrashLoopBackOff), check <code>kubectl describe pod</code> and events
+      </div>
+
+      <h3>Q: "How do you monitor a canary deployment?"</h3>
+      <div class="blockquote">
+        During canary, Argo Rollout shifts 50% traffic to the new version. I monitor in Datadog:<br>
+        1. <strong>Error rate by version:</strong> <code>env:ci service:pricing-be @dd.version:v1.2.3 status:error</code> &mdash; compare new vs old<br>
+        2. <strong>Latency by version:</strong> Datadog APM shows latency distribution split by version tag<br>
+        3. <strong>Custom metrics:</strong> Our Prometheus metrics track <code>chat_request_duration</code> with version labels<br>
+        4. <strong>If errors spike:</strong> Abort the rollout (<code>kubectl argo rollouts abort &lt;name&gt;</code>), Argo automatically shifts 100% back to stable<br>
+        5. <strong>Auto-rollback:</strong> We could add Datadog analysis to the Rollout strategy &mdash; Argo supports Datadog metric queries as promotion criteria
+      </div>
+
+      <h3>Q: "Explain the difference between Datadog APM and OpenTelemetry."</h3>
+      <div class="blockquote">
+        Datadog APM is a <strong>product</strong> &mdash; it's where you view traces, flame graphs, service maps. OpenTelemetry is a <strong>standard</strong> &mdash; it's how your application generates and exports trace data.<br><br>
+        They're complementary, not competing. We use OTEL SDK in our code to create spans, then export via OTLP gRPC to the Datadog Agent, which forwards to Datadog APM backend. If we ever switch to Grafana Tempo, we change one env var &mdash; the OTEL SDK stays the same.<br><br>
+        For .NET services, Datadog's auto-instrumentation (CLR profiler) is easier &mdash; no code changes needed. For Python, we chose OTEL because it gives us custom span attributes like <code>gen_ai.usage.input_tokens</code> that Datadog's auto-instrumentation wouldn't capture.
+      </div>
+
+      <h3>Q: "How do you handle log volume and cost in Datadog?"</h3>
+      <div class="blockquote">
+        Datadog charges by log volume (GB ingested). We control cost through:<br>
+        1. <strong>Structured logging:</strong> Only emit meaningful events with <code>@event:</code> tags &mdash; no raw debug output in production<br>
+        2. <strong>Log indexes:</strong> Different indexes with different retention &mdash; production gets 30 days, non-prod gets 15 days<br>
+        3. <strong>Exclusion filters:</strong> Filter out noisy logs before they hit the index (e.g., health check 200s, uvicorn access logs)<br>
+        4. <strong>Sampling:</strong> <code>DD_TRACE_SAMPLE_RATE=1</code> in non-prod (100%), could reduce in prod if volume is too high<br>
+        5. <strong>Archive:</strong> Old logs go to S3 (Datadog Archives) for compliance &mdash; cheaper than keeping in hot index
+      </div>
+
+      <h3>Q: "Your Datadog dashboard shows a latency spike. How do you find the root cause?"</h3>
+      <div class="blockquote">
+        1. <strong>Time range:</strong> Narrow the dashboard to when the spike started<br>
+        2. <strong>Service map:</strong> Check Datadog APM service map &mdash; is the latency in our service or an upstream dependency?<br>
+        3. <strong>Traces:</strong> Sort traces by duration (descending) &mdash; find the slowest requests<br>
+        4. <strong>Flame graph:</strong> Open a slow trace &mdash; see which span took the most time. Is it the LLM call? A database query? A tool execution?<br>
+        5. <strong>Correlate:</strong> Check if the spike matches a deployment (version tag change), a cloud event (EKS scaling), or an external dependency (Claude API latency)<br>
+        6. <strong>Metrics:</strong> Check CPU/memory metrics for the pod &mdash; if it's resource-constrained, the HPA should have scaled up. If HPA maxReplicas hit, that's the bottleneck.
+      </div>
+
+      <h3>Q: "How would you set up observability for a new microservice from scratch?"</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Structured logging: JSON formatter to stdout</div>
+            <div class="step-desc">Datadog Agent collects automatically from container logs</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Datadog env vars: DD_SERVICE, DD_ENV, DD_VERSION, DD_AGENT_HOST</div>
+            <div class="step-desc">Add to Helm rollout.yaml &mdash; copy from existing service template</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Trace instrumentation</div>
+            <div class="step-desc">Python: OTEL SDK + <code>agent_span()</code> for critical paths. .NET: set <code>CORECLR_ENABLE_PROFILING=true</code> &mdash; auto-instrumented</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Prometheus metrics: <code>/metrics</code> endpoint</div>
+            <div class="step-desc">Add counters/histograms for key operations</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-title">Volume mounts: <code>emptyDir</code> at <code>/tmp</code> and <code>/tmp-datadog</code></div>
+            <div class="step-desc">Required for read-only filesystem compatibility</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-content">
+            <div class="step-title">Verify: Deploy to CI, query <code>env:ci service:&lt;name&gt;</code></div>
+            <div class="step-desc">Should see logs immediately. Check APM for traces.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">7</div>
+          <div class="step-content">
+            <div class="step-title">Dashboard: Create Datadog dashboard</div>
+            <div class="step-desc">Error rate, latency p99, request volume, resource usage</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Q: "What's the difference between ELK Stack and Datadog?"</h3>
+      <div class="blockquote" style="font-style: normal;">
+        I've used both &mdash; ELK at Arrise and Datadog at Thomson Reuters.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspect</th><th>ELK Stack</th><th>Datadog</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-muted">Hosting</td>
+              <td>Self-hosted (we managed Elasticsearch, Logstash, Kibana)</td>
+              <td>SaaS (managed by Datadog)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Cost Model</td>
+              <td>Infrastructure cost (EC2, storage)</td>
+              <td>Per-host + per-GB ingested</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Logs</td>
+              <td>Excellent (Elasticsearch is built for log search)</td>
+              <td>Excellent (with faceted search)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">APM/Traces</td>
+              <td>Separate setup (Jaeger, Elastic APM)</td>
+              <td>Built-in, unified with logs</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Metrics</td>
+              <td>Separate (Prometheus/Grafana alongside)</td>
+              <td>Built-in, unified</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Ops Overhead</td>
+              <td>High (index management, shard rebalancing, upgrades)</td>
+              <td>Zero (SaaS)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Scale</td>
+              <td>You manage scaling (adding nodes, tuning JVM)</td>
+              <td>Automatic</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info-box">
+        <strong>Summary:</strong> Datadog wins for teams that want all 3 pillars unified with zero ops overhead. ELK wins if you need full control and want to minimize SaaS costs at scale.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <a href="06-aws-cdk.html">&larr; 06: AWS CDK</a>
+  <a href="index.html" class="nav-index">Index</a>
+  <a href="08-postgresql-ha.html">08: PostgreSQL HA &rarr;</a>
+</nav>
+
+<script>
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#141f35',
+      primaryTextColor: '#dce8f5',
+      primaryBorderColor: '#22c55e',
+      lineColor: '#7a9ab5',
+      secondaryColor: '#0f1826',
+      tertiaryColor: '#090d1a',
+      background: '#090d1a',
+      mainBkg: '#141f35',
+      nodeBorder: '#1d2d4f',
+      clusterBkg: '#0f1826',
+      titleColor: '#dce8f5',
+      edgeLabelBackground: '#0f1826',
+      fontFamily: 'DM Sans, sans-serif',
+      fontSize: '13px'
+    }
+  });
+
+  // Zoom controls
+  const scales = {};
+  function zoom(id, factor) {
+    scales[id] = (scales[id] || 1) * factor;
+    document.getElementById(id).style.transform = `scale(${scales[id]})`;
+  }
+  function reset(id) {
+    scales[id] = 1;
+    document.getElementById(id).style.transform = 'scale(1)';
+  }
+
+  // Theme toggle
+  const toggleBtn = document.getElementById('themeToggle');
+  toggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    toggleBtn.textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+
+  // Active ToC highlighting via IntersectionObserver
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

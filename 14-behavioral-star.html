@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Section 14: Behavioral / STAR Format Questions | Interview Prep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #090d1a;
+            --surface: #0f1826;
+            --surface2: #141f35;
+            --border: #1d2d4f;
+            --text: #dce8f5;
+            --text-muted: #7a9ab5;
+            --accent: #22c55e;
+            --accent2: #38bdf8;
+            --accent3: #f59e0b;
+            --code-bg: #060a13;
+            --shadow: 0 2px 16px rgba(0,0,0,0.3);
+            --radius: 12px;
+        }
+
+        [data-theme="light"] {
+            --bg: #f2f6fc;
+            --surface: #ffffff;
+            --surface2: #eaeff8;
+            --border: #c8d6e5;
+            --text: #1a2332;
+            --text-muted: #5a6a7a;
+            --accent: #16a34a;
+            --accent2: #0284c7;
+            --accent3: #d97706;
+            --code-bg: #e8edf5;
+            --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 32px;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 16px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 24px;
+            z-index: 1000;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s;
+            box-shadow: var(--shadow);
+        }
+        .theme-toggle:hover {
+            border-color: var(--accent2);
+            transform: scale(1.1);
+        }
+
+        /* Layout */
+        .layout {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            gap: 0;
+        }
+
+        /* Sidebar TOC */
+        .toc {
+            position: sticky;
+            top: 0;
+            left: 0;
+            width: 280px;
+            min-width: 280px;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 32px 20px;
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .toc-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent2);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .toc a {
+            display: block;
+            padding: 8px 12px;
+            margin: 2px 0;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13.5px;
+            font-weight: 400;
+            border-radius: 6px;
+            border-left: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .toc a:hover {
+            color: var(--text);
+            background: var(--surface2);
+        }
+        .toc a.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+            background: rgba(34, 197, 94, 0.06);
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .content {
+            flex: 1;
+            min-width: 0;
+            padding: 0 48px 80px;
+        }
+
+        /* Hero Header */
+        .hero {
+            padding: 56px 0 40px;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero-badges {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .badge-green {
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
+        .badge-blue {
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--accent2);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+        .badge-amber {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--accent3);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+        .hero h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            line-height: 1.5;
+            max-width: 640px;
+        }
+        .hero-meta {
+            display: flex;
+            gap: 24px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .hero-meta span {
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .hero-meta .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: inline-block;
+        }
+
+        /* Section Headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 52px 0 24px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-num {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            flex-shrink: 0;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+        .section-header h2 {
+            font-size: 1.55rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Paragraphs */
+        p {
+            margin-bottom: 16px;
+            color: var(--text);
+            line-height: 1.8;
+        }
+
+        /* Blockquotes / Info Boxes */
+        .info-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent2);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+        .info-box p {
+            margin-bottom: 12px;
+        }
+        .info-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .warn-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent3);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+
+        /* Success Box (Result) */
+        .success-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+        .success-box p {
+            margin-bottom: 12px;
+        }
+        .success-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* STAR Label */
+        .star-label {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            padding: 3px 10px;
+            border-radius: 5px;
+            margin-bottom: 12px;
+        }
+        .star-label-s {
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--accent2);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+        .star-label-t {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--accent3);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+        .star-label-a {
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
+        .star-label-r {
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
+
+        /* Incident Title */
+        .incident-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent3);
+            margin-bottom: 16px;
+            padding: 8px 14px;
+            background: rgba(245, 158, 11, 0.06);
+            border: 1px solid rgba(245, 158, 11, 0.15);
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        /* Bold */
+        strong {
+            color: var(--accent2);
+            font-weight: 600;
+        }
+
+        /* Inline Code */
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.88em;
+            background: var(--code-bg);
+            color: var(--accent2);
+            padding: 2px 7px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+        }
+
+        /* Code Blocks */
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin: 20px 0;
+            overflow-x: auto;
+            position: relative;
+        }
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 13.5px;
+            line-height: 1.7;
+            color: var(--text);
+        }
+        .code-label {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'Fira Code', monospace;
+            opacity: 0.6;
+        }
+
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 20px 0;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14.5px;
+        }
+        thead {
+            background: var(--surface2);
+        }
+        th {
+            text-align: left;
+            padding: 14px 18px;
+            font-weight: 600;
+            color: var(--accent);
+            font-size: 12.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+        tr:last-child td { border-bottom: none; }
+        tbody tr {
+            transition: background 0.15s;
+        }
+        tbody tr:hover {
+            background: var(--surface2);
+        }
+
+        /* Steps */
+        .steps {
+            margin: 20px 0;
+            padding: 0;
+            list-style: none;
+        }
+        .step {
+            display: flex;
+            gap: 16px;
+            padding: 14px 0;
+            align-items: flex-start;
+        }
+        .step-num {
+            width: 30px;
+            height: 30px;
+            min-width: 30px;
+            border-radius: 50%;
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            margin-top: 2px;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-content strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* Component Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px 24px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .card:hover {
+            border-color: var(--accent2);
+            transform: translateY(-2px);
+        }
+        .card-title {
+            font-weight: 600;
+            color: var(--accent2);
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        .card-desc {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Key highlight */
+        .key-highlight {
+            color: var(--accent3);
+            font-weight: 600;
+        }
+
+        /* Navigation */
+        .nav-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 64px;
+            padding: 24px 0;
+            border-top: 1px solid var(--border);
+            gap: 16px;
+        }
+        .nav-footer a {
+            color: var(--accent2);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14.5px;
+            padding: 10px 18px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-footer a:hover {
+            border-color: var(--accent2);
+            background: var(--surface);
+        }
+        .nav-footer .disabled {
+            color: var(--text-muted);
+            opacity: 0.4;
+            pointer-events: none;
+            border-color: var(--border);
+        }
+        .nav-footer .nav-index {
+            color: var(--text-muted);
+            border-color: transparent;
+        }
+        .nav-footer .nav-index:hover {
+            color: var(--accent2);
+            border-color: var(--border);
+        }
+
+        /* Responsive */
+        @media (max-width: 860px) {
+            .toc { display: none; }
+            .content { padding: 0 20px 60px; }
+            .hero h1 { font-size: 1.8rem; }
+            .theme-toggle { top: 12px; right: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <span id="theme-icon">&#9789;</span>
+    </button>
+
+    <div class="layout">
+        <!-- Sidebar TOC -->
+        <nav class="toc">
+            <div class="toc-title">On This Page</div>
+            <a href="#how-star-works" class="active">14.1 How STAR Works</a>
+            <a href="#production-incident">14.2 Production Incident</a>
+            <a href="#automation">14.3 Automation</a>
+            <a href="#cascading-failure">14.4 Cascading Failure</a>
+            <a href="#learn-new-tech">14.5 New Technology</a>
+            <a href="#disagreed-decision">14.6 Technical Disagreement</a>
+            <a href="#improved-process">14.7 Process Improvement</a>
+            <a href="#difficult-debugging">14.8 Difficult Debugging</a>
+            <a href="#biggest-weakness">14.9 Biggest Weakness</a>
+            <a href="#why-leaving">14.10 Why Leaving</a>
+            <a href="#five-year-plan">14.11 3&ndash;5 Year Plan</a>
+            <a href="#questions-to-ask">14.12 Questions to Ask</a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content">
+            <!-- Hero -->
+            <div class="hero">
+                <div class="hero-badges">
+                    <span class="badge badge-green">Interview Prep</span>
+                    <span class="badge badge-blue">Behavioral</span>
+                    <span class="badge badge-amber">STAR Format</span>
+                </div>
+                <h1>Section 14: Behavioral / STAR Format Questions</h1>
+                <p class="subtitle">Real Incident Stories, Leadership, Conflict Resolution</p>
+                <div class="hero-meta">
+                    <span><span class="dot"></span> Section 14 of 14</span>
+                    <span><span class="dot"></span> 11 Questions</span>
+                    <span><span class="dot"></span> Final Section</span>
+                </div>
+            </div>
+
+            <!-- Section 14.1: How STAR Works -->
+            <div class="section-header" id="how-star-works">
+                <span class="section-num">1</span>
+                <h2>How STAR Works</h2>
+            </div>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent2);">S &mdash; Situation</div>
+                    <div class="card-desc">Set the scene. What was happening? Where were you?</div>
+                </div>
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent3);">T &mdash; Task</div>
+                    <div class="card-desc">What was your responsibility? What needed to be solved?</div>
+                </div>
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent);">A &mdash; Action</div>
+                    <div class="card-desc">What did YOU specifically do? Walk through your steps.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent);">R &mdash; Result</div>
+                    <div class="card-desc">What was the outcome? Quantify impact where possible.</div>
+                </div>
+            </div>
+
+            <div class="warn-box">
+                <p><strong style="color: var(--accent3);">Keep each section to 2&ndash;3 sentences.</strong> The interviewer wants to hear your decision-making process, not a 10-minute story.</p>
+            </div>
+
+            <!-- Section 14.2: Production Incident -->
+            <div class="section-header" id="production-incident">
+                <span class="section-num">2</span>
+                <h2>&ldquo;Tell me about a time you handled a critical production incident&rdquo;</h2>
+            </div>
+
+            <div class="incident-title">INC-001: MassTransit Consumer Missing &mdash; record-gql-be CrashLoopBackOff</div>
+
+            <!-- Situation -->
+            <div class="info-box">
+                <span class="star-label star-label-s">Situation</span>
+                <p>In February 2026, our <code>record-gql-be</code> service went into CrashLoopBackOff in QA with exit code 139. The service had been down for about 24 hours before I picked it up.</p>
+            </div>
+
+            <!-- Task -->
+            <div class="card" style="margin: 20px 0;">
+                <span class="star-label star-label-t">Task</span>
+                <div class="card-desc" style="color: var(--text);">I needed to find the root cause and restore the service as quickly as possible.</div>
+            </div>
+
+            <!-- Action -->
+            <div style="margin: 20px 0;">
+                <span class="star-label star-label-a">Action</span>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <div class="step-content">Started with <code>kubectl logs --previous</code> which showed a <code>MassTransit.RequestTimeoutException</code> &mdash; not the segfault the exit code suggested.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <div class="step-content">Traced the code to <code>FormService.InitializeFormNames()</code> which makes a synchronous RabbitMQ request to the <code>get-form-types-by-product</code> queue.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <div class="step-content">Checked consumer counts: <code>rabbitmqctl list_queues name consumers</code> showed zero consumers on that queue. The consuming service, <code>forms-be</code>, was running but had silently stopped registering its MassTransit consumer after a deployment.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="success-box">
+                <span class="star-label star-label-r">Result</span>
+                <p>Restarted <code>forms-be</code>, consumers re-registered, <code>record-gql-be</code> started immediately. I documented the incident with the key lesson: always check RabbitMQ consumer counts first for MassTransit timeouts. Exit code 139 with Datadog CLR profiler is misleading &mdash; read the actual exception.</p>
+            </div>
+
+            <!-- Section 14.3: Automation -->
+            <div class="section-header" id="automation">
+                <span class="section-num">3</span>
+                <h2>&ldquo;Tell me about a time you automated something that saved significant time&rdquo;</h2>
+            </div>
+
+            <div class="incident-title">k8s-ops-assistant &mdash; AI-Powered Operations</div>
+
+            <!-- Situation -->
+            <div class="info-box">
+                <span class="star-label star-label-s">Situation</span>
+                <p>Our team of 5 manages 40+ microservices across 8 environments. Investigating an incident &mdash; checking Datadog logs, K8s pod status, tracing requests &mdash; took 30&ndash;45 minutes per query, and we handled 5&ndash;10 of these per week.</p>
+            </div>
+
+            <!-- Task -->
+            <div class="card" style="margin: 20px 0;">
+                <span class="star-label star-label-t">Task</span>
+                <div class="card-desc" style="color: var(--text);">I proposed building an AI-powered assistant that could answer natural language questions using Kubernetes and Datadog APIs directly.</div>
+            </div>
+
+            <!-- Action -->
+            <div style="margin: 20px 0;">
+                <span class="star-label star-label-a">Action</span>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <div class="step-content">Designed and built a multi-agent FastAPI service with Claude AI as the reasoning engine.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <div class="step-content">Created three specialized agents: Datadog (19 tools), K8s (10 tools), and Cert (1 tool) with rule-based routing for deterministic query assignment.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <div class="step-content">Implemented SSE streaming for real-time feedback and JWT RS256 authentication.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">4</span>
+                        <div class="step-content">Integrated it with the DevOps portal so the whole team could use it through a chat interface.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="success-box">
+                <span class="star-label star-label-r">Result</span>
+                <p>Investigations that took 30&ndash;45 minutes now complete in under 90 seconds. The whole team &mdash; including developers without kubectl access &mdash; can now troubleshoot independently. I presented this to leadership, and it&rsquo;s being evaluated for adoption by other TR teams.</p>
+            </div>
+
+            <!-- Section 14.4: Cascading Failure -->
+            <div class="section-header" id="cascading-failure">
+                <span class="section-num">4</span>
+                <h2>&ldquo;Tell me about a time you dealt with a cascading failure&rdquo;</h2>
+            </div>
+
+            <div class="incident-title">CHG0130049 &mdash; Proxy Change Broke 5 Services</div>
+
+            <!-- Situation -->
+            <div class="info-box">
+                <span class="star-label star-label-s">Situation</span>
+                <p>The network team pushed a routing change (CHG0130049) that sent all outbound traffic through a corporate proxy. Five different services broke for five different reasons over the following week.</p>
+            </div>
+
+            <!-- Task -->
+            <div class="card" style="margin: 20px 0;">
+                <span class="star-label star-label-t">Task</span>
+                <div class="card-desc" style="color: var(--text);">I needed to systematically identify and fix each affected service while preventing further cascading failures.</div>
+            </div>
+
+            <!-- Action -->
+            <div style="margin: 20px 0;">
+                <span class="star-label star-label-a">Action</span>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <div class="step-content">Categorized services by management type: Helm-managed (automatically got proxy config), operator-managed (RabbitMQ, PostgreSQL &mdash; needed manual check), and manually-managed (Selenium Grid &mdash; had no proxy at all).</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <div class="step-content">Diagnosed the specific failure for each broken service: <code>reports-dwh-be</code> was missing <code>NO_PROXY</code> entries for internal hostnames, Selenium nodes had no proxy env vars, <code>file-service-be</code>&rsquo;s FTPS connection was blocked by the proxy&rsquo;s CONNECT policy.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <div class="step-content">Fixed each systematically and documented the root cause for each.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="success-box">
+                <span class="star-label star-label-r">Result</span>
+                <p>All services restored within 48 hours. I created a runbook: &ldquo;After any network infrastructure change, verify ALL service categories &mdash; Helm-managed, operator-managed, and manually-managed.&rdquo; This runbook was used for the next network change and caught issues proactively before they became incidents.</p>
+            </div>
+
+            <!-- Section 14.5: New Technology -->
+            <div class="section-header" id="learn-new-tech">
+                <span class="section-num">5</span>
+                <h2>&ldquo;Tell me about a time you had to learn a new technology quickly&rdquo;</h2>
+            </div>
+
+            <div class="incident-title">Istio Service Mesh + Argo Rollouts</div>
+
+            <!-- Situation -->
+            <div class="info-box">
+                <span class="star-label star-label-s">Situation</span>
+                <p>When I joined Thomson Reuters in January 2025, the team was migrating from AWS Cloud EKS to EKS Outposts. The new platform used Istio service mesh and Argo Rollouts &mdash; technologies I hadn&rsquo;t worked with before.</p>
+            </div>
+
+            <!-- Task -->
+            <div class="card" style="margin: 20px 0;">
+                <span class="star-label star-label-t">Task</span>
+                <div class="card-desc" style="color: var(--text);">I needed to become proficient enough to manage Istio configuration, debug traffic routing issues, and configure canary deployments for 40+ services within weeks.</div>
+            </div>
+
+            <!-- Action -->
+            <div style="margin: 20px 0;">
+                <span class="star-label star-label-a">Action</span>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <div class="step-content">Read the Istio documentation end-to-end, then traced real traffic flows through the platform &mdash; from F5 BigIP through KWAF to Istio IngressGateway to pods.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <div class="step-content">Created a personal reference guide (928 lines) documenting every Istio resource, naming conventions, hostname patterns, and debug commands.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <div class="step-content">For Argo Rollouts, studied how Helm templates configure canary with VirtualService weight patching. Tested everything in CI before touching QA or production.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="success-box">
+                <span class="star-label star-label-r">Result</span>
+                <p>Within a month, I was independently managing Istio configuration and debugging traffic routing issues. My reference guide (<code>istio-traffic-flow-guide.md</code>) became a team resource. I later wrote a comprehensive Kubernetes resources guide documenting all 18 resource types per service.</p>
+            </div>
+
+            <!-- Section 14.6: Technical Disagreement -->
+            <div class="section-header" id="disagreed-decision">
+                <span class="section-num">6</span>
+                <h2>&ldquo;Tell me about a time you disagreed with a technical decision&rdquo;</h2>
+            </div>
+
+            <div class="incident-title">ESSO Token vs CIAM M2M Authentication</div>
+
+            <!-- Situation -->
+            <div class="info-box">
+                <span class="star-label star-label-s">Situation</span>
+                <p>Our AI assistant used an ESSO token (human SSO token) to authenticate with the TR AI Platform. This token expired every hour and required a daily rotation job or manual update in Secrets Manager. If the rotation failed, the service went down.</p>
+            </div>
+
+            <!-- Task -->
+            <div class="card" style="margin: 20px 0;">
+                <span class="star-label star-label-t">Task</span>
+                <div class="card-desc" style="color: var(--text);">I believed this was the wrong architecture &mdash; using a human identity for a service-to-service flow. I proposed switching to CIAM M2M (OAuth2 client_credentials), but there was pushback because &ldquo;the ESSO token works and we have bigger priorities.&rdquo;</div>
+            </div>
+
+            <!-- Action -->
+            <div style="margin: 20px 0;">
+                <span class="star-label star-label-a">Action</span>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <div class="step-content">Built a proof-of-concept showing the CIAM M2M approach: <code>CIAMTokenClient</code> with cache-first design, 5-minute pre-expiry refresh buffer, and <code>invalidate()</code> for downstream rejection recovery.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <div class="step-content">Quantified the operational cost: ESSO required daily manual intervention (or a cron job that sometimes failed), while CIAM M2M was completely self-managing after one-time setup.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <div class="step-content">Presented a comparison table showing token lifetime (1h vs 24h), rotation method, ops overhead, and security posture.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="success-box">
+                <span class="star-label star-label-r">Result</span>
+                <p>The team agreed to implement CIAM M2M. After deploying, the service ran for weeks without any token-related issues &mdash; no more 3 AM pages about expired tokens. The <code>CIAMTokenClient</code> pattern is now being adopted by other portal services.</p>
+            </div>
+
+            <!-- Section 14.7: Process Improvement -->
+            <div class="section-header" id="improved-process">
+                <span class="section-num">7</span>
+                <h2>&ldquo;Tell me about a time you improved a process&rdquo;</h2>
+            </div>
+
+            <div class="incident-title">DevOps Portal &mdash; Self-Service for Pod Restart and Secrets</div>
+
+            <!-- Situation -->
+            <div class="info-box">
+                <span class="star-label star-label-s">Situation</span>
+                <p>Restarting a service or updating a secret required kubectl access, which only 3 people on the team had. Developers would open a Slack ticket, wait for someone to be available, and watch them type commands. This created bottlenecks, especially during working hours in multiple time zones.</p>
+            </div>
+
+            <!-- Task -->
+            <div class="card" style="margin: 20px 0;">
+                <span class="star-label star-label-t">Task</span>
+                <div class="card-desc" style="color: var(--text);">I wanted to give the team self-service access to safe operations &mdash; pod restarts and secret updates &mdash; without giving everyone cluster admin access.</div>
+            </div>
+
+            <!-- Action -->
+            <div style="margin: 20px 0;">
+                <span class="star-label star-label-a">Action</span>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <div class="step-content">Built the <code>service-ops</code> FastAPI API with JWT RS256 authentication (so only authorized users from our AD group can call it).</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <div class="step-content">Implemented annotation-based restarts (zero-downtime via Argo Rollout, not pod delete) and deep-merge secret updates (preserves untouched keys).</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <div class="step-content">Added DynamoDB audit trail (full before-state + user attribution for every change).</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">4</span>
+                        <div class="step-content">Integrated it with the React DevOps portal so operations are point-and-click.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="success-box">
+                <span class="star-label star-label-r">Result</span>
+                <p>Pod restarts went from 15-minute Slack conversations to 10-second self-service operations. Secret updates went from error-prone manual JSON editing to safe, audited partial updates. The DynamoDB audit trail has been used twice to restore secrets that were accidentally broken. The team is more autonomous, and I&rsquo;m no longer a bottleneck for routine operations.</p>
+            </div>
+
+            <!-- Section 14.8: Difficult Debugging -->
+            <div class="section-header" id="difficult-debugging">
+                <span class="section-num">8</span>
+                <h2>&ldquo;Tell me about a difficult debugging scenario&rdquo;</h2>
+            </div>
+
+            <div class="incident-title">INC-002: CloudFront + WAF &mdash; Blank Page in QED</div>
+
+            <!-- Situation -->
+            <div class="info-box">
+                <span class="star-label star-label-s">Situation</span>
+                <p>The responder-queue frontend was showing a blank page in QED (production-like environment). The page appeared to load &mdash; HTTP 200, HTML served &mdash; but no content rendered.</p>
+            </div>
+
+            <!-- Task -->
+            <div class="card" style="margin: 20px 0;">
+                <span class="star-label star-label-t">Task</span>
+                <div class="card-desc" style="color: var(--text);">I needed to find why the page was blank when the HTTP response looked healthy.</div>
+            </div>
+
+            <!-- Action -->
+            <div style="margin: 20px 0;">
+                <span class="star-label star-label-a">Action</span>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <div class="step-content">Discovered the 200 status was the trap &mdash; CloudFront had a custom error response that converts 403 errors to 200 + <code>index.html</code>. The real error was 403 from S3.</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <div class="step-content">Found two stacked issues: the CloudFront distribution referenced a deleted Origin Access Identity (so ALL S3 requests returned 403), and the nested CloudFront had a WAF with <code>DefaultAction: Block</code> and a stale IP allowlist (125 CIDRs vs 199 published).</div>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <div class="step-content">Systematically ruled out S3 contents, bucket policy, and cache behaviors before finding the WAF.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="success-box">
+                <span class="star-label star-label-r">Result</span>
+                <p>Fixed both issues: replaced the deleted OAI, and ITOPS disabled WAF on the nested CloudFront (the umbrella already protects). My takeaway: <strong>check WAF EARLY</strong> when <code>x-cache: Error from cloudfront</code> appears. Custom error responses that mask real status codes make debugging exponentially harder.</p>
+            </div>
+
+            <!-- Section 14.9: Biggest Weakness -->
+            <div class="section-header" id="biggest-weakness">
+                <span class="section-num">9</span>
+                <h2>&ldquo;What&rsquo;s your biggest weakness?&rdquo;</h2>
+            </div>
+
+            <div class="info-box">
+                <p>I tend to go deep into technical details when explaining something, which can overwhelm non-technical stakeholders. I&rsquo;ve learned to lead with the impact &mdash; &ldquo;this will reduce incident response time from 45 minutes to 90 seconds&rdquo; &mdash; and only dive into the how when asked. Building the DevOps portal helped me practice this: I had to explain to management why we needed 4 backend services, in terms of team productivity and risk reduction, not in terms of async Python and DynamoDB audit trails.</p>
+            </div>
+
+            <!-- Section 14.10: Why Leaving -->
+            <div class="section-header" id="why-leaving">
+                <span class="section-num">10</span>
+                <h2>&ldquo;Why are you leaving Thomson Reuters?&rdquo;</h2>
+            </div>
+
+            <div class="info-box">
+                <p>I&rsquo;m not leaving because I&rsquo;m unhappy &mdash; I&rsquo;ve had one of the most productive years of my career. I migrated 30+ services to EKS Outposts, built 2 FastAPI microservices, pioneered an AI-powered operations assistant, and handled multiple production incidents end-to-end. But the Westpac opportunity offers what I&rsquo;m looking for next: the scale and reliability demands of banking infrastructure. Financial services platforms have zero tolerance for downtime, strict regulatory compliance, and massive transaction volumes. I want to apply everything I&rsquo;ve built at TR &mdash; Kubernetes, GitOps, observability, security &mdash; in an environment where the stakes are even higher.</p>
+            </div>
+
+            <!-- Section 14.11: 3-5 Year Plan -->
+            <div class="section-header" id="five-year-plan">
+                <span class="section-num">11</span>
+                <h2>&ldquo;Where do you see yourself in 3&ndash;5 years?&rdquo;</h2>
+            </div>
+
+            <div class="info-box">
+                <p>I want to grow into a platform engineering leadership role &mdash; either as a Staff/Principal DevOps Engineer or an Engineering Manager for a platform team. I want to design and build the infrastructure foundations that product teams build on. At TR, I&rsquo;ve been doing this at the individual contributor level: building shared tools (DevOps portal), establishing patterns (Helm templates, CI/CD workflows), and creating self-service capabilities (<code>service-ops</code>, <code>k8s-ops-assistant</code>). In 3&ndash;5 years, I want to be doing this at a larger scale &mdash; defining platform strategy, mentoring engineers, and making architectural decisions that impact entire organizations.</p>
+            </div>
+
+            <!-- Section 14.12: Questions to Ask -->
+            <div class="section-header" id="questions-to-ask">
+                <span class="section-num">12</span>
+                <h2>Questions to Ask the Interviewer</h2>
+            </div>
+
+            <div class="warn-box">
+                <p><strong style="color: var(--accent3);">Always prepare 3&ndash;5 questions.</strong> Pick 2&ndash;3 based on the conversation.</p>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>Why You&rsquo;re Asking</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>&ldquo;What does the Kubernetes platform look like at Westpac &mdash; EKS, AKS, self-managed?&rdquo;</td>
+                            <td>Shows you&rsquo;re thinking about the technical environment</td>
+                        </tr>
+                        <tr>
+                            <td>&ldquo;How does the team handle incident response &mdash; is there a dedicated SRE team or is it shared?&rdquo;</td>
+                            <td>Shows you care about operational maturity</td>
+                        </tr>
+                        <tr>
+                            <td>&ldquo;What&rsquo;s the biggest technical challenge the team is facing right now?&rdquo;</td>
+                            <td>Shows you want to contribute immediately</td>
+                        </tr>
+                        <tr>
+                            <td>&ldquo;How do deployments work &mdash; GitOps, Jenkins, manual?&rdquo;</td>
+                            <td>Shows you&rsquo;ll bring your ArgoCD/GitOps expertise</td>
+                        </tr>
+                        <tr>
+                            <td>&ldquo;What does success look like for this role in the first 90 days?&rdquo;</td>
+                            <td>Shows you&rsquo;re results-oriented</td>
+                        </tr>
+                        <tr>
+                            <td>&ldquo;How does the team approach security and compliance for banking workloads?&rdquo;</td>
+                            <td>Relevant to Westpac &mdash; shows domain awareness</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Navigation Footer -->
+            <nav class="nav-footer">
+                <a href="13-previous-companies.html">&larr; Previous</a>
+                <a href="index.html" class="nav-index">Index</a>
+                <a class="disabled">Next &rarr;</a>
+            </nav>
+        </main>
+    </div>
+
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-icon').innerHTML = next === 'dark' ? '&#9789;' : '&#9788;';
+        }
+
+        // Load saved theme
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+                document.getElementById('theme-icon').innerHTML = saved === 'dark' ? '&#9789;' : '&#9788;';
+            }
+        })();
+
+        // IntersectionObserver for active TOC highlighting
+        (function() {
+            const sections = document.querySelectorAll('.section-header[id]');
+            const tocLinks = document.querySelectorAll('.toc a');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        tocLinks.forEach(link => link.classList.remove('active'));
+                        const id = entry.target.getAttribute('id');
+                        const active = document.querySelector(`.toc a[href="#${id}"]`);
+                        if (active) active.classList.add('active');
+                    }
+                });
+            }, {
+                rootMargin: '-20% 0px -60% 0px',
+                threshold: 0
+            });
+
+            sections.forEach(section => observer.observe(section));
+        })();
+    </script>
+</body>
+</html>

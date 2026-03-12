@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 9: RabbitMQ — Cluster Operator, Self-Signed TLS, HA Policies, Incidents</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d1a;
+      --surface: #0f1826;
+      --surface2: #141f35;
+      --border: #1d2d4f;
+      --text: #dce8f5;
+      --text-muted: #7a9ab5;
+      --accent: #22c55e;
+      --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8;
+      --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b;
+      --accent3-dim: rgba(245,158,11,0.12);
+      --code-bg: #060a13;
+      --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      --radius: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .hero {
+      background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3rem 2rem 2.5rem;
+    }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .badge-green { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.025em;
+    }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    /* THEME TOGGLE */
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      z-index: 100;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2rem;
+      gap: 2.5rem;
+    }
+
+    /* TOC */
+    .toc { width: 195px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 0.63rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a {
+      display: block;
+      padding: 0.28rem 0.6rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .toc-list a:hover, .toc-list a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    /* MAIN */
+    .main-content { flex: 1; min-width: 0; }
+
+    /* SECTIONS */
+    .section { margin-bottom: 3.5rem; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .section h3 {
+      font-size: 0.93rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin: 1.5rem 0 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-mono);
+    }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    tbody td {
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+    .td-green { color: var(--accent) !important; font-weight: 500; }
+    .td-blue { color: var(--accent2) !important; }
+    .td-amber { color: var(--accent3) !important; }
+    .td-muted { color: var(--text-muted) !important; font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2) !important; }
+
+    /* COMPONENT GRID */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      transition: border-color 0.15s;
+    }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+    .card-ip {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--accent2);
+      background: var(--code-bg);
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+
+    /* CODE BLOCK */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: none;
+      padding: 0;
+    }
+
+    /* DIAGRAM */
+    .diagram-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .diagram-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow: auto; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+
+    /* INFO / WARN BOXES */
+    .info-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .info-box strong { color: var(--accent2); }
+    .warn-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent3);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .warn-box strong { color: var(--accent3); }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-top: 0.15rem;
+    }
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    /* BLOCKQUOTE (interview answers) */
+    blockquote {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    blockquote strong { color: var(--accent); }
+
+    /* INCIDENT CARD */
+    .incident-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .incident-card h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent3);
+      margin-bottom: 0.3rem;
+    }
+    .incident-meta {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 0.8rem;
+    }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem 3rem;
+      border-top: 1px solid var(--border);
+    }
+    .bottom-nav a {
+      color: var(--accent2);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      padding: 0.4rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--text); }
+    .bottom-nav-center { color: var(--text-muted); font-size: 0.8rem; }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      .toc { display: none; }
+      .layout { padding: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
+    }
+
+    /* LIGHT MODE */
+    body.light {
+      --bg: #f2f6fc;
+      --surface: #ffffff;
+      --surface2: #eaeff8;
+      --border: #c8d6e8;
+      --text: #1a2535;
+      --text-muted: #4f6880;
+      --code-bg: #e2eaf5;
+      --code-text: #1d5fa0;
+    }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">RabbitMQ</span>
+      <span class="badge badge-amber">TLS</span>
+    </div>
+    <h1>Section 9: RabbitMQ</h1>
+    <p class="hero-sub">Cluster Operator, Self-Signed TLS, HA Policies, Incidents</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Platform</span>
+        <span class="hero-meta-value">Audit &amp; Confirmation</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Services</span>
+        <span class="hero-meta-value">40+ .NET microservices</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Last Updated</span>
+        <span class="hero-meta-value">2026-03-12</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#fundamentals">9.1 Fundamentals</a></li>
+        <li><a href="#fundamentals" class="toc-sub">Core Concepts</a></li>
+        <li><a href="#fundamentals" class="toc-sub">Message Flow</a></li>
+        <li><a href="#operator">9.2 K8s Operator</a></li>
+        <li><a href="#operator" class="toc-sub">CRD Resources</a></li>
+        <li><a href="#operator" class="toc-sub">Non-Prod vs Prod</a></li>
+        <li><a href="#tls">9.3 TLS Configuration</a></li>
+        <li><a href="#tls" class="toc-sub">Certificate Chain</a></li>
+        <li><a href="#tls" class="toc-sub">Cert Generation</a></li>
+        <li><a href="#secrets">9.4 Secrets Management</a></li>
+        <li><a href="#policies">9.5 Queue Policies</a></li>
+        <li><a href="#policies" class="toc-sub">HA Mirroring</a></li>
+        <li><a href="#policies" class="toc-sub">Error Queue TTL</a></li>
+        <li><a href="#argocd">9.6 ArgoCD Integration</a></li>
+        <li><a href="#datadog">9.7 Datadog Monitoring</a></li>
+        <li><a href="#incidents">9.8 Real Incidents</a></li>
+        <li><a href="#incidents" class="toc-sub">INC-001: CrashLoop</a></li>
+        <li><a href="#incidents" class="toc-sub">CHG0130049: Proxy</a></li>
+        <li><a href="#incidents" class="toc-sub">INC-002: CloudFront</a></li>
+        <li><a href="#incidents" class="toc-sub">INC-003: Angular</a></li>
+        <li><a href="#incidents" class="toc-sub">INC-009: WAF</a></li>
+        <li><a href="#trust-chain">9.9 Trust Chain Deep Dive</a></li>
+        <li><a href="#dotnet-connect">9.10 .NET Connections</a></li>
+        <li><a href="#peer-discovery">9.11 Peer Discovery</a></li>
+        <li><a href="#scenarios">9.12 Scenario Questions</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- 9.1 FUNDAMENTALS -->
+    <section class="section" id="fundamentals">
+      <div class="section-header">
+        <span class="section-num">9.1</span>
+        <h2>RabbitMQ Fundamentals &mdash; What Interviewers Expect You to Know</h2>
+      </div>
+      <p>RabbitMQ is an open-source message broker implementing <strong>AMQP</strong> (Advanced Message Queuing Protocol). At Confirmation, it's the async backbone &mdash; every .NET microservice publishes and consumes messages through RabbitMQ for event-driven workflows.</p>
+
+      <h3>Core Concepts</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Concept</th><th>What It Is</th><th>Real Example</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Exchange</strong></td><td>Receives messages from producers, routes to queues</td><td><code>confirmation.forms.exchange</code> &mdash; forms-be publishes form submission events</td></tr>
+            <tr><td><strong>Queue</strong></td><td>Stores messages until a consumer processes them</td><td><code>get-form-types-by-product</code> &mdash; record-gql-be consumes form type lookups</td></tr>
+            <tr><td><strong>Binding</strong></td><td>Rule connecting exchange &rarr; queue</td><td>Routing key <code>form.submitted</code> binds exchange to specific queue</td></tr>
+            <tr><td><strong>Consumer</strong></td><td>Application that reads from a queue</td><td>forms-be registers a MassTransit consumer for form type requests</td></tr>
+            <tr><td><strong>Exchange Types</strong></td><td>Direct, Fanout, Topic, Headers</td><td>Direct = exact key match, Fanout = broadcast, Topic = pattern match</td></tr>
+            <tr><td><strong>Acknowledgment</strong></td><td>Consumer tells RabbitMQ "message processed"</td><td>Auto-ack (risky) vs manual-ack (safe &mdash; message requeued on failure)</td></tr>
+            <tr><td><strong>Dead Letter Exchange</strong></td><td>Where rejected/expired messages go</td><td>Failed messages &rarr; <code>_error</code> queue (7-day TTL policy)</td></tr>
+            <tr><td><strong>Prefetch</strong></td><td>How many unacked messages a consumer holds</td><td>Low prefetch = fair dispatch, high prefetch = throughput</td></tr>
+            <tr><td><strong>Virtual Host</strong></td><td>Logical namespace for isolation</td><td>We use default <code>/</code> vhost (single platform, multiple services)</td></tr>
+            <tr><td><strong>MassTransit</strong></td><td>.NET abstraction over RabbitMQ</td><td>Our services use MassTransit for publish/subscribe and request/response</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>How Our Services Use RabbitMQ</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Message Flow: Producer &rarr; Exchange &rarr; Queue &rarr; Consumer</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('mermaid-flow',1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('mermaid-flow',0.8)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('mermaid-flow')">R</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="mermaid-flow">
+            <pre class="mermaid">
+flowchart LR
+  A["forms-be\n(Producer)"] -->|"publish\nform.submitted"| B["Exchange\n(direct/topic)"]
+  B -->|"binding key\nroute"| C["Queue\nget-form-types"]
+  C -->|"consume"| D["record-gql-be\n(Consumer via\nMassTransit)"]
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      <h3>Interview Answer &mdash; "Explain RabbitMQ message flow"</h3>
+      <blockquote>
+        "A producer publishes a message to an exchange with a routing key. The exchange evaluates its bindings and routes the message to matching queues. Consumers subscribed to those queues receive messages. In our platform, all 40+ .NET services use <strong>MassTransit</strong> as the RabbitMQ client library &mdash; it handles exchange/queue topology, serialization, retry policies, and error handling. When a consumer fails to process a message after retries, MassTransit moves it to an <code>_error</code> queue. We have a policy that auto-expires error queue messages after 7 days to prevent unbounded growth."
+      </blockquote>
+    </section>
+
+    <!-- 9.2 OPERATOR -->
+    <section class="section" id="operator">
+      <div class="section-header">
+        <span class="section-num">9.2</span>
+        <h2>RabbitMQ on Kubernetes &mdash; Operator Architecture</h2>
+      </div>
+      <p>We run RabbitMQ using the <strong>RabbitMQ Cluster Operator</strong> (v4.3.27). The operator manages cluster lifecycle through a <code>RabbitmqCluster</code> CRD.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">RabbitMQ Cluster Operator Architecture</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('mermaid-operator',1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('mermaid-operator',0.8)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('mermaid-operator')">R</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="mermaid-operator">
+            <pre class="mermaid">
+flowchart TB
+  OP["RabbitMQ Cluster Operator v4.3.27\nWatches RabbitmqCluster CRDs"]
+  OP -->|manages| N0["Node 0\nRMQ + 10Gi PVC"]
+  OP -->|manages| N1["Node 1\nRMQ + 10Gi PVC"]
+  OP -->|manages| N2["Node 2\nRMQ + 10Gi PVC"]
+  N0 <-->|"Erlang clustering\n(peer discovery via K8s API)"| N1
+  N1 <-->|"Erlang clustering"| N2
+  N0 <-->|"Erlang clustering"| N2
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      <h3>What the Operator Creates From One CRD</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Resource</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><strong>StatefulSet</strong></td><td>3 RabbitMQ pods with stable network identity</td></tr>
+            <tr><td><strong>Headless Service</strong></td><td>DNS-based peer discovery (Erlang clustering)</td></tr>
+            <tr><td><strong>Client Service</strong></td><td>AMQP (5671/5672) + Management UI (15672)</td></tr>
+            <tr><td><strong>ConfigMap</strong></td><td>rabbitmq.conf + advanced.config</td></tr>
+            <tr><td><strong>Secret</strong></td><td>Admin credentials (from ExternalSecret)</td></tr>
+            <tr><td><strong>PVC</strong> (per pod)</td><td>10Gi persistent message storage</td></tr>
+            <tr><td><strong>ServiceAccount</strong></td><td>K8s API access for peer discovery</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Our Real Configuration (CI)</h3>
+      <pre><code># From charts/rabbitmq-cluster/templates/rabbitmq-cluster.yaml
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: confirmation-rabbitmq-ci
+  namespace: 207804-confirmation-ci
+  annotations:
+    sidecar.istio.io/inject: "false"  # RabbitMQ bypasses Istio mesh
+spec:
+  replicas: 3
+  image: 833618288067.dkr.ecr.us-east-1.amazonaws.com/a207804/a207804-ue1-op-rabbitmq-operator-ci:3.13.7
+  persistence:
+    storageClassName: plexus-gp2
+    storage: 10Gi
+  resources:
+    limits:   { cpu: "2", memory: 4Gi }
+    requests: { cpu: "1", memory: 4Gi }
+  rabbitmq:
+    additionalConfig: |
+      total_memory_available_override_value = 2.8GB
+      disk_free_limit.absolute = 2GB
+      cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
+      cluster_formation.k8s.address_type = hostname
+      tcp_listen_options.keepalive = true
+  tls:
+    secretName: confirmation-rabbitmq-tls-cert
+    disableNonTLSListeners: false   # CI allows plain AMQP for ReportPortal</code></pre>
+
+      <h3>Non-Prod vs Production</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspect</th><th>Non-Prod (CI/Demo/QA)</th><th>Production</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Cluster name</strong></td><td><code>confirmation-rabbitmq-ci</code></td><td><code>confirmation-rabbitmq-prod</code></td></tr>
+            <tr><td><strong>Replicas</strong></td><td>3</td><td>3 (QED: 5)</td></tr>
+            <tr><td><strong>Resources</strong></td><td>2 CPU / 4Gi</td><td>4 CPU / 8Gi (Prod-DR: 8Gi requests=limits for Guaranteed QoS)</td></tr>
+            <tr><td><strong>TLS</strong></td><td>Dual-mode (5672 + 5671)</td><td>5671 only (<code>disableNonTLSListeners: true</code>)</td></tr>
+            <tr><td><strong>Policies</strong></td><td>HA mirroring + error TTL enabled</td><td>Disabled (operator webhook issues)</td></tr>
+            <tr><td><strong>Memory</strong></td><td>2.8GB</td><td>1.8GB</td></tr>
+            <tr><td><strong>ECR account</strong></td><td><code>833618288067</code> (us-east-1)</td><td><code>416557019297</code> (us-east-1), DR: <code>us-west-2</code></td></tr>
+            <tr><td><strong>Istio</strong></td><td>Bypassed</td><td>Bypassed</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why Istio Bypass?</h3>
+      <blockquote>
+        "RabbitMQ uses AMQP, a binary protocol, not HTTP. Istio's Envoy sidecar is an L7 proxy optimized for HTTP/gRPC &mdash; it can't inspect or route AMQP traffic meaningfully. Also, RabbitMQ manages its own TLS (port 5671) and Erlang distribution protocol for clustering. Adding Istio sidecar would break peer discovery and add latency to every message. Same reason PostgreSQL bypasses Istio."
+      </blockquote>
+    </section>
+
+    <!-- 9.3 TLS -->
+    <section class="section" id="tls">
+      <div class="section-header">
+        <span class="section-num">9.3</span>
+        <h2>TLS Configuration &mdash; Self-Signed Certificates</h2>
+      </div>
+      <p>RabbitMQ uses <strong>self-signed TLS certificates</strong> (not public CA, not Istio mTLS). I wrote the certificate generation script.</p>
+
+      <h3>Certificate Chain</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Self-Signed Certificate Chain with SANs</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('mermaid-tls',1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('mermaid-tls',0.8)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('mermaid-tls')">R</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="mermaid-tls">
+            <pre class="mermaid">
+flowchart TB
+  CA["Self-Signed CA\n(cacert.pem)"]
+  CA --> CERT["Server Certificate\n(cert.pem)"]
+  CERT --> SAN1["DNS.1 = confirmation-rabbitmq-ci"]
+  CERT --> SAN2["DNS.2 = confirmation-rabbitmq-ci.207804-rabbitmq-ci"]
+  CERT --> SAN3["DNS.3 = ...svc"]
+  CERT --> SAN4["DNS.4 = ...svc.cluster.local"]
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      <h3>Why 4 SANs?</h3>
+      <blockquote>
+        "Kubernetes services can be reached by short name (<code>confirmation-rabbitmq-ci</code>), namespace-qualified name, or FQDN. We need all 4 variants in the certificate's Subject Alternative Names because different clients connect using different forms. If a .NET service connects using the FQDN but the cert only has the short name, TLS handshake fails. Modern TLS ignores the CN field entirely &mdash; it only checks SANs."
+      </blockquote>
+
+      <h3>Certificate Generation Script</h3>
+      <div class="info-box"><strong>File:</strong> <code>scripts/certificates/ci/certs.sh</code></div>
+      <pre><code>#!/bin/bash
+CLUSTER_NAME="confirmation-rabbitmq-ci"
+NAMESPACE="207804-rabbitmq-ci"
+
+# 1. Generate CA key pair
+openssl genrsa -out key.pem 2048
+openssl req -x509 -new -nodes -key key.pem -sha256 -days 365 -out cacert.pem
+
+# 2. Generate server certificate with SANs
+openssl req -new -newkey rsa:2048 -nodes -keyout server-key.pem -out cert.csr
+openssl x509 -req -in cert.csr -CA cacert.pem -CAkey key.pem -CAcreateserial \
+    -out cert.pem -days 365 -sha256
+
+# 3. Create K8s TLS Secret
+kubectl create secret generic confirmation-rabbitmq-tls-cert \
+  --from-file=tls.crt=cert.pem \
+  --from-file=tls.key=server-key.pem \
+  --from-file=ca.crt=cacert.pem \
+  -n 207804-confirmation-ci</code></pre>
+
+      <h3>How .NET Services Trust the Self-Signed CA</h3>
+      <blockquote>
+        "Since our CA is self-signed, .NET services don't trust it by default (it's not in the OS trust store). We mount the <code>ca.crt</code> (the CA certificate &mdash; public, not secret) into each service pod via an ExternalSecret. The .NET RabbitMQ client is configured with <code>SslOption.CertPath</code> pointing to the mounted CA certificate, or the Helm chart injects it into the container's trust store at startup. This way, when the service connects to RabbitMQ on port 5671, it validates the server's certificate against our CA."
+      </blockquote>
+
+      <h3>File Roles</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Secret?</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>cacert.pem</code></td><td>No (public)</td><td>CA certificate &mdash; distributed to all services for trust</td></tr>
+            <tr><td><code>key.pem</code></td><td class="td-amber"><strong>YES</strong></td><td>CA private key &mdash; NEVER leaves the cert generation machine</td></tr>
+            <tr><td><code>cert.pem</code></td><td>No (public)</td><td>Server certificate &mdash; presented by RabbitMQ during TLS handshake</td></tr>
+            <tr><td><code>server-key.pem</code></td><td class="td-amber"><strong>YES</strong></td><td>Server private key &mdash; stored in K8s Secret, mounted by RabbitMQ only</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 9.4 SECRETS -->
+    <section class="section" id="secrets">
+      <div class="section-header">
+        <span class="section-num">9.4</span>
+        <h2>Secrets Management &mdash; ExternalSecret with ArgoCD PreSync</h2>
+      </div>
+      <p>RabbitMQ admin credentials flow through the same <strong>AWS Secrets Manager &rarr; ExternalSecret &rarr; K8s Secret</strong> chain, but with a critical ArgoCD sync wave ordering.</p>
+
+      <pre><code># From templates/rabbitmq-admin-externalsecret.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: confirmation-rabbitmq-admin-secret-ci
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"  # MUST exist before RabbitmqCluster CR
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: a207804-cn-aws
+    kind: SecretStore
+  target:
+    name: confirmation-rabbitmq-admin-secret-ci
+    template:
+      data:
+        username: "{{ .username }}"
+        password: "{{ .password }}"
+        host: "{{ .host }}"
+        port: "5671"
+        connection_string: "{{ .connection_string }}"
+        default_user.conf: |
+          default_user = {{ .username }}
+          default_pass = {{ .password }}
+  data:
+    - secretKey: username
+      remoteRef:
+        key: a207804-ue1-op-rabbitmq-admin-ci-sm
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: a207804-ue1-op-rabbitmq-admin-ci-sm
+        property: rabbitmq-password</code></pre>
+
+      <h3>Why Sync Wave -1?</h3>
+      <blockquote>
+        "The RabbitmqCluster CR references the admin secret via <code>spec.secretBackend.externalSecret.name</code>. If the secret doesn't exist when the operator tries to create the cluster, it fails. By setting <code>sync-wave: -1</code>, ArgoCD creates the ExternalSecret (which syncs from AWS Secrets Manager and creates the K8s Secret) before applying the RabbitmqCluster CR at wave 0. This is the same pattern we use for all K8s resources &mdash; secrets first, consumers second."
+      </blockquote>
+    </section>
+
+    <!-- 9.5 POLICIES -->
+    <section class="section" id="policies">
+      <div class="section-header">
+        <span class="section-num">9.5</span>
+        <h2>Queue Policies &mdash; HA Mirroring &amp; Error Queue TTL</h2>
+      </div>
+      <p>We manage RabbitMQ policies as Kubernetes CRDs through the <strong>Messaging Topology Operator</strong>.</p>
+
+      <h3>Policy 1: Classic Queue HA Mirroring</h3>
+      <pre><code>apiVersion: rabbitmq.com/v1beta1
+kind: Policy
+metadata:
+  name: classic-queue-mirroring
+spec:
+  name: "DEFAULT-CLASSIC-QUEUES-POLICY-CLUSTER"
+  pattern: ".*"          # Matches ALL queues
+  applyTo: "classic_queues"
+  definition:
+    ha-mode: "all"       # Mirror to ALL nodes (3 copies)
+    ha-sync-mode: "automatic"  # Auto-sync new mirrors
+    max-length: 9000000  # 9 million messages max
+    overflow: "reject-publish"  # Back-pressure: reject new messages at limit
+    queue-mode: "lazy"   # Write to disk first, not memory
+  priority: 1</code></pre>
+
+      <h3>Interview Answer &mdash; "Explain ha-mode: all vs exactly"</h3>
+      <blockquote>
+        "With <code>ha-mode: all</code>, every queue is mirrored to all 3 nodes. If any node goes down, the queue is still available on the other 2. With <code>ha-mode: exactly</code> and <code>ha-params: 2</code>, you get one primary + one mirror &mdash; uses less memory but tolerates only 1 node failure. We chose <code>all</code> because we have only 3 nodes and need maximum HA. The trade-off is 3x the memory/disk for every message, but with lazy mode (<code>queue-mode: lazy</code>), messages go to disk first, so memory pressure is manageable."
+      </blockquote>
+
+      <h3>Why <code>overflow: reject-publish</code>?</h3>
+      <blockquote>
+        "When a queue hits 9 million messages (our max-length), RabbitMQ has two choices: drop the oldest message (<code>drop-head</code>) or reject the publisher (<code>reject-publish</code>). We chose reject-publish because it applies back-pressure &mdash; the producer gets a nack and can retry later. With drop-head, you silently lose messages. For audit confirmations, losing messages is unacceptable."
+      </blockquote>
+
+      <h3>Policy 2: Error Queue TTL</h3>
+      <pre><code>apiVersion: rabbitmq.com/v1beta1
+kind: Policy
+metadata:
+  name: error-queue-ttl
+spec:
+  name: "ERROR-QUEUE-TTL-POLICY"
+  pattern: ".*_error$"   # Matches queues ending with _error
+  applyTo: "queues"
+  definition:
+    message-ttl: 604800000  # 7 days in milliseconds
+    max-length: 10000       # Keep last 10,000 error messages
+    overflow: "drop-head"   # Drop oldest errors when full
+  priority: 2              # Higher priority than default policy</code></pre>
+
+      <h3>Why 7-Day TTL on Error Queues?</h3>
+      <blockquote>
+        "MassTransit moves failed messages to <code>{queue}_error</code> queues after exhausting retries. Without a TTL, these queues grow forever and consume disk. 7 days gives the team enough time to investigate failures, but we don't keep them indefinitely. If a bug causes thousands of failures, the 10,000 max-length prevents disk exhaustion, and drop-head keeps the most recent errors (which are more useful for debugging than the oldest ones)."
+      </blockquote>
+
+      <h3>Why Policies Disabled in Production?</h3>
+      <warn class="warn-box">
+        <strong>Production caveat:</strong> We hit an issue with the RabbitMQ operator's webhook validation in production &mdash; the topology operator's admission webhook was rejecting Policy CRDs due to a version compatibility issue with the r6 operator release. Rather than risk a production incident debugging operator webhooks, we applied equivalent policies directly via <code>rabbitmqctl</code> as a temporary fix and disabled the CRD-based policies in the Helm values.
+      </warn>
+    </section>
+
+    <!-- 9.6 ARGOCD -->
+    <section class="section" id="argocd">
+      <div class="section-header">
+        <span class="section-num">9.6</span>
+        <h2>ArgoCD Integration &mdash; Avoiding Sync Loops</h2>
+      </div>
+      <p>RabbitMQ has a unique ArgoCD challenge: the operator injects fields into the <code>RabbitmqCluster</code> spec that don't exist in our Helm template. Without handling this, ArgoCD sees a constant "drift" and re-syncs endlessly.</p>
+
+      <pre><code># From argocd/applications/non-prod/templates/rabbitmq-cluster-applicationset.yaml
+spec:
+  ignoreDifferences:
+    - group: rabbitmq.com
+      kind: RabbitmqCluster
+      jqPathExpressions:
+        - .spec.delayStartSeconds
+        - .spec.terminationGracePeriodSeconds
+        - .spec.service
+        - .spec.secretBackend</code></pre>
+
+      <h3>Interview Answer &mdash; "How do you handle operator-injected fields with ArgoCD?"</h3>
+      <blockquote>
+        "This is a common GitOps challenge with operators. The RabbitMQ operator adds fields like <code>delayStartSeconds</code> and <code>terminationGracePeriodSeconds</code> to the live spec that don't exist in our Helm template. ArgoCD compares desired state (from git) vs live state (from cluster) and sees these extra fields as drift &mdash; triggering an infinite sync loop.<br><br>The fix is <code>ignoreDifferences</code> with jqPathExpressions. We tell ArgoCD to ignore specific operator-injected paths during comparison. This preserves the GitOps principle (git is source of truth for OUR config) while acknowledging that the operator legitimately manages some fields at runtime."
+      </blockquote>
+    </section>
+
+    <!-- 9.7 DATADOG -->
+    <section class="section" id="datadog">
+      <div class="section-header">
+        <span class="section-num">9.7</span>
+        <h2>Datadog Monitoring for RabbitMQ</h2>
+      </div>
+      <p>Every RabbitMQ pod is auto-instrumented with <strong>Datadog OpenMetrics</strong>:</p>
+
+      <pre><code># Injected via statefulSet override in the RabbitmqCluster CRD
+annotations:
+  ad.datadoghq.com/rabbitmq.check_names: '["openmetrics"]'
+  ad.datadoghq.com/rabbitmq.instances: |
+    [{
+      "openmetrics_endpoint": "http://%%host%%:15692/metrics",
+      "namespace": "rabbitmq",
+      "metrics": [".*"],
+      "tags": ["cluster:confirmation-rabbitmq-ci", "env:ci"]
+    }]</code></pre>
+
+      <h3>Key Metrics We Monitor</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Metric</th><th>What It Tells Us</th><th>Alert Threshold</th></tr></thead>
+          <tbody>
+            <tr><td><code>rabbitmq_queue_messages_ready</code></td><td>Messages waiting for consumers</td><td>> 10,000 sustained</td></tr>
+            <tr><td><code>rabbitmq_queue_consumers</code></td><td>Active consumers per queue</td><td class="td-amber">= 0 (critical &mdash; no one processing)</td></tr>
+            <tr><td><code>rabbitmq_connections</code></td><td>Total client connections</td><td>> 500 (connection leak)</td></tr>
+            <tr><td><code>rabbitmq_channel_messages_unacked</code></td><td>Messages delivered but not acked</td><td>> 1,000 (consumer stuck)</td></tr>
+            <tr><td><code>rabbitmq_node_disk_free</code></td><td>Available disk</td><td class="td-amber">&lt; 2GB (broker blocks publishers)</td></tr>
+            <tr><td><code>rabbitmq_node_mem_used</code></td><td>Memory consumption</td><td>> 80% of 2.8GB limit</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 9.8 INCIDENTS -->
+    <section class="section" id="incidents">
+      <div class="section-header">
+        <span class="section-num">9.8</span>
+        <h2>Real Incidents &mdash; This Is What Interviewers Want</h2>
+      </div>
+
+      <!-- INC-001 -->
+      <div class="incident-card">
+        <h4>INC-001: record-gql-be CrashLoopBackOff &mdash; MassTransit Consumer Missing</h4>
+        <div class="incident-meta">Feb 12, 2026 &nbsp;|&nbsp; Env: QA &nbsp;|&nbsp; Duration: ~24 hours</div>
+
+        <blockquote>
+          <strong>Situation:</strong> "We got an alert that <code>record-gql-be</code> was in CrashLoopBackOff in QA. The pod kept restarting with exit code 139 &mdash; which normally means segmentation fault."<br><br>
+          <strong>Task:</strong> "I needed to find the root cause and restore the service."<br><br>
+          <strong>Action:</strong> "First, I checked <code>kubectl logs --previous</code> to see the crash reason. The logs showed <code>MassTransit.RequestTimeoutException</code> at <code>FormService.cs:40</code>. The service was calling <code>FormService.InitializeFormNames()</code> synchronously in its DI constructor using <code>Task.Wait()</code>, expecting a 30-second response from the <code>get-form-types-by-product</code> RabbitMQ queue.<br><br>
+          So I checked the queue consumers: <code>rabbitmqctl list_queues name consumers | grep get-form-types</code>. The result was <code>get-form-types-by-product 0</code> &mdash; <strong>zero consumers</strong>. That queue is supposed to be served by <code>forms-be</code>, which was running fine (pods healthy, no restarts). But <code>forms-be</code> had silently stopped registering its MassTransit consumer after a recent deployment.<br><br>
+          The exit code 139 was misleading &mdash; it's actually the Datadog CLR profiler catching an unhandled .NET exception and terminating the process with SIGSEGV. The real exception was a <code>RequestTimeoutException</code> because no consumer existed for the queue."<br><br>
+          <strong>Result:</strong> "I restarted <code>forms-be</code> pods, which re-registered the MassTransit consumer. <code>record-gql-be</code> immediately started successfully. Total impact: ~24 hours of degraded record service in QA."
+        </blockquote>
+        <div class="warn-box"><strong>Key takeaway:</strong> Always check consumer counts first for MassTransit timeout errors. Exit code 139 in .NET with Datadog profiler is misleading &mdash; read the actual exception. And blocking async calls (<code>Task.Wait()</code>) in DI constructors is fragile.</div>
+      </div>
+
+      <!-- CHG0130049 -->
+      <div class="incident-card">
+        <h4>Incident Pattern: CHG0130049 &mdash; Proxy Change Cascade (5 Incidents)</h4>
+        <div class="incident-meta">Feb 27&ndash;Mar 2, 2026 &nbsp;|&nbsp; Env: CI, Demo, QA &nbsp;|&nbsp; 5 separate incidents</div>
+
+        <blockquote>
+          <strong>Background:</strong> "Our network team pushed CHG0130049 &mdash; a change that routed all outbound traffic through a Local Gateway (LGW) instead of direct NAT. This required every service to use a corporate proxy (<code>webproxy.df1.corp.services:80</code>) and set <code>NO_PROXY</code> for internal traffic. The Helm-managed services were updated, but several edge cases broke."
+        </blockquote>
+
+        <p><strong>INC-004: reports-dwh-be &mdash; Missing NO_PROXY hostname</strong></p>
+        <blockquote>
+          "Report generation was timing out (53-57 seconds &rarr; 499 client disconnect). The root cause: <code>reports-dwh-be</code> needed to call CG report service hostnames (<code>iqa5reportservice.confirmation.com</code> for CI, <code>iqa2reportservice.confirmation.com</code> for Demo). These were private/internal services but their hostnames weren't in NO_PROXY, so .NET HttpClient routed them through the corporate proxy, which couldn't reach them. Fix: add the hostnames to NO_PROXY in the Helm values."
+        </blockquote>
+
+        <p><strong>INC-005 + INC-008: Selenium Grid &mdash; Proxy missing on manually-managed pods</strong></p>
+        <blockquote>
+          "The Selenium Grid is manually deployed (not via Helm/ArgoCD). When the proxy rollout happened, only Helm-managed services got the new env vars. Selenium hub, chrome, firefox, and edge node deployments had no HTTPS_PROXY/NO_PROXY. Grid showed 18/18 nodes UP, but browser sessions couldn't load any URLs &mdash; <code>ERR_CONNECTION_RESET</code> because Chrome inherits proxy settings from container env vars.<br><br>
+          Fix: <code>kubectl set env deployment/selenium-chrome-node HTTPS_PROXY=http://webproxy.df1.corp.services:80 NO_PROXY=169.254.169.254,localhost,.cluster.local,.svc.cluster.local</code>. Had to apply to all 4 deployments. Then in INC-008, a week later, the same thing happened because a deployment rollout reset the env vars &mdash; <code>kubectl set env</code> patches the deployment spec but if someone recreates the deployment, the patch is lost."
+        </blockquote>
+
+        <p><strong>INC-007: file-service-be &mdash; FTPS connection refused</strong></p>
+        <blockquote>
+          "FTPS connection to <code>10.131.38.172:21</code> broke. Two-layer problem: (1) the egress IP changed, so the FTPS server's firewall rejected the new source. (2) With HTTPS_PROXY set, .NET routes via corporate proxy, but <code>webproxy.df1.corp.services</code> blocks CONNECT tunnels to private IP ranges (10.x.x.x) &mdash; returns 503. This is still OPEN pending a network ticket."
+        </blockquote>
+
+        <div class="warn-box"><strong>Key Lesson:</strong> CHG0130049 taught me that infrastructure changes cascade unpredictably. Five separate services broke for five different reasons &mdash; missing NO_PROXY entries, manually-managed pods, proxy blocking private IPs, transient job failures. My approach now: when a network change rolls out, I proactively check every service category &mdash; Helm-managed, operator-managed, manually-managed, CronJobs &mdash; not just the happy path.</div>
+      </div>
+
+      <!-- INC-002 -->
+      <div class="incident-card">
+        <h4>INC-002: responder-queue-fe &mdash; Blank Page (CloudFront + WAF)</h4>
+        <div class="incident-meta">Feb 20, 2026 &nbsp;|&nbsp; Env: QED (Production-like)</div>
+        <blockquote>
+          "The responder-queue frontend (CloudFront &rarr; S3 static site) was showing a blank page. Two stacked issues:<br><br>
+          1. <strong>Deleted OAI:</strong> CloudFront was referencing a deleted Origin Access Identity (<code>E2M4C1ROW3XEWL</code>). All S3 requests returned 403. CloudFront's custom error response (403 &rarr; serve <code>index.html</code> with 200 status) masked the real error &mdash; it looked like the app loaded but had no content.<br><br>
+          2. <strong>Stale WAF IP set:</strong> The nested CloudFront had a WAF with <code>DefaultAction: Block</code> and an IP allowlist of 125 CIDRs. AWS had published 199 CIDRs. CloudFront edge IPs not in the allowlist were silently blocked.<br><br>
+          Fix: switched to a valid OAI, updated S3 bucket policy, and ITOPS disabled WAF on the nested CloudFront (the umbrella already protects)."
+        </blockquote>
+        <div class="warn-box"><strong>Key lesson:</strong> CHECK WAF EARLY when <code>x-cache: Error from cloudfront</code> appears. Custom error responses (403 &rarr; 200) make debugging nearly impossible because the HTTP status looks fine.</div>
+      </div>
+
+      <!-- INC-003 -->
+      <div class="incident-card">
+        <h4>INC-003: Webcomp FE &mdash; Angular outputPath Mismatch</h4>
+        <div class="incident-meta">Feb 22-24, 2026 &nbsp;|&nbsp; Env: CI, Demo &nbsp;|&nbsp; 4 services affected</div>
+        <blockquote>
+          "Four web component frontends (<code>webcomp-av-stats-fe</code>, <code>responder-queue-fe</code>, <code>responder-view-fe</code>) showed blank pages after migrating from CodePipeline to ArgoCD. The CI pipeline was producing 495-byte zip artifacts instead of full builds.<br><br>
+          Root cause: Angular's <code>angular.json</code> had <code>outputPath: dist/aafm-confirmation-webcomp-av-confirmation-stats</code> but the CI workflow used <code>ServiceName: aafm-confirmation-webcomp-av-stats-fe</code>. The workflow zips <code>dist/{ServiceName}/</code> &mdash; which doesn't exist because Angular built to a differently-named directory. Result: zip contains only <code>version.txt</code>, no app files.<br><br>
+          The sneaky part: QA still worked because it had old CodePipeline-deployed content in S3. Only CI and Demo (freshly deployed via ArgoCD) were affected.<br><br>
+          Fix: aligned Angular <code>outputPath</code> in 3 repos, fixed <code>package.json</code> and Dockerfile COPY paths."
+        </blockquote>
+        <div class="info-box"><strong>Key diagnostic:</strong> Always check zip artifact size &mdash; 495 bytes signals missing build output.</div>
+      </div>
+
+      <!-- INC-009 -->
+      <div class="incident-card">
+        <h4>INC-009: CSTools FE &mdash; WAF Blocking Proxy IP</h4>
+        <div class="incident-meta">Mar 2, 2026 &nbsp;|&nbsp; Env: CI, Demo</div>
+        <blockquote>
+          "CSTools frontend loaded fine from developer laptops but showed MIME type errors in Selenium sessions. JS files returned <code>content-type: text/html</code> instead of <code>text/javascript</code>. QA worked perfectly.<br><br>
+          The difference: Selenium browsers go through corporate proxy (<code>155.46.138.248</code>). CI/Demo WAF only allowlisted Zscaler IPs, not corporate proxy IPs. QA's WAF had the <code>tr-webcorp</code> IP set which included <code>155.46.128.0/17</code>.<br><br>
+          When WAF blocked the request, CloudFront returned 403 &rarr; custom error response served <code>index.html</code> &rarr; browser received HTML where it expected JavaScript &rarr; MIME type error.<br><br>
+          Fix: Added <code>155.46.128.0/17</code> to the CI/Demo WAF IP set. Took effect in 30 seconds."
+        </blockquote>
+        <div class="info-box"><strong>Diagnostic command:</strong> <code>curl -sI --proxy http://webproxy.df1.corp.services:80 'https://ci.cstools.confirmation.com/main.js' | grep content-type</code></div>
+      </div>
+    </section>
+
+    <!-- 9.9 TRUST CHAIN -->
+    <section class="section" id="trust-chain">
+      <div class="section-header">
+        <span class="section-num">9.9</span>
+        <h2>RabbitMQ Certificate Trust Chain &mdash; Deep Dive</h2>
+      </div>
+      <p>This came from a WAF onboarding meeting with the network team (Aug 2025). The full trust chain for our platform has <strong>three certificate types</strong>:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>Who Issues It</th><th>Who Trusts It</th><th>Our Usage</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Public CA</strong> (Sectigo)</td><td>Sectigo Root X1 &rarr; Intermediate &rarr; Leaf</td><td>All browsers, OS trust stores</td><td>F5 BigIP &rarr; Istio IngressGateway (HTTPS)</td></tr>
+            <tr><td><strong>Self-Signed</strong></td><td>We generate our own CA</td><td>Only pods with our <code>ca.crt</code> mounted</td><td>RabbitMQ TLS (AMQP 5671)</td></tr>
+            <tr><td><strong>Private CA</strong> (Istio)</td><td>Istiod runs its own PKI</td><td>Only pods in the mesh</td><td>Pod-to-pod mTLS (SPIFFE identities)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Interview Answer &mdash; "Why three different certificate types?"</h3>
+      <blockquote>
+        "Each serves a different trust boundary:<br><br>
+        1. <strong>Public CA</strong> (Sectigo) for internet-facing traffic &mdash; browsers already trust it, no client configuration needed. F5 BigIP terminates this TLS.<br><br>
+        2. <strong>Self-signed</strong> for RabbitMQ &mdash; we control both sides (RabbitMQ server and .NET clients), so we don't need public trust. Self-signed avoids certificate cost and renewal complexity from external CAs. We just need to distribute our <code>ca.crt</code> to the client pods.<br><br>
+        3. <strong>Istio's private CA</strong> for pod-to-pod &mdash; Istiod auto-provisions SPIFFE certificates (<code>spiffe://cluster.local/ns/{namespace}/sa/{service-account}</code>) with 24-hour rotation. No human involvement, no certificate files to manage.<br><br>
+        The key principle: use the simplest trust model that meets the security requirement. Public CA for external, self-signed for internal infrastructure, and automated PKI for service mesh."
+      </blockquote>
+    </section>
+
+    <!-- 9.10 .NET CONNECTIONS -->
+    <section class="section" id="dotnet-connect">
+      <div class="section-header">
+        <span class="section-num">9.10</span>
+        <h2>How .NET Services Connect to RabbitMQ</h2>
+      </div>
+      <p>Each .NET service gets RabbitMQ connection details through an <strong>ExternalSecret</strong>:</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Secrets Flow: AWS &rarr; ExternalSecret &rarr; K8s Secret &rarr; Pod</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('mermaid-secrets',1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('mermaid-secrets',0.8)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('mermaid-secrets')">R</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="mermaid-secrets">
+            <pre class="mermaid">
+flowchart LR
+  SM["AWS Secrets Manager\na207804-ue1-op-forms-be-ci-app-sm\n(host, password, username, port)"]
+  ES["ExternalSecret\nforms-be-ci-rabbitmq-\nexternalsecret"]
+  KS["K8s Secret\nconfirmation-forms-\nrabbitmq-secrets-ci"]
+  POD["forms-be Pod\nEnv Vars:\nRABBITMQ_HOST\nRABBITMQ_PORT\nRABBITMQ_USERNAME\nRABBITMQ_PASSWORD"]
+  SM -->|sync| ES -->|creates| KS -->|mounted as env vars| POD
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      <h3>Three ExternalSecrets Per Service</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ExternalSecret</th><th>Purpose</th><th>Mount Type</th></tr></thead>
+          <tbody>
+            <tr><td>App config (<code>-rolloutexternalsecret</code>)</td><td>Application secrets (JSON file)</td><td>Volume at <code>/app/Secrets</code></td></tr>
+            <tr><td>RabbitMQ (<code>-rabbitmq-externalsecret</code>)</td><td>RabbitMQ credentials (extracted)</td><td>Environment variables</td></tr>
+            <tr><td>Liquibase (<code>-migration-job-secrets</code>)</td><td>Database migration credentials</td><td>Job env vars (PreSync)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 9.11 PEER DISCOVERY -->
+    <section class="section" id="peer-discovery">
+      <div class="section-header">
+        <span class="section-num">9.11</span>
+        <h2>Peer Discovery &amp; Erlang Clustering</h2>
+      </div>
+      <p>RabbitMQ nodes find each other using <strong>Kubernetes-based peer discovery</strong>:</p>
+
+      <pre><code># From rabbitmq.conf
+cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
+cluster_formation.k8s.host = kubernetes.default
+cluster_formation.k8s.address_type = hostname</code></pre>
+
+      <h3>How It Works</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div><span class="step-title">Node 0 starts</span><br><span class="step-desc">Queries K8s API for pods matching the StatefulSet label</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div><span class="step-title">Node 0 becomes seed</span><br><span class="step-desc">Finds only itself &mdash; becomes the cluster seed</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div><span class="step-title">Node 1 starts</span><br><span class="step-desc">Queries K8s API, discovers Node 0</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div><span class="step-title">Node 1 joins cluster</span><br><span class="step-desc">Joins Node 0's cluster via Erlang distribution protocol (port 25672)</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div><span class="step-title">Node 2 repeats</span><br><span class="step-desc">Joins the existing 2-node cluster</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div><span class="step-title">Erlang cookie</span><br><span class="step-desc">Shared secret authenticates inter-node communication</span></div>
+        </div>
+      </div>
+
+      <h3>Why <code>address_type: hostname</code>?</h3>
+      <blockquote>
+        "StatefulSet pods have stable hostnames (<code>confirmation-rabbitmq-ci-server-0</code>). Using hostname instead of IP means the Erlang cookie and cluster membership survives pod restarts &mdash; the new pod gets the same hostname and rejoins seamlessly. With IP-based discovery, a restarted pod gets a new IP and RabbitMQ treats it as a different node."
+      </blockquote>
+    </section>
+
+    <!-- 9.12 SCENARIO QUESTIONS -->
+    <section class="section" id="scenarios">
+      <div class="section-header">
+        <span class="section-num">9.12</span>
+        <h2>Interview Scenario Questions</h2>
+      </div>
+
+      <h3>Q: "A queue has 500,000 messages backed up. What do you do?"</h3>
+      <blockquote>
+        "First, I check WHY messages are accumulating:<br><br>
+        1. <strong>Check consumer count:</strong> <code>rabbitmqctl list_queues name consumers messages | grep {queue}</code> &mdash; if consumers = 0, the consuming service is down or not registered<br>
+        2. <strong>Check consumer acknowledgment:</strong> If consumers > 0 but messages growing, consumers are too slow or stuck. Check <code>messages_unacked</code> &mdash; high means consumers received but haven't acked<br>
+        3. <strong>Check if it's an error queue:</strong> <code>_error</code> queues accumulate by design &mdash; MassTransit puts failed messages there<br><br>
+        Immediate fixes depending on root cause:<br>
+        &bull; Consumers = 0: restart the consuming service, verify MassTransit registration<br>
+        &bull; Consumers slow: scale up the consuming service (increase HPA replicas), check for downstream bottlenecks (database locks, external API timeouts)<br>
+        &bull; Burst: if it's a temporary import batch, wait &mdash; lazy mode means messages are on disk, not consuming memory<br><br>
+        Our <code>overflow: reject-publish</code> policy kicks in at 9 million messages &mdash; publishers get back-pressure. Below that, RabbitMQ handles the queue fine with lazy mode."
+      </blockquote>
+
+      <h3>Q: "How would you handle a RabbitMQ node failure in production?"</h3>
+      <blockquote>
+        "With 3-node cluster and <code>ha-mode: all</code>:<br><br>
+        1. <strong>Detection:</strong> Datadog alerts on <code>rabbitmq_node_disk_free &lt; 2GB</code> or pod not ready<br>
+        2. <strong>Immediate impact:</strong> Queues mirrored to all 3 nodes &mdash; losing 1 node means queues are still available on the other 2. No message loss.<br>
+        3. <strong>Recovery:</strong> The operator detects the failed pod, StatefulSet controller creates a new one with the same hostname. The new node auto-joins the cluster via K8s peer discovery.<br>
+        4. <strong>Mirror sync:</strong> <code>ha-sync-mode: automatic</code> means the new node automatically syncs all queue data from existing mirrors<br>
+        5. <strong>Verify:</strong> <code>rabbitmqctl cluster_status</code> shows 3 nodes, <code>rabbitmqctl list_queues name mirror_pids</code> shows mirrors on all nodes<br><br>
+        The only downtime scenario is if 2 out of 3 nodes fail simultaneously &mdash; which is why we use <code>podAntiAffinity</code> to spread nodes across different Kubernetes worker nodes."
+      </blockquote>
+
+      <h3>Q: "How do you rotate RabbitMQ credentials without downtime?"</h3>
+      <blockquote>
+        "Step by step:<br>
+        1. Update the password in AWS Secrets Manager (<code>a207804-ue1-op-rabbitmq-admin-ci-sm</code>)<br>
+        2. ExternalSecret refreshes every 1 hour &mdash; or trigger manual refresh: <code>kubectl annotate externalsecret confirmation-rabbitmq-admin-secret-ci force-sync=$(date +%s) --overwrite</code><br>
+        3. The K8s Secret updates, but running pods still have the OLD credentials in memory<br>
+        4. Restart RabbitMQ pods with a rolling restart &mdash; operator handles this gracefully one node at a time<br>
+        5. Restart consuming services &mdash; they'll pick up new credentials on startup<br><br>
+        The key is ordering: update the secret source first, then restart the broker, then restart consumers. If you restart consumers before the broker has the new credentials, they'll get connection refused."
+      </blockquote>
+
+      <h3>Q: "Explain the difference between classic queues, quorum queues, and streams"</h3>
+      <blockquote>
+        "Classic queues are the original RabbitMQ queue type &mdash; simple, fast, support all features (priorities, TTL, dead-lettering). We use them with <code>ha-mode: all</code> for mirroring. The downside: mirroring is eventually consistent &mdash; during network partitions, you can get split-brain.<br><br>
+        Quorum queues (introduced in 3.8) use Raft consensus &mdash; every message requires majority acknowledgment before it's considered committed. This means no split-brain, no message loss, but higher latency per message. They don't support all classic queue features (no priorities, no global QoS).<br><br>
+        Streams (introduced in 3.9) are an append-only log &mdash; like Kafka's topics. Consumers can read from any offset, replay messages, and multiple consumers read independently. Great for event sourcing and replay scenarios.<br><br>
+        We use classic queues because our .NET services with MassTransit are built around the classic queue model, and the HA mirroring is sufficient for our availability needs. If we were starting fresh, quorum queues would be the default choice for better consistency guarantees."
+      </blockquote>
+
+      <h3>Q: "A developer says 'messages are being lost'. How do you investigate?"</h3>
+      <blockquote>
+        "Message loss in RabbitMQ is almost always a configuration issue, not a broker bug. My investigation:<br><br>
+        1. <strong>Publisher confirms:</strong> Is the publisher using publisher confirms? Without them, the producer fires-and-forgets &mdash; if RabbitMQ doesn't accept the message (full queue, unroutable), the producer never knows<br>
+        2. <strong>Mandatory flag:</strong> Without mandatory=true, messages sent to an exchange with no matching binding are silently dropped<br>
+        3. <strong>Consumer ack mode:</strong> If using auto-ack, RabbitMQ removes the message the instant it's delivered &mdash; if the consumer crashes mid-processing, the message is gone<br>
+        4. <strong>TTL policy:</strong> Check if a message-ttl policy is expiring messages before consumers can process them<br>
+        5. <strong>Max-length:</strong> Our policy has max-length 9M with <code>overflow: reject-publish</code> &mdash; but if someone changed it to <code>drop-head</code>, older messages are silently dropped<br>
+        6. <strong>Error queues:</strong> Check <code>_error</code> queues &mdash; MassTransit might be moving 'lost' messages there after retry failures<br><br>
+        In 90% of cases, 'lost messages' turn out to be messages sitting in an error queue, or consumer auto-ack dropping them on crash."
+      </blockquote>
+    </section>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <a href="08-postgresql-ha.html">&larr; 08: PostgreSQL HA</a>
+  <span class="bottom-nav-center">Section 9 of 12</span>
+  <a href="10-fastapi.html">10: FastAPI &rarr;</a>
+</nav>
+
+<script>
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#141f35',
+      primaryTextColor: '#dce8f5',
+      primaryBorderColor: '#22c55e',
+      lineColor: '#7a9ab5',
+      secondaryColor: '#0f1826',
+      tertiaryColor: '#090d1a',
+      background: '#090d1a',
+      mainBkg: '#141f35',
+      nodeBorder: '#1d2d4f',
+      clusterBkg: '#0f1826',
+      titleColor: '#dce8f5',
+      edgeLabelBackground: '#0f1826',
+      fontFamily: 'DM Sans, sans-serif',
+      fontSize: '13px'
+    }
+  });
+
+  // Zoom controls
+  const scales = {};
+  function zoom(id, factor) {
+    scales[id] = (scales[id] || 1) * factor;
+    document.getElementById(id).style.transform = `scale(${scales[id]})`;
+  }
+  function reset(id) {
+    scales[id] = 1;
+    document.getElementById(id).style.transform = 'scale(1)';
+  }
+
+  // Theme toggle
+  const toggleBtn = document.getElementById('themeToggle');
+  toggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    toggleBtn.textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+
+  // Active ToC highlighting via IntersectionObserver
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

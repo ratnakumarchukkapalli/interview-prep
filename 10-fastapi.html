@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 10: FastAPI &amp; Python Microservices — Interview Prep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d1a;
+      --surface: #0f1826;
+      --surface2: #141f35;
+      --border: #1d2d4f;
+      --text: #dce8f5;
+      --text-muted: #7a9ab5;
+      --accent: #22c55e;
+      --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8;
+      --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b;
+      --accent3-dim: rgba(245,158,11,0.12);
+      --code-bg: #060a13;
+      --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      --radius: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .hero {
+      background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3rem 2rem 2.5rem;
+    }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .badge-green { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.025em;
+    }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    /* THEME TOGGLE */
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      z-index: 100;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2rem;
+      gap: 2.5rem;
+    }
+
+    /* TOC */
+    .toc { width: 195px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 0.63rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a {
+      display: block;
+      padding: 0.28rem 0.6rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .toc-list a:hover, .toc-list a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    /* MAIN */
+    .main-content { flex: 1; min-width: 0; }
+
+    /* SECTIONS */
+    .section { margin-bottom: 3.5rem; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .section h3 {
+      font-size: 0.93rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin: 1.5rem 0 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-mono);
+    }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    tbody td {
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+    .td-green { color: var(--accent) !important; font-weight: 500; }
+    .td-blue { color: var(--accent2) !important; }
+    .td-amber { color: var(--accent3) !important; }
+    .td-muted { color: var(--text-muted) !important; font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2) !important; }
+
+    /* COMPONENT GRID */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      transition: border-color 0.15s;
+    }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+    .card-ip {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--accent2);
+      background: var(--code-bg);
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+
+    /* CODE BLOCK */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: none;
+      padding: 0;
+    }
+    /* Syntax highlighting */
+    .kw { color: #c084fc; }
+    .fn { color: #38bdf8; }
+    .str { color: #86efac; }
+    .cm { color: #475569; font-style: italic; }
+    .dec { color: #f59e0b; }
+    .op { color: #94a3b8; }
+    .num { color: #fb923c; }
+    .cls { color: #22d3ee; }
+
+    /* DIAGRAM */
+    .diagram-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .diagram-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow: auto; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+
+    /* INFO / WARN BOXES */
+    .info-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .info-box strong { color: var(--accent2); }
+    .warn-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent3);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .warn-box strong { color: var(--accent3); }
+    .success-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .success-box strong { color: var(--accent); }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-top: 0.15rem;
+    }
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    /* BLOCKQUOTE */
+    blockquote {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    blockquote strong { color: var(--text); font-style: normal; }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* NAV FOOTER */
+    .nav-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      gap: 16px;
+    }
+    .nav-footer a {
+      color: var(--accent2);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-footer a:hover {
+      border-color: var(--accent2);
+      background: var(--surface);
+    }
+    .nav-footer .disabled {
+      color: var(--text-muted);
+      opacity: 0.4;
+      pointer-events: none;
+      border-color: var(--border);
+    }
+    .nav-footer .nav-index {
+      color: var(--text-muted);
+      border-color: transparent;
+    }
+    .nav-footer .nav-index:hover {
+      color: var(--accent2);
+      border-color: var(--border);
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      .toc { display: none; }
+      .layout { padding: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
+    }
+
+    /* LIGHT MODE */
+    body.light {
+      --bg: #f2f6fc;
+      --surface: #ffffff;
+      --surface2: #eaeff8;
+      --border: #c8d6e8;
+      --text: #1a2535;
+      --text-muted: #4f6880;
+      --code-bg: #e2eaf5;
+      --code-text: #1d5fa0;
+    }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">FastAPI</span>
+      <span class="badge badge-amber">Python</span>
+    </div>
+    <h1>Section 10: FastAPI &amp; Python Microservices</h1>
+    <p class="hero-sub">service-ops, db-ops, dynamo, harness &mdash; Pydantic, DI, async/await</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Services Covered</span>
+        <span class="hero-meta-value">4 FastAPI + 1 AI Assistant</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Stack</span>
+        <span class="hero-meta-value">FastAPI &middot; Pydantic &middot; uvicorn &middot; ASGI</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Last Updated</span>
+        <span class="hero-meta-value">2026-03-12</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#why-fastapi">Why FastAPI</a></li>
+        <li><a href="#four-services">The 4 Services</a></li>
+        <li><a href="#service-ops">service-ops</a></li>
+        <li><a href="#service-ops" class="toc-sub">Restart Strategy</a></li>
+        <li><a href="#service-ops" class="toc-sub">Deep-Merge Secrets</a></li>
+        <li><a href="#db-ops">db-ops</a></li>
+        <li><a href="#db-ops" class="toc-sub">Cross-Namespace</a></li>
+        <li><a href="#dynamo">dynamo</a></li>
+        <li><a href="#dynamo" class="toc-sub">Drift Detection</a></li>
+        <li><a href="#harness">harness</a></li>
+        <li><a href="#common-patterns">Common Patterns</a></li>
+        <li><a href="#core-concepts">Core Concepts</a></li>
+        <li><a href="#core-concepts" class="toc-sub">Dependency Injection</a></li>
+        <li><a href="#core-concepts" class="toc-sub">Async/Await</a></li>
+        <li><a href="#core-concepts" class="toc-sub">Pydantic Validation</a></li>
+        <li><a href="#security-patterns">Security Patterns</a></li>
+        <li><a href="#testing">Testing Patterns</a></li>
+        <li><a href="#interview-scenarios">Interview Scenarios</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- 10.1 WHY FASTAPI -->
+    <section class="section" id="why-fastapi">
+      <div class="section-header">
+        <span class="section-num">10.1</span>
+        <h2>Why FastAPI &mdash; And Why I Chose It</h2>
+      </div>
+      <p>FastAPI is a modern Python web framework built on <strong>Starlette</strong> (ASGI) and <strong>Pydantic</strong> (validation). I chose it for our DevOps portal backend services because:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Reason</th><th>What It Means</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Async-first</strong></td><td>Non-blocking I/O &mdash; perfect for services that call K8s API, AWS API, Datadog API without blocking</td></tr>
+            <tr><td><strong>Pydantic models</strong></td><td>Request/response validation happens automatically &mdash; invalid input returns 422 with clear error</td></tr>
+            <tr><td><strong>Auto-generated docs</strong></td><td><code>/docs</code> (Swagger UI) and <code>/openapi.json</code> generated from type hints &mdash; zero manual spec writing</td></tr>
+            <tr><td><strong>Dependency injection</strong></td><td>Clean separation of auth, config, and business logic via <code>Depends()</code></td></tr>
+            <tr><td><strong>Performance</strong></td><td>Starlette + uvicorn is one of the fastest Python frameworks (async event loop)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Interview Answer &mdash; "Why FastAPI over Flask or Django?"</h3>
+      <blockquote>
+        "For our DevOps portal services, I needed: (1) async support for calling multiple external APIs concurrently (K8s, AWS, Datadog), (2) strong input validation for security (these services handle secrets and cluster operations), and (3) auto-generated OpenAPI specs for the React frontend team. Flask is synchronous by default and doesn't have built-in validation. Django is great for full-stack apps but overkill for microservices. FastAPI gives us all three with minimal boilerplate &mdash; a typical endpoint is 10 lines of code including validation."
+      </blockquote>
+    </section>
+
+    <!-- 10.2 THE 4 FASTAPI SERVICES -->
+    <section class="section" id="four-services">
+      <div class="section-header">
+        <span class="section-num">10.2</span>
+        <h2>The 4 FastAPI Services I Built/Maintain</h2>
+      </div>
+      <p>I built <strong>service-ops</strong> and <strong>k8s-ops-assistant</strong> from scratch, and I maintain <strong>db-ops</strong> and contribute to <strong>dynamo</strong> and <strong>harness</strong>.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">DevOps Portal &mdash; Backend Services</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d1')" title="Reset zoom">&#x21ba;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    PORTAL["DevOps Portal\nReact 18\nci-outpost.api.tr.confirmation.com"]
+    SO["service-ops\nPod restart, secrets, status\nFastAPI + K8s API + AWS SM"]
+    DB["db-ops\nCross-NS DB diagnostics\nFastAPI + asyncpg"]
+    DY["dynamo\nDeployment catalog\nFastAPI + DynamoDB"]
+    HA["harness\nFeature flags\nFastAPI + Split.io API"]
+    KA["k8s-ops-assistant\nAI K8s/DD assistant\nFastAPI + Claude + OTEL"]
+
+    PORTAL -->|"JWT RS256"| SO
+    PORTAL -->|"API Key"| DB
+    PORTAL -->|"API Key"| DY
+    PORTAL -->|"API Key"| HA
+    PORTAL -->|"JWT RS256"| KA
+
+    SO --> K8S["K8s API"]
+    SO --> AWS["AWS Secrets Manager"]
+    DB --> PG["PostgreSQL\n(cross-namespace)"]
+    DY --> DYNDB["DynamoDB"]
+    HA --> SPLIT["Split.io API"]
+    KA --> CLAUDE["Claude (Anthropic)"]
+    KA --> DD["Datadog API"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">Built from scratch</div>
+          <div class="card-title">service-ops</div>
+          <div class="card-desc">Pod restart via Argo Rollout annotations, secrets deep-merge with DynamoDB audit trail, pod status queries</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">Maintain</div>
+          <div class="card-title">db-ops</div>
+          <div class="card-desc">Cross-namespace PostgreSQL diagnostics &mdash; queries, locks, connections, table sizes, S3 backup URLs</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">Contribute</div>
+          <div class="card-title">dynamo</div>
+          <div class="card-desc">Deployment catalog for 46+ services across 8 environments, drift detection, deployment statistics</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">Contribute</div>
+          <div class="card-title">harness</div>
+          <div class="card-desc">Split.io feature flag management &mdash; workspaces, treatments per environment, cached API proxy</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">Built from scratch</div>
+          <div class="card-title">k8s-ops-assistant</div>
+          <div class="card-desc">AI-powered K8s/Datadog operations assistant &mdash; Claude + agentic tool loop + OpenTelemetry</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10.3 SERVICE-OPS -->
+    <section class="section" id="service-ops">
+      <div class="section-header">
+        <span class="section-num">10.3</span>
+        <h2>service-ops &mdash; Pod Restart, Secrets, K8s Status</h2>
+      </div>
+
+      <h3>The Problem It Solves</h3>
+      <blockquote>
+        "Before service-ops, restarting a service in QA meant: find someone with kubectl access, construct the correct rollout name, run <code>kubectl argo rollouts restart</code>. For secrets, you needed AWS console access to Secrets Manager, find the right secret by name convention, edit JSON, and hope you didn't break the format. This was slow, error-prone, and only a few people had access."
+      </blockquote>
+
+      <h3>Architecture</h3>
+      <div class="info-box">
+        <strong>Request flow:</strong> React Portal &rarr; JWT Auth (RS256) &rarr; FastAPI &rarr; K8s API / AWS Secrets Manager / DynamoDB
+      </div>
+
+      <h3>All Endpoints</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Method</th><th>Purpose</th><th>Rate Limit</th></tr></thead>
+          <tbody>
+            <tr><td><code>/portal/v1/infrastructure/services/{name}/restart</code></td><td class="td-amber">POST</td><td>Restart via Argo Rollout annotation</td><td>10/min</td></tr>
+            <tr><td><code>/portal/v1/infrastructure/secrets/{name}</code></td><td class="td-amber">PATCH</td><td>Deep-merge secret update + DynamoDB backup</td><td>5/min</td></tr>
+            <tr><td><code>/api/v1/services/{name}/status</code></td><td class="td-green">GET</td><td>Pod status (name, ready, restart count, age, node)</td><td>30/min</td></tr>
+            <tr><td><code>/api/v1/services/{name}/uptime</code></td><td class="td-green">GET</td><td>Pod uptime details</td><td>30/min</td></tr>
+            <tr><td><code>/api/v1/restart/environments</code></td><td class="td-green">GET</td><td>Available environments (ci, demo, qa)</td><td>30/min</td></tr>
+            <tr><td><code>/api/v1/aafm/restart</code></td><td class="td-amber">POST</td><td>Legacy AAFM restart via AWS Lambda proxy</td><td>10/min</td></tr>
+            <tr><td><code>/health</code></td><td class="td-green">GET</td><td>Health + K8s connectivity status</td><td>&mdash;</td></tr>
+            <tr><td><code>/metrics</code></td><td class="td-green">GET</td><td>Prometheus metrics</td><td>&mdash;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Key Implementation: Restart Strategy</h3>
+      <pre><code><span class="cm"># We DON'T delete pods. We patch the Argo Rollout with a restart annotation.</span>
+<span class="cm"># The rollout controller does a zero-downtime rolling update.</span>
+
+<span class="kw">from</span> kubernetes <span class="kw">import</span> client
+
+<span class="kw">def</span> <span class="fn">restart_service</span>(service_name: <span class="cls">str</span>, environment: <span class="cls">str</span>):
+    namespace = <span class="str">f"207804-confirmation-{environment}"</span>
+    rollout_name = <span class="str">f"confirmation-{service_name}-{environment}-rollout"</span>
+
+    <span class="cm"># Patch rollout with restart annotation</span>
+    patch = {
+        <span class="str">"spec"</span>: {
+            <span class="str">"restartAt"</span>: datetime.utcnow().isoformat() + <span class="str">"Z"</span>
+        }
+    }
+    custom_api.patch_namespaced_custom_object(
+        group=<span class="str">"argoproj.io"</span>, version=<span class="str">"v1alpha1"</span>,
+        namespace=namespace, plural=<span class="str">"rollouts"</span>,
+        name=rollout_name, body=patch
+    )</code></pre>
+
+      <h3>Why Annotation-Based Restart (Not Pod Delete)?</h3>
+      <blockquote>
+        "Deleting pods causes a sudden disruption &mdash; all pods go down simultaneously and the ReplicaSet creates new ones. With the Argo Rollout restart annotation, the controller does a rolling restart: it brings up new pods, waits for readiness, then terminates old pods one at a time. Zero downtime. This is especially important for our services because .NET cold start takes 30&ndash;60 seconds (startup probes allow up to 5 minutes)."
+      </blockquote>
+
+      <h3>Key Implementation: Deep-Merge Secrets</h3>
+      <pre><code><span class="cm"># Secrets in AWS Secrets Manager are JSON objects with nested structure.</span>
+<span class="cm"># PATCH means "update only the keys I send, keep everything else".</span>
+<span class="cm"># We use recursive deep merge &mdash; not shallow dict.update().</span>
+
+<span class="kw">def</span> <span class="fn">deep_merge</span>(base: <span class="cls">dict</span>, updates: <span class="cls">dict</span>) -> <span class="cls">dict</span>:
+    <span class="str">"""Recursively merge updates into base, preserving untouched keys"""</span>
+    <span class="kw">for</span> key, value <span class="kw">in</span> updates.items():
+        <span class="kw">if</span> key <span class="kw">in</span> base <span class="kw">and</span> <span class="fn">isinstance</span>(base[key], <span class="cls">dict</span>) <span class="kw">and</span> <span class="fn">isinstance</span>(value, <span class="cls">dict</span>):
+            deep_merge(base[key], value)
+        <span class="kw">else</span>:
+            base[key] = value
+    <span class="kw">return</span> base
+
+<span class="cm"># Every update:</span>
+<span class="cm"># 1. Read current secret from AWS Secrets Manager</span>
+<span class="cm"># 2. Backup to DynamoDB (full snapshot + user attribution)</span>
+<span class="cm"># 3. Deep-merge updates into current</span>
+<span class="cm"># 4. Write merged result back to Secrets Manager</span></code></pre>
+
+      <h3>DynamoDB Audit Trail</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Table</strong></td><td><code>a207804-audit-devops-secret-api-history</code></td></tr>
+            <tr><td><strong>Partition Key</strong></td><td><code>secret_name</code></td></tr>
+            <tr><td><strong>Sort Key</strong></td><td><code>timestamp</code> (ISO-8601)</td></tr>
+            <tr><td><strong>Attributes</strong></td><td><code>secret_value</code>, <code>aws_sm_version_id</code>, <code>user_email</code>, <code>user_employee_id</code>, <code>correlation_id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <blockquote>
+        "Every secret update creates a DynamoDB record with the full before-state, who changed it, and when. If someone breaks a secret, we can restore from the audit trail without contacting AWS support."
+      </blockquote>
+    </section>
+
+    <!-- 10.4 DB-OPS -->
+    <section class="section" id="db-ops">
+      <div class="section-header">
+        <span class="section-num">10.4</span>
+        <h2>db-ops &mdash; Cross-Namespace Database Diagnostics</h2>
+      </div>
+
+      <h3>The Problem It Solves</h3>
+      <blockquote>
+        "PostgreSQL runs in its own namespace (<code>207804-postgres-ci</code>), but developers work in the application namespace (<code>207804-confirmation-ci</code>). To run a diagnostic query, they'd need: (1) kubectl access to the postgres namespace, (2) find the right secret name for credentials, (3) exec into a pod, (4) install psql, (5) construct the connection string. db-ops wraps all of this into a single API call."
+      </blockquote>
+
+      <h3>How Cross-Namespace Works</h3>
+      <pre><code><span class="cm"># ServiceAccount in application namespace has RBAC to read secrets in postgres namespace</span>
+<span class="fn">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="fn">kind</span>: RoleBinding
+<span class="fn">metadata</span>:
+  <span class="fn">name</span>: db-ops-secret-reader
+  <span class="fn">namespace</span>: <span class="str">207804-postgres-ci</span>    <span class="cm"># Target namespace</span>
+<span class="fn">subjects</span>:
+  - <span class="fn">kind</span>: ServiceAccount
+    <span class="fn">name</span>: database-operations-sa
+    <span class="fn">namespace</span>: <span class="str">207804-confirmation-ci</span>  <span class="cm"># Source namespace</span>
+<span class="fn">roleRef</span>:
+  <span class="fn">kind</span>: Role
+  <span class="fn">name</span>: secret-reader</code></pre>
+
+      <h3>Endpoints</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Purpose</th><th>Safety</th></tr></thead>
+          <tbody>
+            <tr><td><code>/api/v1/database/query</code></td><td>Execute SELECT queries</td><td class="td-green">Read-only enforced via validator</td></tr>
+            <tr><td><code>/api/v1/database/update</code></td><td>Execute INSERT/UPDATE/DELETE</td><td class="td-amber">Write access (authorized users only)</td></tr>
+            <tr><td><code>/api/v1/database/long-running-queries</code></td><td>Find slow queries (&gt; N minutes)</td><td class="td-green">Read-only diagnostic</td></tr>
+            <tr><td><code>/api/v1/database/locks</code></td><td>Current lock analysis</td><td class="td-green">Read-only diagnostic</td></tr>
+            <tr><td><code>/api/v1/database/connections</code></td><td>Active connections by state</td><td class="td-green">Read-only diagnostic</td></tr>
+            <tr><td><code>/api/v1/database/stats</code></td><td>DB size, connection count, tables</td><td class="td-green">Read-only diagnostic</td></tr>
+            <tr><td><code>/api/v1/database/table-sizes</code></td><td>Per-table sizes</td><td class="td-green">Read-only diagnostic</td></tr>
+            <tr><td><code>/api/v1/database/kill-query</code></td><td>Kill runaway query by PID</td><td class="td-amber">Controlled write (PG terminate)</td></tr>
+            <tr><td><code>/api/v1/s3-backup/generate-presigned-url</code></td><td>Download backup via presigned URL</td><td class="td-green">Read-only (5h URL expiry)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Dynamic Connection Pattern</h3>
+      <pre><code><span class="cm"># Single deployment handles CI/Demo/QA through environment parameter</span>
+<span class="kw">class</span> <span class="cls">DatabaseService</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, env: <span class="cls">str</span>, database_name: <span class="cls">str</span>):
+        cluster = <span class="str">f"confirmation-pgdatabase-{env}"</span>
+        namespace = <span class="str">f"207804-postgres-{env}"</span>
+        secret_name = <span class="str">f"{cluster}-pguser-{database_name}"</span>
+
+        <span class="cm"># Read credentials from K8s secret in postgres namespace</span>
+        secret = k8s_client.read_namespaced_secret(secret_name, namespace)
+        self.host = base64.b64decode(secret.data[<span class="str">"host"</span>]).decode()
+        self.password = base64.b64decode(secret.data[<span class="str">"password"</span>]).decode()
+
+        <span class="cm"># Connect with timeouts</span>
+        self.conn = asyncpg.connect(
+            host=self.host, port=<span class="num">5432</span>,
+            user=database_name, password=self.password,
+            database=database_name,
+            timeout=<span class="num">30</span>, command_timeout=<span class="num">300</span>
+        )</code></pre>
+    </section>
+
+    <!-- 10.5 DYNAMO -->
+    <section class="section" id="dynamo">
+      <div class="section-header">
+        <span class="section-num">10.5</span>
+        <h2>dynamo &mdash; Deployment Catalog API</h2>
+      </div>
+
+      <h3>The Problem It Solves</h3>
+      <blockquote>
+        "With 40+ services across 8 environments, the team needed a single place to see: what version is deployed where, is there drift between QA and prod, what's the deployment success rate? Dynamo is the backend for that dashboard, backed by DynamoDB."
+      </blockquote>
+
+      <h3>Key Endpoints</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /api/v1/deployments</code></td><td>List all 46+ services with their deployment metadata</td></tr>
+            <tr><td><code>GET /api/v1/deployments/{service}</code></td><td>Specific service versions across all environments</td></tr>
+            <tr><td><code>GET /api/v1/deployments/checkdrift</code></td><td>Compare versions between two environments (e.g., prod vs QA)</td></tr>
+            <tr><td><code>GET /api/v1/deployments/statistics</code></td><td>139 total deployments, 95.68% success rate</td></tr>
+            <tr><td><code>POST /api/v1/deployments</code></td><td>CI pipeline calls this to register a new deployment</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Dual-Table Pattern</h3>
+      <pre><code><span class="cm"># Outpost services and Cloud services store in different DynamoDB tables</span>
+TABLES = {
+    <span class="str">"outpost"</span>: <span class="str">"a207804-product-config-op"</span>,     <span class="cm"># EKS Outpost services</span>
+    <span class="str">"cloud"</span>:   <span class="str">"a207804-product-config"</span>,         <span class="cm"># Cloud-native services</span>
+}
+<span class="cm"># Source parameter switches: ?source=outpost or ?source=cloud</span></code></pre>
+
+      <h3>Dual-Auth Pattern</h3>
+      <pre><code><span class="cm"># Read and write operations use DIFFERENT API keys</span>
+<span class="cm"># Read:  X-API-Key header &rarr; for GET endpoints (portal reads)</span>
+<span class="cm"># Write: X-Update-API-Key header &rarr; for POST/PUT (CI pipelines write)</span>
+<span class="cm"># Both cached from AWS Secrets Manager (5-min TTL)</span></code></pre>
+
+      <h3>Drift Detection</h3>
+      <blockquote>
+        "The <code>/checkdrift?env=prod,qa</code> endpoint scans all services and compares versions. In our last check, 19 out of 46 services had version drift between prod and QA &mdash; meaning QA had newer code that hadn't been promoted yet. The portal shows this as a dashboard with red/green indicators so we can prioritize promotions."
+      </blockquote>
+    </section>
+
+    <!-- 10.6 HARNESS -->
+    <section class="section" id="harness">
+      <div class="section-header">
+        <span class="section-num">10.6</span>
+        <h2>harness &mdash; Feature Flag Management</h2>
+      </div>
+
+      <h3>The Problem It Solves</h3>
+      <blockquote>
+        "Our platform uses Split.io (now Harness Feature Management) for feature flags. The Split dashboard is separate from our DevOps portal, and non-technical PMs couldn't easily find which flags were active in which environment. Harness service wraps the Split Admin API and presents flag data in our portal's UI."
+      </blockquote>
+
+      <h3>Key Endpoints</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /api/v1/harness/workspaces</code></td><td>List all Split workspaces</td></tr>
+            <tr><td><code>GET /api/v1/harness/workspaces/{id}/splits</code></td><td>Feature flags (paginated, 50/page)</td></tr>
+            <tr><td><code>GET /api/v1/harness/workspaces/{id}/splits/all</code></td><td>All flags (auto-pagination)</td></tr>
+            <tr><td><code>GET /api/v1/harness/workspaces/{id}/splits/{name}/environment-details</code></td><td>Flag treatments per environment (lazy-loaded)</td></tr>
+            <tr><td><code>POST /api/v1/harness/cache/clear</code></td><td>Force cache invalidation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Caching Pattern</h3>
+      <pre><code><span class="cm"># Split API has rate limits. We cache responses for 5 minutes.</span>
+<span class="cm"># Explicit cache clear endpoint for when PMs make changes and need to see them immediately.</span>
+CACHE_TTL = <span class="num">300</span>  <span class="cm"># seconds</span>
+cache = {}
+
+<span class="kw">async def</span> <span class="fn">get_splits</span>(workspace_id: <span class="cls">str</span>):
+    cache_key = <span class="str">f"splits:{workspace_id}"</span>
+    <span class="kw">if</span> cache_key <span class="kw">in</span> cache <span class="kw">and</span> cache[cache_key][<span class="str">"expires"</span>] > time.time():
+        <span class="kw">return</span> cache[cache_key][<span class="str">"data"</span>]
+
+    data = <span class="kw">await</span> split_api.get_splits(workspace_id)
+    cache[cache_key] = {<span class="str">"data"</span>: data, <span class="str">"expires"</span>: time.time() + CACHE_TTL}
+    <span class="kw">return</span> data</code></pre>
+    </section>
+
+    <!-- 10.7 COMMON PATTERNS -->
+    <section class="section" id="common-patterns">
+      <div class="section-header">
+        <span class="section-num">10.7</span>
+        <h2>Common Patterns Across All Services</h2>
+      </div>
+
+      <h3>Pattern 1: Pydantic Settings for Configuration</h3>
+      <pre><code><span class="cm"># Every service uses Pydantic Settings for type-safe env var loading</span>
+<span class="kw">from</span> pydantic_settings <span class="kw">import</span> BaseSettings
+
+<span class="kw">class</span> <span class="cls">Settings</span>(BaseSettings):
+    PROJECT_NAME: <span class="cls">str</span> = <span class="str">"Audit DevOps Service Ops"</span>
+    ENVIRONMENT: <span class="cls">str</span> = <span class="str">"development"</span>
+    AWS_REGION: <span class="cls">str</span> = <span class="str">"us-east-1"</span>
+    SSO_JWKS_URL: <span class="cls">str</span> = <span class="str">"https://sso.thomsonreuters.com/pf/JWKS"</span>
+    SSO_ISSUER: <span class="cls">str</span> = <span class="str">"https://sso.thomsonreuters.com"</span>
+
+    model_config = SettingsConfigDict(env_file=<span class="str">".env"</span>)</code></pre>
+      <blockquote>
+        "Pydantic Settings loads from environment variables with type coercion and validation. If <code>AWS_REGION</code> isn't set, it falls back to <code>us-east-1</code>. If you pass an invalid type (e.g., integer where string expected), it fails at startup with a clear error &mdash; not at runtime when a request hits."
+      </blockquote>
+
+      <h3>Pattern 2: Structured JSON Logging</h3>
+      <pre><code><span class="cm"># All services log JSON for Datadog ingestion</span>
+<span class="kw">import</span> json, logging
+
+<span class="kw">class</span> <span class="cls">JSONFormatter</span>(logging.Formatter):
+    <span class="kw">def</span> <span class="fn">format</span>(self, record):
+        <span class="kw">return</span> json.dumps({
+            <span class="str">"timestamp"</span>: self.formatTime(record),
+            <span class="str">"level"</span>: record.levelname,
+            <span class="str">"message"</span>: record.getMessage(),
+            <span class="str">"correlation_id"</span>: <span class="fn">getattr</span>(record, <span class="str">"correlation_id"</span>, <span class="kw">None</span>),
+            <span class="str">"service"</span>: <span class="str">"audit-devops-service-ops"</span>,
+        })</code></pre>
+
+      <h3>Pattern 3: Correlation ID Middleware</h3>
+      <pre><code><span class="cm"># Every request gets a unique ID for tracing across logs</span>
+<span class="dec">@app.middleware("http")</span>
+<span class="kw">async def</span> <span class="fn">correlation_id_middleware</span>(request: <span class="cls">Request</span>, call_next):
+    correlation_id = request.headers.get(<span class="str">"X-Correlation-ID"</span>, <span class="fn">str</span>(uuid4()))
+    request.state.correlation_id = correlation_id
+    response = <span class="kw">await</span> call_next(request)
+    response.headers[<span class="str">"X-Correlation-ID"</span>] = correlation_id
+    <span class="kw">return</span> response</code></pre>
+
+      <h3>Pattern 4: Health Check with Dependency Verification</h3>
+      <pre><code><span class="dec">@router.get("/health")</span>
+<span class="kw">async def</span> <span class="fn">health</span>():
+    k8s_ok = <span class="kw">await</span> check_k8s_connectivity()
+    <span class="kw">return</span> {
+        <span class="str">"status"</span>: <span class="str">"healthy"</span> <span class="kw">if</span> k8s_ok <span class="kw">else</span> <span class="str">"degraded"</span>,
+        <span class="str">"version"</span>: settings.VERSION,
+        <span class="str">"timestamp"</span>: datetime.utcnow().isoformat(),
+        <span class="str">"kubernetes_connection"</span>: k8s_ok
+    }</code></pre>
+
+      <h3>Pattern 5: TR ECR Base Image</h3>
+      <pre><code><span class="cm"># ALWAYS TR ECR &mdash; Docker Hub hits 100 pull/6h rate limit in CI</span>
+<span class="kw">ARG</span> BASE_IMAGE=<span class="str">833618288067.dkr.ecr.us-east-1.amazonaws.com/a207804/a207804-ue1-op-python:3.11-slim</span>
+<span class="kw">FROM</span> ${BASE_IMAGE}
+
+<span class="cm"># Security: non-root user</span>
+<span class="kw">USER</span> <span class="num">14000</span>:<span class="num">14001</span>
+
+<span class="cm"># Local dev override: docker build --build-arg BASE_IMAGE=python:3.11-slim .</span></code></pre>
+    </section>
+
+    <!-- 10.8 CORE CONCEPTS -->
+    <section class="section" id="core-concepts">
+      <div class="section-header">
+        <span class="section-num">10.8</span>
+        <h2>FastAPI Core Concepts &mdash; Interview Deep Dive</h2>
+      </div>
+
+      <h3>Dependency Injection (Depends)</h3>
+      <pre><code><span class="cm"># Auth is injected, not hardcoded. Every endpoint that needs auth just declares it.</span>
+<span class="kw">from</span> fastapi <span class="kw">import</span> Depends
+
+<span class="kw">async def</span> <span class="fn">verify_jwt</span>(request: <span class="cls">Request</span>) -> <span class="cls">dict</span>:
+    token = request.headers.get(<span class="str">"Authorization"</span>, <span class="str">""</span>).replace(<span class="str">"Bearer "</span>, <span class="str">""</span>)
+    payload = jwt.decode(token, jwks_client.get_signing_key(token).key, algorithms=[<span class="str">"RS256"</span>])
+    <span class="kw">return</span> payload
+
+<span class="dec">@router.post("/restart")</span>
+<span class="kw">async def</span> <span class="fn">restart</span>(request: <span class="cls">RestartRequest</span>, user: <span class="cls">dict</span> = Depends(verify_jwt)):
+    <span class="cm"># user is guaranteed to be authenticated here</span>
+    log.info(<span class="str">f"Restart by {user['email']}"</span>)</code></pre>
+      <blockquote>
+        "Dependency injection is FastAPI's killer feature. Auth, database sessions, config &mdash; anything that multiple endpoints need gets defined as a <code>Depends()</code>. It's composable too &mdash; you can have <code>Depends(verify_jwt)</code> inside <code>Depends(verify_admin)</code> for nested checks."
+      </blockquote>
+
+      <h3>Async/Await &mdash; Why It Matters</h3>
+      <pre><code><span class="cm"># BAD: Synchronous &mdash; blocks the event loop, can only handle 1 request at a time</span>
+<span class="dec">@router.get("/pods")</span>
+<span class="kw">def</span> <span class="fn">get_pods</span>():
+    k8s_result = k8s_client.list_pods()       <span class="cm"># Blocks 200ms</span>
+    dd_result = datadog_client.get_metrics()   <span class="cm"># Blocks 300ms</span>
+    <span class="kw">return</span> {<span class="str">"k8s"</span>: k8s_result, <span class="str">"dd"</span>: dd_result}  <span class="cm"># Total: 500ms sequential</span>
+
+<span class="cm"># GOOD: Async &mdash; both calls happen concurrently</span>
+<span class="dec">@router.get("/pods")</span>
+<span class="kw">async def</span> <span class="fn">get_pods</span>():
+    k8s_task = asyncio.create_task(k8s_client.list_pods())
+    dd_task = asyncio.create_task(datadog_client.get_metrics())
+    k8s_result, dd_result = <span class="kw">await</span> asyncio.gather(k8s_task, dd_task)
+    <span class="kw">return</span> {<span class="str">"k8s"</span>: k8s_result, <span class="str">"dd"</span>: dd_result}  <span class="cm"># Total: 300ms (max of both)</span></code></pre>
+
+      <h3>Pydantic Request Validation</h3>
+      <pre><code><span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel, field_validator
+<span class="kw">from</span> enum <span class="kw">import</span> Enum
+
+<span class="kw">class</span> <span class="cls">Environment</span>(<span class="cls">str</span>, Enum):
+    ci = <span class="str">"ci"</span>
+    demo = <span class="str">"demo"</span>
+    qa = <span class="str">"qa"</span>
+
+<span class="kw">class</span> <span class="cls">RestartRequest</span>(BaseModel):
+    environment: <span class="cls">Environment</span>          <span class="cm"># Enum validation &mdash; only ci/demo/qa</span>
+    service_name: <span class="cls">str</span>
+
+    <span class="dec">@field_validator("service_name")</span>
+    <span class="dec">@classmethod</span>
+    <span class="kw">def</span> <span class="fn">validate_service_name</span>(cls, v):
+        <span class="kw">if not</span> v.startswith(<span class="str">"confirmation-"</span>):
+            <span class="kw">raise</span> <span class="cls">ValueError</span>(<span class="str">"Service must start with 'confirmation-'"</span>)
+        <span class="kw">return</span> v</code></pre>
+      <blockquote>
+        "Pydantic catches invalid input BEFORE it reaches business logic. If someone sends <code>environment: production</code>, they get a 422 with <code>value is not a valid enumeration member</code>. No SQL injection, no command injection &mdash; the input is validated at the boundary."
+      </blockquote>
+
+      <h3>Middleware Stack</h3>
+      <pre><code><span class="cm"># Order matters &mdash; outermost middleware runs first</span>
+app = FastAPI()
+
+app.add_middleware(CORSMiddleware, allow_origins=[<span class="str">"*.thomsonreuters.com"</span>])
+app.add_middleware(RateLimitMiddleware)       <span class="cm"># slowapi</span>
+app.add_middleware(CorrelationIdMiddleware)   <span class="cm"># Request tracing</span>
+app.add_middleware(SecurityHeadersMiddleware) <span class="cm"># HSTS, CSP, X-Frame-Options</span>
+
+<span class="cm"># Request flow:</span>
+<span class="cm"># CORS &rarr; Rate Limit &rarr; Correlation ID &rarr; Security Headers &rarr; Route Handler</span></code></pre>
+
+      <h3>Lifespan Events (Startup/Shutdown)</h3>
+      <pre><code><span class="kw">from</span> contextlib <span class="kw">import</span> asynccontextmanager
+
+<span class="dec">@asynccontextmanager</span>
+<span class="kw">async def</span> <span class="fn">lifespan</span>(app: <span class="cls">FastAPI</span>):
+    <span class="cm"># Startup: initialize connections, verify dependencies</span>
+    <span class="kw">await</span> k8s_client.connect()
+    <span class="kw">await</span> setup_telemetry()
+    log.info(<span class="str">"Service started"</span>, extra={<span class="str">"version"</span>: settings.VERSION})
+    <span class="kw">yield</span>
+    <span class="cm"># Shutdown: clean up resources</span>
+    <span class="kw">await</span> k8s_client.close()
+    log.info(<span class="str">"Service stopped"</span>)
+
+app = FastAPI(lifespan=lifespan)</code></pre>
+    </section>
+
+    <!-- 10.9 SECURITY PATTERNS -->
+    <section class="section" id="security-patterns">
+      <div class="section-header">
+        <span class="section-num">10.9</span>
+        <h2>Security Patterns Across All Services</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Security Layer</th><th>Implementation</th><th>Service</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Authentication</strong></td><td>JWT RS256 via TR SSO JWKS</td><td>service-ops</td></tr>
+            <tr><td><strong>Authentication</strong></td><td>API Key (<code>X-API-Key</code> header)</td><td>db-ops, harness, dynamo</td></tr>
+            <tr><td><strong>Authorization</strong></td><td>AD group membership check</td><td>service-ops (<code>APP-ConfirmNG-207804-Audit-DevOps-Self-Service-Group-Non-Prod</code>)</td></tr>
+            <tr><td><strong>Authorization</strong></td><td>Dual keys (read vs write)</td><td>dynamo</td></tr>
+            <tr><td><strong>Input validation</strong></td><td>Pydantic models + field validators</td><td>All services</td></tr>
+            <tr><td><strong>Rate limiting</strong></td><td>slowapi per-endpoint limits</td><td>service-ops (5&ndash;10/min), dynamo (10/min)</td></tr>
+            <tr><td><strong>Security headers</strong></td><td>HSTS, CSP, X-Frame-Options, X-Content-Type-Options</td><td>service-ops</td></tr>
+            <tr><td><strong>Audit trail</strong></td><td>DynamoDB with user attribution</td><td>service-ops (secrets)</td></tr>
+            <tr><td><strong>Read-only enforcement</strong></td><td>Query type validator (SELECT-only)</td><td>db-ops</td></tr>
+            <tr><td><strong>Container security</strong></td><td>UID 14000:14001, readOnlyRootFilesystem, no privilege escalation</td><td>All services</td></tr>
+            <tr><td><strong>Secret rotation</strong></td><td>AWS Secrets Manager + ExternalSecrets (1h refresh)</td><td>All services</td></tr>
+            <tr><td><strong>CORS</strong></td><td><code>*.thomsonreuters.com</code> + localhost dev</td><td>All services</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Interview Answer &mdash; "How do you secure a FastAPI microservice?"</h3>
+      <blockquote>
+        "Defense in depth &mdash; multiple layers, each catching what the previous missed:<br><br>
+        <strong>1. Network layer:</strong> Istio AuthorizationPolicy restricts which namespaces can even reach the service<br>
+        <strong>2. Transport layer:</strong> TLS everywhere &mdash; Istio mTLS for pod-to-pod, HTTPS for external<br>
+        <strong>3. Authentication:</strong> JWT RS256 with JWKS verification for service-ops (user-facing), API keys for service-to-service<br>
+        <strong>4. Authorization:</strong> AD group membership &mdash; only members of our DevOps self-service group can call restart/secrets endpoints<br>
+        <strong>5. Input validation:</strong> Pydantic models reject malformed requests at the boundary &mdash; before any business logic runs<br>
+        <strong>6. Rate limiting:</strong> slowapi prevents abuse &mdash; 5 secret updates per minute, 10 restarts per minute<br>
+        <strong>7. Audit trail:</strong> Every secret update logged to DynamoDB with user email, employee ID, and full before-state<br>
+        <strong>8. Container hardening:</strong> Non-root (UID 14000), read-only filesystem, no privilege escalation, dropped capabilities"
+      </blockquote>
+    </section>
+
+    <!-- 10.10 TESTING PATTERNS -->
+    <section class="section" id="testing">
+      <div class="section-header">
+        <span class="section-num">10.10</span>
+        <h2>Testing Patterns</h2>
+      </div>
+
+      <pre><code><span class="cm"># All services follow the same test structure</span>
+cd audit-devops-service-ops  <span class="cm"># or db-ops, dynamo, harness</span>
+pytest tests/ -v                    <span class="cm"># All tests</span>
+pytest tests/unit/ -v               <span class="cm"># Unit tests (fast, no external deps)</span>
+pytest tests/api/ -v                <span class="cm"># API tests (FastAPI TestClient)</span>
+pytest tests/integration/ -v        <span class="cm"># Integration (requires live K8s/AWS)</span></code></pre>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">k8s-ops-assistant</div>
+          <div class="card-title">479 tests, 65% coverage</div>
+          <div class="card-desc">Unit + API + integration tests across agents, tools, and orchestrator</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">service-ops</div>
+          <div class="card-title">222+ tests, 80%+ coverage</div>
+          <div class="card-desc">Restart, secrets, status endpoints &mdash; all externals mocked in unit tests</div>
+        </div>
+      </div>
+
+      <h3>Testing Pattern: FastAPI TestClient</h3>
+      <pre><code><span class="kw">from</span> fastapi.testclient <span class="kw">import</span> TestClient
+<span class="kw">from</span> unittest.mock <span class="kw">import</span> patch, MagicMock
+
+<span class="kw">def</span> <span class="fn">test_restart_service</span>():
+    <span class="kw">with</span> patch(<span class="str">"app.services.restart_service.k8s_client"</span>) <span class="kw">as</span> mock_k8s:
+        mock_k8s.patch_namespaced_custom_object.return_value = MagicMock()
+
+        response = client.post(
+            <span class="str">"/portal/v1/infrastructure/services/pricing-be/restart"</span>,
+            json={<span class="str">"environment"</span>: <span class="str">"ci"</span>},
+            headers={<span class="str">"Authorization"</span>: <span class="str">f"Bearer {valid_jwt}"</span>}
+        )
+
+        <span class="kw">assert</span> response.status_code == <span class="num">200</span>
+        <span class="kw">assert</span> response.json()[<span class="str">"pods_restarted"</span>] > <span class="num">0</span>
+        mock_k8s.patch_namespaced_custom_object.assert_called_once()</code></pre>
+      <blockquote>
+        "We mock external dependencies (K8s API, AWS, Datadog) in unit tests but call real services in integration tests. The TestClient runs the full FastAPI app in-process &mdash; middleware, auth, validation, everything &mdash; so API tests are nearly as reliable as hitting a real deployment."
+      </blockquote>
+    </section>
+
+    <!-- 10.11 INTERVIEW SCENARIOS -->
+    <section class="section" id="interview-scenarios">
+      <div class="section-header">
+        <span class="section-num">10.11</span>
+        <h2>Interview Scenario Questions</h2>
+      </div>
+
+      <h3>Q: "How do you handle secrets in a FastAPI application deployed on Kubernetes?"</h3>
+      <blockquote>
+        "We use a three-tier approach:<br><br>
+        <strong>1. AWS Secrets Manager</strong> is the source of truth &mdash; credentials are created and rotated there<br>
+        <strong>2. ExternalSecrets Operator</strong> syncs them to K8s Secrets every hour<br>
+        <strong>3. FastAPI service</strong> reads credentials from environment variables (mounted from K8s Secret) or from the K8s API directly (like db-ops reading postgres credentials cross-namespace)<br><br>
+        Critically, we never hardcode secrets, never commit them to git, and never pass them as command-line args. The <code>.env</code> file exists only for local development and is in <code>.gitignore</code>. In production, everything comes from K8s Secrets backed by AWS Secrets Manager."
+      </blockquote>
+
+      <h3>Q: "A FastAPI endpoint is returning 500 errors intermittently. How do you debug?"</h3>
+      <blockquote>
+        "Step by step:<br><br>
+        <strong>1. Check structured logs</strong> in Datadog: <code>env:ci service:audit-devops-service-ops status:error</code> &mdash; find the correlation ID from the response header<br>
+        <strong>2. Follow the correlation ID:</strong> <code>@correlation_id:&lt;id&gt;</code> shows every log line for that request<br>
+        <strong>3. Check the exception:</strong> Our error handler logs the full traceback with the correlation ID<br>
+        <strong>4. Common causes:</strong><br>
+        &nbsp;&nbsp;&bull; K8s API timeout (300s default) &mdash; usually means the cluster is under load<br>
+        &nbsp;&nbsp;&bull; AWS Secrets Manager throttling &mdash; we cache to avoid this<br>
+        &nbsp;&nbsp;&bull; Connection pool exhaustion (asyncpg) &mdash; too many concurrent requests<br>
+        <strong>5. Fix pattern:</strong> If it's intermittent, it's usually a resource contention issue &mdash; increase timeout, add retry with backoff, or scale the service"
+      </blockquote>
+
+      <h3>Q: "How would you add a new endpoint to an existing FastAPI service?"</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div><span class="step-title">Define the Pydantic model</span><br><span class="step-desc">in <code>models/</code> &mdash; request and response</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div><span class="step-title">Write the business logic</span><br><span class="step-desc">in <code>services/</code> &mdash; keep route handlers thin</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div><span class="step-title">Add the route</span><br><span class="step-desc">in <code>api/endpoints/</code> with proper auth (<code>Depends(verify_jwt)</code>), rate limit, and response model</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div><span class="step-title">Register the router</span><br><span class="step-desc">in the main app</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div><span class="step-title">Write tests</span><br><span class="step-desc">Unit test for business logic (mock externals), API test for the endpoint (TestClient)</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div><span class="step-title">Run Bandit</span><br><span class="step-desc">Security scan: <code>bandit -r app/ -ll</code> &mdash; catches common vulnerabilities</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">7</div>
+          <div><span class="step-title">Test locally</span><br><span class="step-desc"><code>docker-compose up</code>, hit the endpoint via Swagger UI</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">8</div>
+          <div><span class="step-title">Deploy</span><br><span class="step-desc">push &rarr; CI builds &rarr; Docker image &rarr; ECR &rarr; Helm values update &rarr; ArgoCD syncs</span></div>
+        </div>
+      </div>
+
+      <h3>Q: "How do you handle rate limiting in FastAPI?"</h3>
+      <blockquote>
+        "We use <code>slowapi</code> which is built on top of the <code>limits</code> library. Each endpoint gets its own rate limit based on impact:"
+      </blockquote>
+      <pre><code><span class="kw">from</span> slowapi <span class="kw">import</span> Limiter
+limiter = Limiter(key_func=get_user_from_jwt)
+
+<span class="dec">@router.post("/restart")</span>
+<span class="dec">@limiter.limit("10/minute")</span>
+<span class="kw">async def</span> <span class="fn">restart</span>(...):</code></pre>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Operation</th><th>Rate Limit</th><th>Rationale</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Secret updates</strong></td><td class="td-amber">5/minute</td><td>Most dangerous &mdash; can break services</td></tr>
+            <tr><td><strong>Pod restarts</strong></td><td class="td-amber">10/minute</td><td>Disruptive but recoverable</td></tr>
+            <tr><td><strong>Status queries</strong></td><td class="td-green">30/minute</td><td>Read-only, harmless</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <blockquote>
+        "The key function extracts the user identity from the JWT, so rate limiting is per-user, not per-IP. This prevents a single user from spamming restart while allowing legitimate concurrent usage from multiple team members."
+      </blockquote>
+
+      <h3>Q: "Explain async/await in Python and when you'd use sync vs async endpoints"</h3>
+      <blockquote>
+        "Python's <code>async/await</code> is cooperative multitasking &mdash; a single thread can handle many concurrent I/O operations by yielding control during <code>await</code>. When endpoint A is waiting for a K8s API response, Python runs endpoint B's code. This is perfect for I/O-bound services (our use case &mdash; calling external APIs).<br><br>
+        I use async endpoints for anything that calls external services (K8s, AWS, Datadog). I'd use sync endpoints only for pure computation (no I/O) &mdash; but in practice, all our endpoints involve I/O.<br><br>
+        One gotcha: if you call a blocking function (like <code>requests.get()</code> instead of <code>httpx.AsyncClient</code>) inside an async endpoint, it blocks the entire event loop. FastAPI handles this by running sync endpoints in a threadpool, but async endpoints must use truly async libraries (<code>asyncpg</code>, <code>httpx</code>, <code>aioboto3</code>)."
+      </blockquote>
+
+      <h3>Q: "How do you structure a FastAPI project for 40+ services?"</h3>
+      <blockquote>
+        "Each of our 4 backend services follows the same project structure:"
+      </blockquote>
+      <pre><code>app/
+├── api/
+│   ├── endpoints/     <span class="cm"># Route handlers (thin &mdash; just validation + delegation)</span>
+│   └── router.py      <span class="cm"># Combines all routers</span>
+├── core/
+│   ├── config.py      <span class="cm"># Pydantic Settings (env vars)</span>
+│   ├── auth.py        <span class="cm"># JWT/API key verification</span>
+│   ├── exceptions.py  <span class="cm"># Custom exception classes</span>
+│   └── logging.py     <span class="cm"># Structured JSON logging</span>
+├── models/            <span class="cm"># Pydantic request/response models</span>
+├── services/          <span class="cm"># Business logic (testable, no HTTP concerns)</span>
+└── main.py            <span class="cm"># App factory, middleware, lifespan</span>
+tests/
+├── unit/              <span class="cm"># Mock externals, test logic</span>
+├── api/               <span class="cm"># TestClient, test full endpoints</span>
+└── integration/       <span class="cm"># Real K8s/AWS (CI pipeline)</span></code></pre>
+      <blockquote>
+        "The key principle: endpoints are thin. They validate input (Pydantic), call a service function, and format the response. All business logic lives in <code>services/</code> where it can be unit tested without HTTP."
+      </blockquote>
+    </section>
+
+    <!-- NAV FOOTER -->
+    <nav class="nav-footer">
+      <a href="09-rabbitmq.html">&larr; 09-rabbitmq</a>
+      <a href="index.html" class="nav-index">Index</a>
+      <a href="11-security.html">11-security &rarr;</a>
+    </nav>
+
+  </main>
+</div>
+
+<script>
+  // Theme toggle
+  const toggle = document.getElementById('themeToggle');
+  toggle.addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    toggle.textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#141f35',
+      primaryTextColor: '#dce8f5',
+      primaryBorderColor: '#22c55e',
+      lineColor: '#7a9ab5',
+      secondaryColor: '#0f1826',
+      tertiaryColor: '#090d1a',
+      background: '#090d1a',
+      mainBkg: '#141f35',
+      nodeBorder: '#1d2d4f',
+      clusterBkg: '#0f1826',
+      titleColor: '#dce8f5',
+      edgeLabelBackground: '#0f1826',
+      fontFamily: 'DM Sans, sans-serif',
+      fontSize: '13px'
+    }
+  });
+
+  // Zoom controls
+  const scales = {};
+  function zoom(id, factor) {
+    scales[id] = (scales[id] || 1) * factor;
+    document.getElementById(id).style.transform = `scale(${scales[id]})`;
+  }
+  function reset(id) {
+    scales[id] = 1;
+    document.getElementById(id).style.transform = 'scale(1)';
+  }
+
+  // TOC active state on scroll
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 120) current = s.id;
+    });
+    tocLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+
+</body>
+</html>

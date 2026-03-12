@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 6: AWS CDK (IaC) — Interview Prep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d1a;
+      --surface: #0f1826;
+      --surface2: #141f35;
+      --border: #1d2d4f;
+      --text: #dce8f5;
+      --text-muted: #7a9ab5;
+      --accent: #22c55e;
+      --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8;
+      --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b;
+      --accent3-dim: rgba(245,158,11,0.12);
+      --code-bg: #060a13;
+      --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      --radius: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .hero {
+      background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3rem 2rem 2.5rem;
+    }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .badge-green { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.025em;
+    }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    /* THEME TOGGLE */
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      z-index: 100;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2rem;
+      gap: 2.5rem;
+    }
+
+    /* TOC */
+    .toc { width: 195px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 0.63rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a {
+      display: block;
+      padding: 0.28rem 0.6rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .toc-list a:hover, .toc-list a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    /* MAIN */
+    .main-content { flex: 1; min-width: 0; }
+
+    /* SECTIONS */
+    .section { margin-bottom: 3.5rem; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .section h3 {
+      font-size: 0.93rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin: 1.5rem 0 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-mono);
+    }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    tbody td {
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+    .td-green { color: var(--accent) !important; font-weight: 500; }
+    .td-blue { color: var(--accent2) !important; }
+    .td-amber { color: var(--accent3) !important; }
+    .td-muted { color: var(--text-muted) !important; font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2) !important; }
+
+    /* COMPONENT GRID */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      transition: border-color 0.15s;
+    }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+    .card-ip {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--accent2);
+      background: var(--code-bg);
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+
+    /* CODE BLOCK */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: none;
+      padding: 0;
+    }
+
+    /* DIAGRAM */
+    .diagram-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .diagram-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow: auto; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+
+    /* INFO / WARN BOXES */
+    .info-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .info-box strong { color: var(--accent2); }
+    .warn-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent3);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .warn-box strong { color: var(--accent3); }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-top: 0.15rem;
+    }
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    /* BLOCKQUOTE — interview answers */
+    .interview-answer {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .interview-answer strong { color: var(--text); }
+    .interview-answer code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+    .interview-q {
+      font-weight: 600;
+      color: var(--accent3);
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      max-width: 1240px;
+      margin: 0 auto 2rem;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .bottom-nav a {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--accent2);
+      text-decoration: none;
+      padding: 0.45rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .bottom-nav a:hover { border-color: var(--accent2); background: var(--surface2); }
+    .bottom-nav .nav-index { color: var(--text-muted); }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      .toc { display: none; }
+      .layout { padding: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
+      .bottom-nav { padding: 0 1rem; }
+    }
+
+    /* LIGHT MODE */
+    body.light {
+      --bg: #f2f6fc;
+      --surface: #ffffff;
+      --surface2: #eaeff8;
+      --border: #c8d6e8;
+      --text: #1a2535;
+      --text-muted: #4f6880;
+      --code-bg: #e2eaf5;
+      --code-text: #1d5fa0;
+    }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">AWS CDK</span>
+      <span class="badge badge-amber">IaC</span>
+    </div>
+    <h1>Section 6: AWS CDK (IaC)</h1>
+    <p class="hero-sub">11 Stacks, 12 Constructs, YAML-Driven Configuration</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Platform</span>
+        <span class="hero-meta-value">Confirmation Outpost</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Repo</span>
+        <span class="hero-meta-value" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent2);">confirmation-devops-outpost-IaC</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">PRs Merged</span>
+        <span class="hero-meta-value" style="color: var(--accent);">26</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Last Updated</span>
+        <span class="hero-meta-value">2026-03-12</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#what-is-cdk">What is AWS CDK?</a></li>
+        <li><a href="#what-is-cdk" class="toc-sub">CDK vs Terraform vs CFN</a></li>
+        <li><a href="#core-concepts">Core Concepts</a></li>
+        <li><a href="#core-concepts" class="toc-sub">Construct Levels</a></li>
+        <li><a href="#core-concepts" class="toc-sub">Project Structure</a></li>
+        <li><a href="#my-project">My CDK Project</a></li>
+        <li><a href="#stacks">The 11 Stacks</a></li>
+        <li><a href="#stacks" class="toc-sub">Stack Dependencies</a></li>
+        <li><a href="#real-examples">Real Examples</a></li>
+        <li><a href="#real-examples" class="toc-sub">12 Constructs</a></li>
+        <li><a href="#env-config">Environment Config</a></li>
+        <li><a href="#env-config" class="toc-sub">YAML-Driven</a></li>
+        <li><a href="#key-patterns">Key Patterns</a></li>
+        <li><a href="#cdk-vs-terraform">CDK vs Terraform</a></li>
+        <li><a href="#lifecycle">CDK Lifecycle</a></li>
+        <li><a href="#interview-qa">Interview Q&amp;A</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- 6.1 WHAT IS CDK -->
+    <section class="section" id="what-is-cdk">
+      <div class="section-header">
+        <span class="section-num">6.1</span>
+        <h2>What is AWS CDK?</h2>
+      </div>
+      <p><strong>AWS Cloud Development Kit (CDK)</strong> is an Infrastructure as Code framework that lets you define AWS resources using real programming languages (Python, TypeScript, Java, Go) instead of YAML/JSON (CloudFormation) or HCL (Terraform).</p>
+
+      <h3>Why CDK over Terraform or raw CloudFormation?</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Aspect</th><th>CloudFormation (YAML)</th><th>Terraform (HCL)</th><th>CDK (Python)</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-muted">Language</td>
+              <td>YAML/JSON (declarative)</td>
+              <td>HCL (declarative)</td>
+              <td class="td-green">Python/TS (imperative)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Loops/Conditions</td>
+              <td>Limited (<code>Fn::If</code>, <code>Fn::ForEach</code>)</td>
+              <td><code>for_each</code>, <code>count</code></td>
+              <td class="td-green">Native Python loops, if/else</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Reusability</td>
+              <td>Nested stacks (clunky)</td>
+              <td>Modules</td>
+              <td class="td-green">Classes, inheritance, composition</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Testing</td>
+              <td>None built-in</td>
+              <td><code>terraform validate</code></td>
+              <td class="td-green">pytest with assertions on synth output</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Type Safety</td>
+              <td>None</td>
+              <td>Partial (HCL types)</td>
+              <td class="td-green">Full IDE autocomplete + type hints</td>
+            </tr>
+            <tr>
+              <td class="td-muted">State</td>
+              <td>Managed by AWS (CloudFormation)</td>
+              <td><code>.tfstate</code> file (you manage)</td>
+              <td class="td-green">Managed by AWS (generates CloudFormation)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Abstraction</td>
+              <td>Low (every resource explicit)</td>
+              <td>Medium</td>
+              <td class="td-green">High (L2/L3 constructs hide boilerplate)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>CDK compiles to CloudFormation</h3>
+      <pre><code>Python code &rarr; cdk synth &rarr; CloudFormation template (JSON) &rarr; cdk deploy &rarr; AWS creates resources</code></pre>
+      <p>You write Python, CDK generates a CloudFormation template, and CloudFormation provisions the actual resources. If something fails, CloudFormation rolls back automatically.</p>
+    </section>
+
+    <!-- 6.2 CORE CONCEPTS -->
+    <section class="section" id="core-concepts">
+      <div class="section-header">
+        <span class="section-num">6.2</span>
+        <h2>CDK Core Concepts</h2>
+      </div>
+
+      <h3>Three Levels of Constructs</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Level</th><th>What It Is</th><th>Example</th><th>Effort</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-blue">L1 (Cfn)</td>
+              <td>1:1 mapping to CloudFormation resource</td>
+              <td><code>CfnBucket(self, "b", bucket_name="my-bucket")</code></td>
+              <td>You set every property</td>
+            </tr>
+            <tr>
+              <td class="td-green">L2 (Default)</td>
+              <td>Opinionated wrapper with sensible defaults</td>
+              <td><code>Bucket(self, "b", versioned=True)</code></td>
+              <td>Handles IAM, encryption, etc.</td>
+            </tr>
+            <tr>
+              <td class="td-amber">L3 (Pattern)</td>
+              <td>Multi-resource pattern</td>
+              <td><code>ApplicationLoadBalancedFargateService(...)</code></td>
+              <td>Creates ALB + ECS + target group</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Key CDK Terms</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Term</th><th>What It Is</th><th>Real Example</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>App</strong></td><td>The root of your CDK project</td><td><code>app = cdk.App()</code></td></tr>
+            <tr><td><strong>Stack</strong></td><td>A unit of deployment (= 1 CloudFormation stack)</td><td><code>KMSStack(app, "a207804-cng-ci-us-east-1-KMSStack")</code></td></tr>
+            <tr><td><strong>Construct</strong></td><td>A reusable component (class)</td><td><code>IAMConstruct</code>, <code>S3Construct</code></td></tr>
+            <tr><td><strong>Context</strong></td><td>Runtime flags passed via CLI</td><td><code>cdk deploy -c deploy_ec2=true</code></td></tr>
+            <tr><td><strong>Synthesize</strong></td><td>Generate CloudFormation from Python</td><td><code>cdk synth</code></td></tr>
+            <tr><td><strong>Bootstrap</strong></td><td>One-time setup (S3 bucket + IAM for CDK)</td><td><code>cdk bootstrap aws://ACCOUNT/REGION</code></td></tr>
+            <tr><td><strong>Environment</strong></td><td>Target AWS account + region</td><td><code>Environment(account="307097860667", region="us-east-1")</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>CDK Project Structure</h3>
+      <pre><code>my-cdk-project/
+├── app.py                  # Entry point &mdash; instantiates stacks
+├── cdk.json                # CDK config (app command, context flags)
+├── requirements.txt        # aws-cdk-lib, constructs
+├── config/
+│   └── global.yaml         # Environment-specific config
+├── stacks/
+│   └── my_stack.py         # Stack definitions (AWS resources)
+├── TRconstructs/           # Reusable construct classes
+│   ├── iam_construct.py
+│   ├── s3_construct.py
+│   └── ec2_construct.py
+└── tests/
+    └── test_stack.py       # Unit tests on synth output</code></pre>
+    </section>
+
+    <!-- 6.3 MY CDK PROJECT -->
+    <section class="section" id="my-project">
+      <div class="section-header">
+        <span class="section-num">6.3</span>
+        <h2>Confirmation Outpost IaC &mdash; My CDK Project</h2>
+      </div>
+      <p><strong>Repo:</strong> <code>confirmation-devops-outpost-IaC</code> &mdash; 26 PRs merged, all my commits.</p>
+
+      <div class="warn-box">
+        <strong>The Problem:</strong> Our Confirmation platform runs on AWS EKS Outposts. Every service needs AWS resources provisioned before it can deploy &mdash; KMS keys for encryption, Secrets Manager entries for credentials, ECR repositories for Docker images, IAM roles for access control. Without IaC, creating these for 40+ services across 8 environments would be manual, error-prone, and inconsistent.
+      </div>
+
+      <div class="info-box">
+        <strong>The Solution:</strong> I built a CDK project with 11 stacks and 12 reusable constructs that provisions all foundational AWS resources for the Confirmation platform. One <code>cdk deploy</code> command creates everything a service needs &mdash; encryption keys, secrets, image repositories, IAM policies &mdash; all config-driven from YAML files.
+      </div>
+    </section>
+
+    <!-- 6.4 THE 11 STACKS -->
+    <section class="section" id="stacks">
+      <div class="section-header">
+        <span class="section-num">6.4</span>
+        <h2>The 11 Stacks I Built</h2>
+      </div>
+
+      <pre><code># app.py &mdash; Entry point, context-driven
+app = cdk.App()
+context_app = app.node.try_get_context('app')    # 'cng' (confirmation nextgen)
+environment = app.node.try_get_context('environment')  # ci, demo, qa, prod
+region = app.node.try_get_context('region')       # us-east-1
+
+# Deploy: cdk deploy -c app=cng -c environment=ci -c region=us-east-1</code></pre>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Stack</th><th>What It Creates</th><th>Status</th><th>Why It Matters</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>KMSStack</strong></td>
+              <td>Customer-managed KMS keys (app, db, ecr, jfrog) with rotation enabled</td>
+              <td class="td-green">Active</td>
+              <td>Every secret, ECR repo, and RDS instance encrypts with these keys</td>
+            </tr>
+            <tr>
+              <td><strong>SecretManagerStack</strong></td>
+              <td>Secrets for 25+ services (app secrets + DB creds per service)</td>
+              <td class="td-green">Active</td>
+              <td>ExternalSecrets Operator pulls these into K8s Secrets</td>
+            </tr>
+            <tr>
+              <td><strong>IAMPolicyStack</strong></td>
+              <td>Managed IAM policies (KMS admin)</td>
+              <td class="td-green">Active</td>
+              <td>Least-privilege access to encryption keys</td>
+            </tr>
+            <tr>
+              <td><strong>IAMRoleStack</strong></td>
+              <td>IAM roles with policies attached</td>
+              <td class="td-green">Active</td>
+              <td>Service roles for EKS, CodeBuild, etc.</td>
+            </tr>
+            <tr>
+              <td><strong>ECRStack</strong></td>
+              <td>21 ECR repositories with KMS encryption + scan-on-push</td>
+              <td class="td-blue">Available</td>
+              <td>Every Docker image for every service</td>
+            </tr>
+            <tr>
+              <td><strong>OutpostS3Stack</strong></td>
+              <td>S3 on Outpost racks with access points</td>
+              <td class="td-blue">Available</td>
+              <td>Data residency &mdash; storage on Outpost, not cloud</td>
+            </tr>
+            <tr>
+              <td><strong>S3BucketStack</strong></td>
+              <td>Standard S3 buckets</td>
+              <td class="td-blue">Available</td>
+              <td>Artifacts, logs, backups</td>
+            </tr>
+            <tr>
+              <td><strong>EC2Stack</strong></td>
+              <td>EC2 instances on Outpost with KMS-encrypted EBS</td>
+              <td class="td-blue">Available</td>
+              <td>Compute on Outpost rack</td>
+            </tr>
+            <tr>
+              <td><strong>RDSStack</strong></td>
+              <td>PostgreSQL on Outpost with Secrets Manager password generation</td>
+              <td class="td-blue">Available</td>
+              <td>Database with auto-generated encrypted credentials</td>
+            </tr>
+            <tr>
+              <td><strong>CloudfrontStack</strong></td>
+              <td>CloudFront + S3 origin with OAC (Origin Access Control)</td>
+              <td class="td-blue">Available</td>
+              <td>CDN for frontend apps</td>
+            </tr>
+            <tr>
+              <td><strong>CertificateManagerStack</strong></td>
+              <td>ACM certificates with DNS validation</td>
+              <td class="td-blue">Available</td>
+              <td>TLS certs for ALB/CloudFront</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Stack Dependencies (order matters)</h3>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Stack Dependency Graph</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d1')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    KMS["KMSStack\n4 encryption keys\napp / db / ecr / jfrog"]
+    SM["SecretManagerStack\n25+ services\napp + DB secrets"]
+    IAMP["IAMPolicyStack\nManaged policies\nKMS admin"]
+    IAMR["IAMRoleStack\nRoles + policies\nEKS / CodeBuild"]
+    ECR["ECRStack\n21 repositories\nKMS + scan-on-push"]
+    S3["S3BucketStack\nArtifacts / logs"]
+    OS3["OutpostS3Stack\nData residency"]
+    EC2["EC2Stack\nOutpost compute"]
+    RDS["RDSStack\nPostgreSQL\nauto-generated creds"]
+    CF["CloudfrontStack\nS3 OAC + CDN"]
+    CERT["CertificateManagerStack\nACM + DNS validation"]
+
+    KMS --> SM
+    KMS --> ECR
+    KMS --> RDS
+    KMS --> EC2
+    IAMP --> IAMR
+    KMS --> S3
+    KMS --> OS3
+    CERT --> CF
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <pre><code># app.py &mdash; explicit dependency declaration
+kms_stack = KMSStack(app, f"a{asset_id}-{app_name}-{environment}-{region}-KMSStack")
+secret_manager_stack = SecretManagerStack(app, f"a{asset_id}-{app_name}-{environment}-{region}-SecretManagerStack")
+secret_manager_stack.add_dependency(kms_stack)  # KMS must exist before secrets</code></pre>
+    </section>
+
+    <!-- 6.5 REAL EXAMPLES -->
+    <section class="section" id="real-examples">
+      <div class="section-header">
+        <span class="section-num">6.5</span>
+        <h2>How It Works &mdash; Real Examples</h2>
+      </div>
+
+      <h3>KMS Stack &mdash; 4 encryption keys per environment</h3>
+      <pre><code># KMSStack reads from YAML config
+# Config: kms: [{key_name: "app"}, {key_name: "db"}, {key_name: "ecr"}, {key_name: "jfrog"}]
+for key_config in config['kms']:
+    KMSConstruct(self, key_config['key_name'],
+        alias=f"a{asset_id}-cn-aafm-confirmation-{key_config['key_name']}-{environment}",
+        enable_key_rotation=True,
+        pending_window=Duration.days(7),
+    )</code></pre>
+
+      <h3>Secrets Manager Stack &mdash; app + DB secrets for 25 services</h3>
+      <pre><code># Config: secrets_manager: [{service: "pricing-be", types: ["app", "db"]}, ...]
+for service_config in config['secrets_manager']:
+    for secret_type in service_config['types']:
+        SecretManagerConstruct(self, f"{service}-{secret_type}",
+            secret_name=f"a{asset_id}-cn-aafm-confirmation-{service}-{environment}-{secret_type}",
+            kms_key_arn=global_config.get_config()['kms_key_arns'][secret_type],
+        )
+# Result: 50+ secrets per environment, each encrypted with service-specific KMS key</code></pre>
+
+      <h3>ECR Stack &mdash; 21 repositories</h3>
+      <pre><code># Config: ecr: [{name: "forms-be"}, {name: "pricing-be"}, {name: "nucleus-gql-be"}, ...]
+for repo_config in config['ecr']:
+    ECRConstruct(self, repo_config['name'],
+        repository_name=f"a{asset_id}/aafm-confirmation-{repo_config['name']}",
+        encryption_key=kms_key,
+        image_scan_on_push=True,
+    )</code></pre>
+
+      <h3>The 12 Reusable Constructs</h3>
+      <p>Each wraps a CDK L2 construct with TR standards:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Construct</th><th>What It Wraps</th><th>TR Standard Applied</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>KMSConstruct</code></td><td><code>aws_kms.Key</code></td><td>Rotation enabled, 7-day deletion, TagFactory tags</td></tr>
+            <tr><td><code>SecretManagerConstruct</code></td><td><code>aws_secretsmanager.Secret</code></td><td>KMS encryption, TagFactory tags</td></tr>
+            <tr><td><code>ECRConstruct</code></td><td><code>aws_ecr.Repository</code></td><td>KMS encryption, scan-on-push</td></tr>
+            <tr><td><code>IAMPolicyConstruct</code></td><td><code>aws_iam.ManagedPolicy</code></td><td>Policy statements from YAML config</td></tr>
+            <tr><td><code>IAMRoleConstruct</code></td><td><code>aws_iam.Role</code></td><td>AccountRootPrincipal, managed policies</td></tr>
+            <tr><td><code>OutpostS3Construct</code></td><td><code>aws_s3outposts.CfnBucket</code></td><td>Access points, per-bucket CMK</td></tr>
+            <tr><td><code>S3BucketConstruct</code></td><td><code>aws_s3.Bucket</code></td><td>Block public access, encryption</td></tr>
+            <tr><td><code>EC2Construct</code></td><td><code>aws_ec2.CfnInstance</code></td><td>KMS-encrypted EBS, Outpost subnet</td></tr>
+            <tr><td><code>RDSConstruct</code></td><td>RDS PostgreSQL</td><td>Secrets Manager password gen, customer KMS</td></tr>
+            <tr><td><code>CloudfrontConstruct</code></td><td>CloudFront distribution</td><td>S3 OAC (no legacy OAI), SigV4, logging</td></tr>
+            <tr><td><code>CertificateManagerConstruct</code></td><td><code>aws_certificatemanager.Certificate</code></td><td>DNS validation</td></tr>
+            <tr><td><code>TagFactory</code></td><td>Static tag factory</td><td>TR mandatory tags applied to every resource</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>TagFactory &mdash; Consistent Tagging</h3>
+      <pre><code># TRconstructs/common/TagFactory.py
+Tags.of(resource).add("tr:application-asset-insight-id", "207804")
+Tags.of(resource).add("tr:bu", "tax")
+Tags.of(resource).add("tr:bu-segment", "audit")
+Tags.of(resource).add("tr:environment-type", environment.upper())
+Tags.of(resource).add("tr:product", "confirmation-nextgen")
+Tags.of(resource).add("tr:resource-owner", "audit-devops@thomsonreuters.com")
+Tags.of(resource).add("tr:provider", "outposts")</code></pre>
+    </section>
+
+    <!-- 6.6 ENVIRONMENT CONFIG -->
+    <section class="section" id="env-config">
+      <div class="section-header">
+        <span class="section-num">6.6</span>
+        <h2>Environment Configuration (YAML-Driven)</h2>
+      </div>
+      <p><strong>The same CDK code deploys to all environments</strong> &mdash; only the YAML config changes:</p>
+
+      <pre><code># Deploy to CI
+cdk deploy -c app=cng -c environment=ci -c region=us-east-1
+
+# Deploy to Demo
+cdk deploy -c app=cng -c environment=demo -c region=us-east-1
+
+# Deploy to Prod
+cdk deploy -c app=cng -c environment=prod -c region=us-east-1</code></pre>
+
+      <h3>Config File Hierarchy (later overrides earlier)</h3>
+      <pre><code>environments/
+├── global/
+│   └── global.yaml                         # Account IDs, asset_id
+├── cng/
+│   └── us-east-1/
+│       ├── default.yaml                    # Region, service list
+│       ├── cng_us-east-1_ci.yaml          # CI: 21 ECR repos, 25 services, 4 KMS keys
+│       └── cng_us-east-1_demo.yaml        # Demo: slightly different service list</code></pre>
+
+      <h3>CI Config Example</h3>
+      <pre><code># cng_us-east-1_ci.yaml
+kms:
+  - key_name: "app"      # Encrypts app secrets
+  - key_name: "db"       # Encrypts DB credentials
+  - key_name: "ecr"      # Encrypts Docker images
+  - key_name: "jfrog"    # Encrypts JFrog tokens
+
+ecr:
+  - name: "forms-be"
+  - name: "pricing-be"
+  - name: "nucleus-gql-be"
+  - name: "nucleus-orl-be"
+  - name: "selfreg-be"
+  # ... 21 repos total
+
+secrets_manager:
+  - service: "pricing-be"
+    types: ["app", "db"]
+  - service: "forms-be"
+    types: ["app", "db"]
+  - service: "jfrog"
+    types: ["jfrog"]
+  # ... 25 services total</code></pre>
+
+      <h3>Account Routing</h3>
+      <pre><code>preprod_environments = ['ci', 'demo', 'qa']
+prod_environments = ['prod', 'prod-backup', 'dr', 'dr-backup']
+
+if environment in preprod_environments:
+    common_env = cdk.Environment(account=preprod_account, region=region)
+elif environment in prod_environments:
+    common_env = cdk.Environment(account=prod_account, region=region)</code></pre>
+
+      <h3>GlobalConfig Singleton &mdash; Inter-Stack Communication</h3>
+      <pre><code># KMSStack stores KMS key ARNs
+global_config = GlobalConfig()
+global_config.append_config({"kms_key_arns": {"app": key.key_arn, "db": db_key.key_arn}})
+
+# SecretManagerStack retrieves them
+kms_arns = global_config.get_config()["kms_key_arns"]
+# Uses the correct KMS key per secret type</code></pre>
+    </section>
+
+    <!-- 6.7 KEY PATTERNS -->
+    <section class="section" id="key-patterns">
+      <div class="section-header">
+        <span class="section-num">6.7</span>
+        <h2>CDK Key Patterns (Interview Gold)</h2>
+      </div>
+
+      <h3>Pattern 1: Config-Driven Stacks (Single Source of Truth)</h3>
+      <pre><code># All resources defined in YAML &mdash; stacks are templates that loop over config
+for service in config['secrets_manager']:
+    SecretManagerConstruct(self, service['service'], ...)
+
+# Add a new service = add one YAML entry. No code changes needed.</code></pre>
+
+      <h3>Pattern 2: Cross-Stack Dependencies via GlobalConfig</h3>
+      <pre><code># KMSStack writes key ARNs &rarr; SecretManagerStack reads them
+# This avoids CfnOutput/ImportValue complexity for simple data sharing
+global_config.append_config({"kms_key_arns": {key_name: key.key_arn}})</code></pre>
+
+      <h3>Pattern 3: TR Mandatory Tagging via TagFactory</h3>
+      <pre><code># Every construct calls TagFactory &mdash; impossible to forget tags
+class KMSConstruct(Construct):
+    def __init__(self, scope, id, **kwargs):
+        key = kms.Key(self, "Key", ...)
+        TagFactory.apply_common_tags(key, config)   # TR tags automatically
+        TagFactory.apply_kms_tags(key, config)       # KMS-specific tags</code></pre>
+
+      <h3>Pattern 4: Environment Multiplexing</h3>
+      <pre><code># Same code, different config &rarr; different CloudFormation stacks per environment
+cdk deploy -c app=cng -c environment=ci      # &rarr; a207804-cng-ci-us-east-1-KMSStack
+cdk deploy -c app=cng -c environment=demo    # &rarr; a207804-cng-demo-us-east-1-KMSStack
+cdk deploy -c app=cng -c environment=prod    # &rarr; a207804-cng-prod-us-east-1-KMSStack</code></pre>
+
+      <h3>Pattern 5: Construct Abstraction &mdash; Enforce Standards</h3>
+      <pre><code># Raw CDK &mdash; developer might forget encryption or public access block
+bucket = s3.Bucket(self, "Bucket")  # No encryption, publicly accessible!
+
+# Our S3Construct &mdash; encryption + block public is built-in
+S3BucketConstruct(self, "Bucket", bucket_name="...", config=config)
+# Always encrypted, always private, always tagged</code></pre>
+    </section>
+
+    <!-- 6.8 CDK vs TERRAFORM -->
+    <section class="section" id="cdk-vs-terraform">
+      <div class="section-header">
+        <span class="section-num">6.8</span>
+        <h2>CDK vs Terraform &mdash; Interview Comparison</h2>
+      </div>
+      <div class="warn-box">
+        <strong>Guaranteed interview question:</strong> "Why CDK over Terraform?"
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Dimension</th><th>CDK (What We Use)</th><th>Terraform</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-muted">State Management</td>
+              <td class="td-green">AWS-managed (CloudFormation)</td>
+              <td>You manage <code>.tfstate</code> (S3 + DynamoDB locking)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Rollback</td>
+              <td class="td-green">Automatic (CloudFormation rolls back on failure)</td>
+              <td>Manual (<code>terraform destroy</code> or fix forward)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Drift Detection</td>
+              <td>CloudFormation drift detection</td>
+              <td><code>terraform plan</code> shows drift</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Multi-Cloud</td>
+              <td>AWS only</td>
+              <td class="td-green">AWS, Azure, GCP, etc.</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Language</td>
+              <td class="td-green">Python, TypeScript, Java, Go</td>
+              <td>HCL (domain-specific)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Testing</td>
+              <td class="td-green">pytest on synth output (real assertions)</td>
+              <td><code>terraform validate</code> + <code>terratest</code> (Go)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Learning Curve</td>
+              <td class="td-green">Know Python &rarr; easy</td>
+              <td>Must learn HCL</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Community</td>
+              <td>Growing</td>
+              <td class="td-green">Massive (more modules/providers)</td>
+            </tr>
+            <tr>
+              <td class="td-muted">Import</td>
+              <td><code>cdk import</code> (newer)</td>
+              <td class="td-green"><code>terraform import</code> (mature)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Interview Answer</h3>
+      <div class="interview-answer">
+        "We chose CDK because our team is Python-first and we're AWS-only. The biggest advantage is <strong>testing</strong> &mdash; we write pytest assertions against the synthesized CloudFormation template. If someone removes encryption from an S3 bucket, the test fails before it ever hits AWS. We also use <strong>CDK Nag</strong> which runs AWS Solutions security checks at synth time. The trade-off is CDK is AWS-only, so if you need multi-cloud, Terraform is the right choice."
+      </div>
+    </section>
+
+    <!-- 6.9 CDK LIFECYCLE -->
+    <section class="section" id="lifecycle">
+      <div class="section-header">
+        <span class="section-num">6.9</span>
+        <h2>CDK Lifecycle &mdash; Interview Must-Know</h2>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <div>
+            <div class="step-title">Bootstrap (one-time per account/region)</div>
+            <div class="step-desc">Creates S3 bucket for assets + IAM roles for deployment</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <div>
+            <div class="step-title">Synthesize &mdash; generate CloudFormation</div>
+            <div class="step-desc">Output: <code>cdk.out/a207804-cng-ci-us-east-1-KMSStack.template.json</code></div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <div>
+            <div class="step-title">Diff &mdash; preview changes</div>
+            <div class="step-desc">Shows resources to add/modify/delete (like <code>terraform plan</code>)</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <div>
+            <div class="step-title">Deploy</div>
+            <div class="step-desc">Creates/updates CloudFormation stacks &rarr; provisions AWS resources</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">5</span>
+          <div>
+            <div class="step-title">Destroy (tear down)</div>
+            <div class="step-desc">Deletes CloudFormation stacks &rarr; removes AWS resources</div>
+          </div>
+        </div>
+      </div>
+
+      <pre><code># 1. Bootstrap (one-time per account/region)
+cdk bootstrap aws://833618288067/us-east-1
+# Creates: S3 bucket for assets, IAM roles for deployment
+
+# 2. Synthesize (generate CloudFormation)
+cdk synth -c app=cng -c environment=ci -c region=us-east-1
+# Output: cdk.out/a207804-cng-ci-us-east-1-KMSStack.template.json
+
+# 3. Diff (preview changes)
+cdk diff -c app=cng -c environment=ci -c region=us-east-1
+# Shows: resources to add/modify/delete (like terraform plan)
+
+# 4. Deploy
+cdk deploy -c app=cng -c environment=ci -c region=us-east-1
+# Creates/updates CloudFormation stacks &rarr; provisions AWS resources
+
+# 5. Destroy (tear down)
+cdk destroy -c app=cng -c environment=ci -c region=us-east-1
+# Deletes CloudFormation stacks &rarr; removes AWS resources</code></pre>
+
+      <div class="interview-q">Q: "What happens if <code>cdk deploy</code> fails halfway?"</div>
+      <div class="interview-answer">
+        "CDK generates CloudFormation, so CloudFormation handles the failure. If a resource creation fails, CloudFormation <strong>automatically rolls back</strong> all resources created in that deployment. The stack returns to its previous state. This is a major advantage over Terraform where a partial failure can leave you in a broken state that requires manual cleanup."
+      </div>
+    </section>
+
+    <!-- 6.10 INTERVIEW Q&A -->
+    <section class="section" id="interview-qa">
+      <div class="section-header">
+        <span class="section-num">6.10</span>
+        <h2>Interview Questions &mdash; Scenario-Based</h2>
+      </div>
+
+      <!-- Q1 -->
+      <div class="interview-q">Q: "You need to provision the same infrastructure in 4 environments (CI, Demo, QA, Prod). How do you handle it with CDK?"</div>
+      <div class="interview-answer">
+        "Config-driven stacks. I have a YAML config file per environment with values like instance type, VPC ID, subnet, tags. The CDK stack reads the config and uses those values. The same Python code deploys to all environments &mdash; only the config changes.<br><br>
+        This is better than copy-pasting stacks or using CloudFormation parameters because you get full Python validation at synth time."
+      </div>
+      <pre><code># app.py
+for env_name in ['ci', 'demo', 'qa', 'prod']:
+    config = load_config(env_name)
+    MyStack(app, f'infra-{env_name}', config=config, env=aws_env)</code></pre>
+
+      <!-- Q2 -->
+      <div class="interview-q">Q: "How do you test CDK code?"</div>
+      <div class="interview-answer">
+        "Three levels:<br>
+        <strong>1. Snapshot tests:</strong> <code>cdk synth</code> output compared to a baseline &mdash; catches unintended changes<br>
+        <strong>2. Fine-grained assertions:</strong> pytest checks specific resource properties exist<br>
+        <strong>3. CDK Nag:</strong> Security compliance checks &mdash; fails if S3 is public, IAM is too permissive, etc.<br><br>
+        We run these on <code>cdk synth</code> output to catch issues before anything hits AWS."
+      </div>
+      <pre><code>template.has_resource_properties('AWS::S3::Bucket', {
+    'BucketEncryption': Match.object_like({...})
+})</code></pre>
+
+      <!-- Q3 -->
+      <div class="interview-q">Q: "Someone manually changed an S3 bucket policy in the AWS console. How do you detect and fix it?"</div>
+      <div class="interview-answer">
+        "<strong>1. Detection:</strong> CloudFormation drift detection &mdash; <code>aws cloudformation detect-stack-drift --stack-name &lt;name&gt;</code>. It compares actual state vs template.<br>
+        <strong>2. Fix:</strong> Run <code>cdk deploy</code> &mdash; CloudFormation will reconcile back to the template state. The manual change gets overwritten.<br>
+        <strong>3. Prevention:</strong> IAM policies that restrict console access. Tag resources with <code>ManagedBy: CDK</code>. CloudTrail alerts on manual resource modifications."
+      </div>
+
+      <!-- Q4 -->
+      <div class="interview-q">Q: "How do you handle secrets in CDK? You can't put passwords in code."</div>
+      <div class="interview-answer">
+        "We use Secrets Manager constructs. CDK creates the secret with a placeholder value, and we manually set the real value after deployment. The secret ARN is referenced by other resources.<br><br>
+        The secret value never appears in CDK code, CloudFormation templates, or git. Only the ARN is in the template."
+      </div>
+      <pre><code>secret = secretsmanager.Secret(self, 'DBPassword',
+    secret_name='/myapp/db-password',
+    generate_secret_string=SecretStringGenerator(exclude_punctuation=True)
+)
+# Pass to EC2 via instance profile + IAM policy (GetSecretValue)</code></pre>
+
+      <!-- Q5 -->
+      <div class="interview-q">Q: "Your CDK deploy is failing with 'Resource limit exceeded'. What's happening?"</div>
+      <div class="interview-answer">
+        "CloudFormation has a <strong>500 resource limit per stack</strong>. If your stack is too large:<br>
+        <strong>1. Split into multiple stacks</strong> &mdash; group by lifecycle (networking, compute, monitoring)<br>
+        <strong>2. Use cross-stack references</strong> &mdash; <code>CfnOutput</code> in one stack, <code>Fn::ImportValue</code> in another<br>
+        <strong>3. Use nested stacks</strong> &mdash; CDK's <code>NestedStack</code> for logical grouping within one deployment<br><br>
+        In our Outpost IaC project, we have 11 separate stacks &mdash; KMS, Secrets Manager, ECR, IAM, S3, RDS, etc. Each resource type has its own lifecycle and can be deployed independently. KMS keys rarely change, but ECR repos get added whenever we onboard a new service."
+      </div>
+
+      <!-- Q6 -->
+      <div class="interview-q">Q: "How do you handle the CDK bootstrap in a new AWS account?"</div>
+      <div class="interview-answer">
+        "CDK bootstrap creates an S3 bucket and IAM roles that CDK needs to deploy. At TR we use a custom bootstrap template that adds our permission boundaries and tags.<br><br>
+        The qualifier (<code>207804</code>) is our asset ID &mdash; it scopes the bootstrap resources so multiple teams can bootstrap in the same account without conflicts."
+      </div>
+      <pre><code>aws cloudformation deploy \
+  --template-file bootstrap-template.yaml \
+  --stack-name a207804-cdk-toolkit \
+  --parameter-overrides Qualifier=207804</code></pre>
+
+      <!-- Q7 -->
+      <div class="interview-q">Q: "How do you deploy a specific stack to a specific environment?"</div>
+      <div class="interview-answer">
+        "Our CDK app uses <strong>context flags</strong> to drive everything &mdash; app name, environment, and region. The context determines which YAML config file gets loaded, which AWS account to target, and which stacks to deploy.<br><br>
+        The <code>app.py</code> entry point reads these context values, loads <code>environments/cng/us-east-1/cng_us-east-1_ci.yaml</code>, merges with <code>default.yaml</code> and <code>global.yaml</code>, then routes to the correct AWS account &mdash; preprod account for ci/demo/qa, prod account for prod/dr. Each stack gets a deterministic name like <code>a207804-cng-ci-us-east-1-KMSStack</code> so we can target individual stacks without affecting others."
+      </div>
+      <pre><code># Deploy KMS stack to CI environment
+cdk deploy a207804-cng-ci-us-east-1-KMSStack \
+  -c app=cng -c environment=ci -c region=us-east-1
+
+# Deploy all stacks to QA
+cdk deploy --all \
+  -c app=cng -c environment=qa -c region=us-east-1</code></pre>
+
+    </section>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <a href="05-ci-cd-github-actions.html">&larr; 05: CI/CD &amp; GitHub Actions</a>
+  <a href="index.html" class="nav-index">Index</a>
+  <a href="07-observability.html">07: Observability &rarr;</a>
+</nav>
+
+<script>
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#141f35',
+      primaryTextColor: '#dce8f5',
+      primaryBorderColor: '#22c55e',
+      lineColor: '#7a9ab5',
+      secondaryColor: '#0f1826',
+      tertiaryColor: '#090d1a',
+      background: '#090d1a',
+      mainBkg: '#141f35',
+      nodeBorder: '#1d2d4f',
+      clusterBkg: '#0f1826',
+      titleColor: '#dce8f5',
+      edgeLabelBackground: '#0f1826',
+      fontFamily: 'DM Sans, sans-serif',
+      fontSize: '13px'
+    }
+  });
+
+  // Zoom controls
+  const scales = {};
+  function zoom(id, factor) {
+    scales[id] = (scales[id] || 1) * factor;
+    document.getElementById(id).style.transform = `scale(${scales[id]})`;
+  }
+  function reset(id) {
+    scales[id] = 1;
+    document.getElementById(id).style.transform = 'scale(1)';
+  }
+
+  // Theme toggle
+  const toggleBtn = document.getElementById('themeToggle');
+  toggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    toggleBtn.textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+
+  // Active ToC highlighting via IntersectionObserver
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
