@@ -914,21 +914,227 @@ spec:
             <!-- 11.6 KWAF -->
             <div class="section-header" id="kwaf">
                 <span class="section-num">6</span>
-                <h2>KWAF &mdash; Kubernetes Web Application Firewall</h2>
+                <h2>KWAF &mdash; Kubernetes Web Application &amp; API Protection</h2>
             </div>
 
-            <p>We use <strong>Radware KWAF</strong> (Kubernetes WAF) for OWASP Top 10 protection. I rolled this out to the platform.</p>
+            <p>We use <strong>Radware KWAF</strong> (now rebranded as <strong>KWAAP</strong>) for OWASP Top 10 protection. I rolled this out to the platform. It runs in <strong>ext-authz mode</strong> integrated with Istio &mdash; every request is inspected before reaching the application pod. The system has <strong>16 components</strong> across 4 architecture layers.</p>
 
-            <h3>Architecture</h3>
+            <h3>Full Architecture &mdash; Data Flow</h3>
 
-            <pre><code><span class="code-label">architecture</span>207804-waf-preprod namespace
-  kwaf-controller          &larr; Control plane: policy management
-  kwaf-elasticsearch       &larr; WAF logs storage
-        |
-        | distributes policies
-        v
-207804-confirmation-ci namespace
-  kwaf-enforcer (DaemonSet) &larr; Data plane: inspects every request</code></pre>
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+graph TD
+    EXT["External Traffic"] --> IGW["Istio Ingress Gateway"]
+    IGW --> ENF["kwaf-enforcer<br/>(Data Plane)"]
+    ENF -->|"gRPC :12121"| CTRL["kwaf-controller<br/>(Control Plane)"]
+    ENF -->|"gRPC :8081"| RL["kwaf-rate-limiter"]
+    RL --> RED["kwaf-redis"]
+    ENF -->|"NATS"| NATS["kwaf-nats"]
+    NATS --> AD["kwaf-api-discovery"]
+    AD --> PC["kwaf-profiles-crud"]
+    ENF -->|"fluentbit"| LS["kwaf-logstash"]
+    LS --> ES["kwaf-elasticsearch"]
+    ES --> EF["kwaf-events-fetcher"]
+    EF --> GUI["kwaf-gui"]
+    CTRL --> PC
+    style EXT fill:#1d2d4f,stroke:#38bdf8,color:#dce8f5
+    style IGW fill:#141f35,stroke:#38bdf8,color:#dce8f5
+    style ENF fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style CTRL fill:#141f35,stroke:#22c55e,color:#dce8f5
+    style RL fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style RED fill:#141f35,stroke:#38bdf8,color:#dce8f5
+    style NATS fill:#141f35,stroke:#38bdf8,color:#dce8f5
+    style AD fill:#141f35,stroke:#22c55e,color:#dce8f5
+    style PC fill:#141f35,stroke:#22c55e,color:#dce8f5
+    style LS fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style ES fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style EF fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style GUI fill:#141f35,stroke:#f59e0b,color:#dce8f5
+                </div>
+            </div>
+
+            <h3>Control Plane</h3>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>K8s Resource</th>
+                            <th>What It Does</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>kwaf-controller</strong></td>
+                            <td>Deployment</td>
+                            <td>Central brain. Distributes security config (profiles, signatures, custom rules) to all enforcers via gRPC (port 12121)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-profiles-crud</strong></td>
+                            <td>Deployment</td>
+                            <td>Security profile management API (Node.js). CRUD for profiles, policies, classifiers via K8s API. Used by GUI, API Discovery, and controller</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-api-discovery</strong></td>
+                            <td>StatefulSet</td>
+                            <td>Automated API discovery. Consumes traffic metadata from NATS, builds OpenAPI specs for discovered APIs</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-validationcontroller</strong></td>
+                            <td>Deployment</td>
+                            <td>K8s admission webhook. Validates KWAF CRDs before they&rsquo;re applied &mdash; prevents invalid security configs</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Data Plane</h3>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>K8s Resource</th>
+                            <th>What It Does</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>kwaf-enforcer</strong></td>
+                            <td>Deployment</td>
+                            <td>Traffic inspection engine. Runs Envoy-based <code>waas-bootstrap</code> with 4+ sidecars: enforcer, logrotate, fluentbit, log-streamer. Init container loads signature databases</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-rate-limiter</strong></td>
+                            <td>Deployment</td>
+                            <td>Activity tracking and rate-limiting. Receives descriptors from enforcers via gRPC (port 8081), evaluates thresholds (TPS/TPM/TPH/TPD), stores blocked-IP decisions in Redis</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Observability / Forensics</h3>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>K8s Resource</th>
+                            <th>What It Does</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>kwaf-elasticsearch</strong></td>
+                            <td>StatefulSet</td>
+                            <td>Forensics backend. Stores security events, access logs, request data. xpack security with mTLS, ILM for data retention</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-logstash</strong></td>
+                            <td>Deployment</td>
+                            <td>Log processing pipeline. Receives events from enforcers (via fluentbit), transforms and indexes into Elasticsearch</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-events-fetcher</strong></td>
+                            <td>Deployment</td>
+                            <td>Forensics API (Node.js). Queries Elasticsearch, serves events to the GUI via REST API</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-gui</strong></td>
+                            <td>Deployment</td>
+                            <td>Web console (Nginx + Node.js). Forensics dashboard for attack analysis, profile management, policy tuning</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Infrastructure / Support</h3>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>K8s Resource</th>
+                            <th>What It Does</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>kwaf-redis</strong></td>
+                            <td>StatefulSet</td>
+                            <td>In-memory store backing rate-limiter. Blocked IPs, counters, activity state. Supports standalone/clustered/HA with TLS</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-nats</strong></td>
+                            <td>StatefulSet</td>
+                            <td>Internal messaging bus for API Discovery. Enforcers publish API traffic metadata, api-discovery consumes</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-policies</strong></td>
+                            <td>Istio AuthzPolicies (no pods)</td>
+                            <td>Enforces mTLS access control per KWAF component &mdash; port restrictions + deny-by-default</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-service-mesh</strong></td>
+                            <td>Istio GW/VS/PeerAuth (no pods)</td>
+                            <td>Exposes GUI externally via Istio Gateway with TLS termination, plus ES access and mTLS</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-certs</strong></td>
+                            <td>ExternalSecrets/RBAC (no pods)</td>
+                            <td>TLS certificate provisioning from external sources. Currently disabled in our environment</td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-crds</strong></td>
+                            <td>CRD definitions (no pods)</td>
+                            <td>Custom Resource Definitions: profiles, apispecs, sourcegroups, mappings, sigfilters, etc. Must install first</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>How the Components Work Together</h3>
+
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div class="step-content">Traffic enters via Istio. In <strong>ext-authz mode</strong>, Istio sends every request to the <strong>enforcer</strong> for inspection before it reaches the app pod</div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div class="step-content">The <strong>enforcer</strong> fetches security config from the <strong>controller</strong> over gRPC (port 12121). The controller reads KWAF CRDs from the K8s API</div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div class="step-content">For rate-limiting, the enforcer sends descriptors to the <strong>rate-limiter</strong> (gRPC port 8081), which checks/stores state in <strong>Redis</strong>. Blocked IPs persist with configurable TTLs</div>
+                </div>
+                <div class="step">
+                    <span class="step-num">4</span>
+                    <div class="step-content">The enforcer writes security events to local logs &rarr; <strong>fluentbit</strong> ships them to <strong>Logstash</strong> &rarr; indexed into <strong>Elasticsearch</strong></div>
+                </div>
+                <div class="step">
+                    <span class="step-num">5</span>
+                    <div class="step-content">The <strong>events-fetcher</strong> queries ES data &rarr; <strong>GUI</strong> renders the Forensics dashboard for attack analysis and policy tuning</div>
+                </div>
+                <div class="step">
+                    <span class="step-num">6</span>
+                    <div class="step-content">Enforcers publish API traffic metadata to <strong>NATS</strong> &rarr; <strong>api-discovery</strong> builds OpenAPI specs &rarr; stored via <strong>profiles-crud</strong></div>
+                </div>
+                <div class="step">
+                    <span class="step-num">7</span>
+                    <div class="step-content">The <strong>validationcontroller</strong> validates all CRD changes via K8s admission webhooks before they take effect</div>
+                </div>
+            </div>
+
+            <h3>Interview Answer &mdash; "Describe your WAF architecture"</h3>
+
+            <div class="info-box" style="border-left-color: var(--accent);">
+                <p>"We use Radware KWAAP with 16 components across 4 layers. The enforcer sits in the Istio ext-authz path &mdash; every request is inspected before reaching the app. The controller distributes security profiles and signatures via gRPC. Rate-limiting is backed by Redis for DDoS/brute-force protection. API Discovery automatically builds OpenAPI specs from live traffic via NATS messaging. All security events flow through Logstash into Elasticsearch, with a forensics GUI for attack analysis. We manage all 14 active services through a single ArgoCD ApplicationSet with a list generator &mdash; DRY and easy to maintain."</p>
+            </div>
 
             <h3>What KWAF Protects Against</h3>
 
@@ -971,6 +1177,51 @@ spec:
                             <td><strong>HTTP Protocol Violations</strong></td>
                             <td>Malformed request detection</td>
                             <td>Invalid Content-Length, smuggling</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DDoS / Brute Force</strong></td>
+                            <td>Rate-limiter activity tracking (TPS/TPM thresholds)</td>
+                            <td>1000 login attempts/min from one IP</td>
+                        </tr>
+                        <tr>
+                            <td><strong>API Abuse</strong></td>
+                            <td>API Discovery + schema enforcement</td>
+                            <td>Undocumented endpoint access, parameter tampering</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Our Deployment</h3>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Namespace</strong></td>
+                            <td><code>207804-waf-preprod</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Environment</strong></td>
+                            <td><code>preprod</code> only</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ApplicationSet</strong></td>
+                            <td>Single <code>kwaf-applicationset</code> (list generator, 14 services)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CRDs</strong></td>
+                            <td>Separate <code>kwaf-crds-applicationset</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>kwaf-certs</strong></td>
+                            <td>Disabled (commented out)</td>
                         </tr>
                     </tbody>
                 </table>
