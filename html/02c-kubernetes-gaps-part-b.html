@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 2C: Kubernetes Gaps — Part B | VPA · Init Containers · ConfigMaps · Topology · Admission · Storage · CRDs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #090d1a; --surface: #0f1826; --surface2: #141f35; --border: #1d2d4f;
+      --text: #dce8f5; --text-muted: #7a9ab5;
+      --accent: #22c55e; --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8; --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b; --accent3-dim: rgba(245,158,11,0.12);
+      --accent4: #a78bfa; --accent4-dim: rgba(167,139,250,0.12);
+      --code-bg: #060a13; --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif; --font-mono: 'Fira Code', monospace; --radius: 8px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+    .hero { background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%); border-bottom: 1px solid var(--border); padding: 3rem 2rem 2.5rem; }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge { font-family: var(--font-mono); font-size: 0.68rem; padding: 0.2rem 0.55rem; border-radius: 4px; letter-spacing: 0.05em; }
+    .badge-green  { background: var(--accent-dim);  color: var(--accent);  border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue   { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber  { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-purple { background: var(--accent4-dim); color: var(--accent4); border: 1px solid rgba(167,139,250,0.3); }
+    .hero h1 { font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; letter-spacing: -0.025em; }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); font-family: var(--font-mono); }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: var(--radius); padding: 0.35rem 0.7rem; cursor: pointer; font-family: var(--font-mono); font-size: 0.72rem; z-index: 100; transition: border-color 0.15s, color 0.15s; }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    .layout { display: flex; max-width: 1240px; margin: 0 auto; padding: 2rem; gap: 2.5rem; }
+    .toc { width: 220px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title { font-family: var(--font-mono); font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 0.65rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a { display: block; padding: 0.28rem 0.6rem; color: var(--text-muted); text-decoration: none; font-size: 0.78rem; border-radius: 4px; border-left: 2px solid transparent; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+    .toc-list a:hover, .toc-list a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    .main-content { flex: 1; min-width: 0; }
+    .section { margin-bottom: 3.5rem; }
+    .section-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.25rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border); }
+    .section-num { font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent); background: var(--accent-dim); padding: 0.15rem 0.4rem; border-radius: 3px; flex-shrink: 0; }
+    .section h2 { font-size: 1.3rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+    .section h3 { font-size: 0.93rem; font-weight: 600; color: var(--accent2); margin: 1.5rem 0 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--font-mono); }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th { background: var(--surface2); color: var(--accent); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); font-family: var(--font-mono); }
+    tbody td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+    .td-green  { color: var(--accent)  !important; font-weight: 500; }
+    .td-blue   { color: var(--accent2) !important; }
+    .td-amber  { color: var(--accent3) !important; }
+    .td-purple { color: var(--accent4) !important; }
+
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; overflow-x: auto; margin-bottom: 1.25rem; white-space: pre-wrap; word-break: break-all; }
+    pre code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); background: none; padding: 0; }
+    .code-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.4rem; display: block; }
+
+    .diagram-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; margin-bottom: 1.5rem; }
+    .diagram-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .diagram-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s, color 0.15s; }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow: auto; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+
+    .info-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .info-box strong { color: var(--accent2); }
+    .warn-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent3); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .warn-box strong { color: var(--accent3); }
+    .success-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .success-box strong { color: var(--accent); }
+
+    .qa-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1.25rem; }
+    .qa-question { font-weight: 600; color: var(--accent); font-size: 0.88rem; margin-bottom: 0.6rem; font-family: var(--font-mono); }
+    .qa-answer { color: var(--text-muted); font-size: 0.85rem; line-height: 1.65; }
+    .qa-answer strong { color: var(--text); }
+    .qa-answer ol, .qa-answer ul { padding-left: 1.2rem; margin: 0.4rem 0; }
+    .qa-answer li { margin-bottom: 0.25rem; }
+    .qa-answer code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+    .analogy-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent4); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .analogy-box strong { color: var(--accent4); }
+    .analogy-label { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent4); margin-bottom: 0.35rem; display: block; }
+
+    .component-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .component-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; transition: border-color 0.15s; }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.3rem; }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num { flex-shrink: 0; width: 26px; height: 26px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; margin-top: 0.15rem; }
+    .step-body {}
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    .gap-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.15rem 0.45rem; border-radius: 3px; margin-left: 0.5rem; vertical-align: middle; }
+    .gap-medium   { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .gap-senior   { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+
+    .bottom-nav { max-width: 1240px; margin: 0 auto; padding: 1.5rem 2rem 3rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); gap: 1rem; flex-wrap: wrap; }
+    .bottom-nav a { color: var(--accent2); text-decoration: none; font-size: 0.82rem; font-family: var(--font-mono); padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); transition: border-color 0.15s, color 0.15s; }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--accent); }
+    .bottom-nav .nav-index { color: var(--text-muted); font-size: 0.75rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    @media (max-width: 860px) { .toc { display: none; } .layout { padding: 1rem; } .hero h1 { font-size: 1.5rem; } .bottom-nav { flex-direction: column; text-align: center; } }
+    body.light { --bg: #f2f6fc; --surface: #ffffff; --surface2: #eaeff8; --border: #c8d6e8; --text: #1a2535; --text-muted: #4f6880; --code-bg: #e2eaf5; --code-text: #1d5fa0; }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">Kubernetes Gaps</span>
+      <span class="badge badge-amber">Part B of 2</span>
+      <span class="badge badge-purple">Senior Differentiators</span>
+    </div>
+    <h1>Section 2C: Kubernetes Gaps — Part B</h1>
+    <p class="hero-sub">VPA &middot; Init Containers &middot; ConfigMaps &middot; Topology Spread &middot; Admission Webhooks &middot; Storage Deep Dive &middot; CRDs &amp; Operators</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Sections</span>
+        <span class="hero-meta-value">7 gaps covered</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Priority</span>
+        <span class="hero-meta-value">🟡 Medium + 🟢 Senior differentiator</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Part A</span>
+        <span class="hero-meta-value">02b-kubernetes-gaps-part-a.html</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Last Updated</span>
+        <span class="hero-meta-value">2026-03-14</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Part B Contents</div>
+      <ul class="toc-list">
+        <li><a href="#s-vpa">G4 · VPA</a></li>
+        <li><a href="#s-vpa" class="toc-sub">HPA vs VPA conflict</a></li>
+        <li><a href="#s-init">G5 · Init Containers</a></li>
+        <li><a href="#s-init" class="toc-sub">Lifecycle hooks</a></li>
+        <li><a href="#s-init" class="toc-sub">preStop sleep pattern</a></li>
+        <li><a href="#s-configmap">G6 · ConfigMaps Deep Dive</a></li>
+        <li><a href="#s-configmap" class="toc-sub">Hot reload problem</a></li>
+        <li><a href="#s-topology">G7 · Topology Spread</a></li>
+        <li><a href="#s-admission">G8 · Admission Webhooks</a></li>
+        <li><a href="#s-admission" class="toc-sub">Mutating vs Validating</a></li>
+        <li><a href="#s-admission" class="toc-sub">Istio sidecar injection</a></li>
+        <li><a href="#s-storage">G9 · Storage Deep Dive</a></li>
+        <li><a href="#s-storage" class="toc-sub">PV / PVC / StorageClass</a></li>
+        <li><a href="#s-storage" class="toc-sub">Outposts storage gotcha</a></li>
+        <li><a href="#s-crds">G10 · CRDs &amp; Operators</a></li>
+        <li><a href="#s-crds" class="toc-sub">Operator pattern</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- ============================================================ -->
+    <!-- GAP 4: VPA                                                    -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-vpa">
+      <div class="section-header">
+        <span class="section-num">G4</span>
+        <h2>VPA — Vertical Pod Autoscaler <span class="gap-badge gap-medium">Medium Gap</span></h2>
+      </div>
+
+      <p>While HPA adds more pods (scale out), <strong>VPA makes existing pods bigger</strong> — increasing CPU and memory requests/limits based on actual observed usage. Think of it as an intelligent resource right-sizer.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">🏋️ Analogy</span>
+        <strong>HPA hires more workers. VPA gives each worker a bigger desk and faster computer.</strong> Same number of pods, but each pod gets more CPU and memory allocated. Particularly useful for batch jobs, singleton services, or workloads that genuinely need more resources per instance rather than more instances.
+      </div>
+
+      <h3>VPA Modes</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">mode</div>
+          <div class="card-title">Off</div>
+          <div class="card-desc">VPA only <strong>recommends</strong> — shows what resources it thinks the pod needs. No automatic changes. Great for auditing over/under-provisioned services without risk.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">mode</div>
+          <div class="card-title">Initial</div>
+          <div class="card-desc">VPA sets resource requests at <strong>pod creation time only</strong>. Doesn't change running pods. Useful for ensuring new pods start with right-sized resources.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">mode</div>
+          <div class="card-title">Auto (Recreate)</div>
+          <div class="card-desc">VPA <strong>evicts and restarts pods</strong> when it wants to resize them. The pod gets killed and recreated with new resource values. Causes brief disruption — use carefully in prod.</div>
+        </div>
+      </div>
+
+      <span class="code-label">VPA Spec — Off Mode (Recommendation Only)</span>
+      <pre><code>apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: pricing-be-vpa
+  namespace: 207804-confirmation-ci
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pricing-be
+  updatePolicy:
+    updateMode: "Off"           # Recommend only, don't change anything
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "pricing-be"
+        minAllowed:
+          cpu: 100m
+          memory: 256Mi
+        maxAllowed:
+          cpu: 2000m
+          memory: 4Gi</code></pre>
+
+      <div class="info-box">
+        <strong>Reading VPA Recommendations:</strong> After VPA runs for a few hours, check: <code>kubectl describe vpa pricing-be-vpa</code>. It shows three estimates: <code>lowerBound</code> (minimum safe), <code>target</code> (recommended), <code>upperBound</code> (maximum observed). The <code>target</code> value is what you should set in your Helm chart if your current requests are far off.
+      </div>
+
+      <h3>HPA + VPA Conflict — The Critical Nuance</h3>
+      <div class="warn-box">
+        <strong>Do NOT run HPA and VPA in Auto mode targeting the same CPU metric simultaneously.</strong> They fight each other. VPA tries to resize the pod (changing CPU request); HPA uses CPU request as the denominator for utilization. When VPA changes requests, HPA's scaling decisions become unpredictable. This is a common trap.
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Scenario</th><th>Recommended Approach</th></tr></thead>
+          <tbody>
+            <tr><td>Stateless microservice with variable traffic</td><td class="td-green"><strong>HPA only</strong> — scale out (more pods). VPA in Off mode for recommendations.</td></tr>
+            <tr><td>Singleton process (can't scale out)</td><td class="td-blue"><strong>VPA in Auto mode</strong> — scale up the one pod. No HPA.</td></tr>
+            <tr><td>Batch job / ML inference</td><td class="td-blue"><strong>VPA in Initial mode</strong> — right-size at start. Job finishes before resize needed.</td></tr>
+            <tr><td>HPA + VPA together (safe)</td><td class="td-amber"><strong>HPA on CPU, VPA on memory only</strong> — target different resources. Set VPA to only manage memory; HPA manages CPU-based scaling.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "How do you use VPA in your platform today?"</div>
+        <div class="qa-answer">
+          "We primarily run VPA in <strong>Off mode</strong> as a recommendation engine across our 30+ microservices. After a new service deploys to CI, we let it run under realistic load for 48 hours, then check the VPA recommendation. This tells us if the developer's resource estimates in the Helm chart are accurate or if we're wasting capacity.
+          <br><br>
+          We had a case where a .NET service was requesting 2Gi memory but VPA showed the actual usage was consistently under 400Mi. We reduced the request — freed up capacity and improved bin-packing on nodes.
+          <br><br>
+          We don't run VPA in Auto mode for our services because they all use HPA. Running both in auto on the same resource creates conflicts. VPA Auto mode is useful for StatefulSets like PostgreSQL where you want to right-size the database pod without replication complications — but even then we do it during maintenance windows manually."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 5: INIT CONTAINERS & LIFECYCLE HOOKS                     -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-init">
+      <div class="section-header">
+        <span class="section-num">G5</span>
+        <h2>Init Containers &amp; Lifecycle Hooks <span class="gap-badge gap-medium">Medium Gap</span></h2>
+      </div>
+
+      <p>Init containers and lifecycle hooks give you control over <strong>what happens before and after your main container starts and stops</strong>. Critical for graceful startup/shutdown of microservices.</p>
+
+      <h3>Init Containers — Pre-flight Checks</h3>
+      <div class="analogy-box">
+        <span class="analogy-label">✈️ Analogy</span>
+        <strong>Pre-flight checklist before takeoff.</strong> The plane (main app container) only takes off after all pre-flight checks (init containers) complete successfully. Init containers run sequentially, to completion, before the main container starts. If any init container fails, the pod restarts from the top of the init list — the main container never sees a partially-ready environment.
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Pod Startup Sequence with Init Containers</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-init1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-init1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-init1')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-init1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    PULL["Image Pull"] --> INIT1["init-container-1\nwait-for-postgres\n(runs until exit 0)"]
+    INIT1 --> INIT2["init-container-2\nrun-db-migrations\n(runs until exit 0)"]
+    INIT2 --> ISTIO["Istio sidecar\ninjected"]
+    ISTIO --> MAIN["Main container\nstarts\n(app)"]
+    MAIN --> PROBE["Readiness probe\n→ pod is Ready"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Common Init Container Patterns</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Pattern</th><th>What It Does</th><th>Real Use Case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Dependency wait</strong></td>
+              <td>Polls until a service is ready (db, message broker) before main app starts</td>
+              <td><code>until pg_isready -h postgres-svc; do sleep 2; done</code> — ensures DB is accepting connections before .NET app starts</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>DB migrations</strong></td>
+              <td>Runs schema migrations as a separate step before the app starts serving traffic</td>
+              <td><code>dotnet-ef database update</code> — runs EF Core migrations. If migration fails, app never starts — safer than running migrations inside the app on startup.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Config/secret rendering</strong></td>
+              <td>Fetches secrets or generates config files before the main container needs them</td>
+              <td>Consul Template or custom script generates a config.json from environment variables into a shared emptyDir volume</td>
+            </tr>
+            <tr>
+              <td class="td-purple"><strong>Volume population</strong></td>
+              <td>Copies files or assets into a shared emptyDir volume for the main container</td>
+              <td>Clone a git repo or copy static assets before nginx starts serving</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span class="code-label">Init Container Example — Wait for DB then Run Migrations</span>
+      <pre><code>spec:
+  initContainers:
+    - name: wait-for-postgres
+      image: postgres:15-alpine
+      command: ['sh', '-c',
+        'until pg_isready -h postgres-headless -p 5432 -U app; do
+           echo "Waiting for postgres..."; sleep 3;
+         done; echo "Postgres ready!"']
+
+    - name: run-migrations
+      image: my-service:latest          # same image as main app
+      command: ['dotnet', 'ef', 'database', 'update']
+      env:
+        - name: ConnectionStrings__Default
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: connection-string
+
+  containers:
+    - name: my-service
+      image: my-service:latest
+      # Main app starts ONLY after both init containers succeed</code></pre>
+
+      <h3>Lifecycle Hooks — postStart and preStop</h3>
+      <p>Lifecycle hooks fire at key moments in the main container's life. They're different from init containers — they run as part of the main container lifecycle, not before it.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hook</th><th>When It Fires</th><th>Common Use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>postStart</strong></td>
+              <td>Fires immediately after the container starts. Runs <em>in parallel</em> with the container's ENTRYPOINT — not sequential.</td>
+              <td>Register service in a service registry, send startup notification. Note: if postStart fails, the container is killed and restarted.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>preStop</strong></td>
+              <td>Fires before the container receives SIGTERM. Runs synchronously — the container is not killed until preStop completes OR terminationGracePeriodSeconds expires.</td>
+              <td><strong>Graceful shutdown coordination</strong> — the most important use case for production microservices.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The preStop Sleep Pattern — Zero-Downtime Shutdowns</h3>
+      <div class="warn-box">
+        <strong>Common production issue:</strong> When a pod is deleted, Kubernetes simultaneously: (1) starts sending SIGTERM to the container, AND (2) removes the pod from the Service endpoints. But kube-proxy and Istio/Envoy update their routing tables asynchronously — there's a race condition where traffic still flows to a terminating pod for a few seconds.
+      </div>
+
+      <span class="code-label">preStop Sleep — The Fix for Rolling Update Connection Drops</span>
+      <pre><code>containers:
+  - name: my-service
+    lifecycle:
+      preStop:
+        exec:
+          command: ["/bin/sh", "-c", "sleep 5"]   # Wait 5s before SIGTERM
+    terminationGracePeriodSeconds: 60              # Total grace period (must be > preStop time + app shutdown time)
+
+# What happens during rolling update:
+# 1. Pod marked for deletion
+# 2. preStop fires → sleeps 5s (kube-proxy/Envoy get time to drain routing)
+# 3. After 5s, SIGTERM sent to app → app starts graceful shutdown
+# 4. App finishes in-flight requests and stops
+# 5. Pod terminated</code></pre>
+
+      <div class="success-box">
+        <strong>With Istio:</strong> Istio's Envoy sidecar also needs time to stop accepting new connections. In your platform, you likely have <code>preStop: sleep 5</code> + an Istio <code>EXIT_ON_ZERO_ACTIVE_CONNECTIONS</code> setting or similar. Istio 1.12+ added sidecar lifecycle coordination to handle this more gracefully. Worth mentioning that you understand this nuance in interviews.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "We see connection errors during deployments. How do you fix this?"</div>
+        <div class="qa-answer">
+          "Connection errors during rolling updates almost always mean the pod is receiving traffic after it's started shutting down. The fix is the preStop sleep pattern.
+          <ol>
+            <li><strong>Root cause</strong>: Kubernetes removes pod from endpoints and sends SIGTERM simultaneously. Load balancers (kube-proxy, Envoy/Istio) update asynchronously — they don't instantly know the pod is gone. Requests still flow to the terminating pod for 1-5 seconds.</li>
+            <li><strong>Fix</strong>: Add a <code>preStop: exec: sleep 5</code> hook. This delays SIGTERM by 5 seconds, giving load balancers time to drain the pod from their routing tables before the app starts refusing connections.</li>
+            <li><strong>Set <code>terminationGracePeriodSeconds</code></strong> to be greater than preStop time + maximum app shutdown time. If your app needs 30s to drain in-flight requests, set it to 45s minimum.</li>
+            <li><strong>App-side</strong>: Ensure the app handles SIGTERM gracefully — stops accepting new connections, finishes in-flight requests, then exits cleanly.</li>
+            <li><strong>Verify with Argo Rollouts</strong>: If using canary strategy, the rollout pauses between steps — extra time for traffic to drain before old pods are removed.</li>
+          </ol>
+          In our 30+ service migration, we added preStop sleep to every service as a standard Helm template default. It eliminated the connection-error noise we were seeing in Datadog during every deployment."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 6: CONFIGMAPS DEEP DIVE                                  -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-configmap">
+      <div class="section-header">
+        <span class="section-num">G6</span>
+        <h2>ConfigMaps — Deep Dive <span class="gap-badge gap-medium">Medium Gap</span></h2>
+      </div>
+
+      <p>ConfigMaps store non-sensitive configuration data as key-value pairs. You know they exist — but interviewers probe the <strong>consumption patterns and the hot-reload gotcha</strong>.</p>
+
+      <h3>Two Ways to Consume a ConfigMap</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th>How</th><th>Hot Reload?</th><th>When to Use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Environment Variables</strong></td>
+              <td><code>envFrom: configMapRef</code> or individual <code>valueFrom: configMapKeyRef</code></td>
+              <td class="td-amber"><strong>No</strong> — env vars are set at container start. ConfigMap change = no effect until pod restarts.</td>
+              <td>Simple config values that rarely change. Connection strings, feature flags, environment names.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>Volume Mount</strong></td>
+              <td>ConfigMap mounted as a file in the container filesystem</td>
+              <td class="td-green"><strong>Yes (eventually)</strong> — kubelet updates the mounted file automatically, typically within 1-2 minutes. App must watch the file and re-read it.</td>
+              <td>Config files that change (nginx.conf, app settings JSON, property files). App must support dynamic config reload.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span class="code-label">ConfigMap Consumption — Both Patterns</span>
+      <pre><code># ---- Pattern 1: As Environment Variables (no hot reload) ----
+envFrom:
+  - configMapRef:
+      name: my-service-config   # Injects ALL keys as env vars
+
+# OR individual keys:
+env:
+  - name: LOG_LEVEL
+    valueFrom:
+      configMapKeyRef:
+        name: my-service-config
+        key: log.level
+
+# ---- Pattern 2: As Volume (hot reload capable) ----
+volumes:
+  - name: config-vol
+    configMap:
+      name: my-service-config
+
+containers:
+  - name: my-service
+    volumeMounts:
+      - name: config-vol
+        mountPath: /app/config    # Files appear here: /app/config/log.level
+        readOnly: true</code></pre>
+
+      <h3>The Hot Reload Problem — Critical Interview Topic</h3>
+      <div class="warn-box">
+        <strong>Most common wrong answer:</strong> "Just update the ConfigMap and the pods pick it up." This is only true for volume-mounted ConfigMaps AND only if the app is watching the file. For env vars, the pods see stale values until restarted. For volume mounts, there's still a 1-2 minute kubelet sync delay.
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Scenario</th><th>What Actually Happens</th><th>Correct Solution</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Update ConfigMap, pods use env vars</td>
+              <td class="td-amber">Pods still see OLD values. Forever, until restarted.</td>
+              <td>Roll the deployment: <code>kubectl rollout restart deployment/my-service</code>. Or use Reloader operator (watches ConfigMaps, auto-restarts pods when they change).</td>
+            </tr>
+            <tr>
+              <td>Update ConfigMap, pods use volume mount</td>
+              <td class="td-blue">File updates in ~1-2 min (kubelet sync). But app must re-read the file.</td>
+              <td>App needs to use inotify/fsnotify to watch the file. Most .NET apps support this via <code>IOptionsMonitor</code>. Static apps (nginx) need a SIGHUP or reload endpoint.</td>
+            </tr>
+            <tr>
+              <td>Need instant config change propagation</td>
+              <td colspan="2" class="td-green">Use <strong>ExternalSecrets Operator + AWS AppConfig / Parameter Store</strong>. Or use a feature flag service (LaunchDarkly, etc.). ConfigMaps aren't designed for sub-second propagation.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Reloader Operator:</strong> A popular open-source operator (stakater/Reloader) that watches ConfigMaps and Secrets. When a ConfigMap changes, it automatically triggers a rolling restart of Deployments/StatefulSets that reference that ConfigMap. This bridges the env-var hot-reload gap automatically. Worth mentioning as a production pattern.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "You updated a ConfigMap to change a feature flag. How do pods pick up the change?"</div>
+        <div class="qa-answer">
+          "It depends entirely on how the ConfigMap is consumed.
+          <ul>
+            <li><strong>If env vars</strong>: Pods see nothing. Env vars are baked in at container start. To apply the change, we trigger a rolling restart: <code>kubectl rollout restart deployment/my-service</code>. ArgoCD syncs this automatically if we update an annotation in the Helm chart that forces a restart when the ConfigMap hash changes.</li>
+            <li><strong>If volume mount</strong>: kubelet syncs the file within 1-2 minutes. But then the app must watch for file changes and reload. Our .NET services use <code>IOptionsMonitor</code> which does this automatically for appsettings files.</li>
+          </ul>
+          For feature flags specifically, we actually don't use ConfigMaps — we use AWS AppConfig through ESO, which has controlled rollout capability. ConfigMaps are better for static configuration that only changes with a deployment."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 7: TOPOLOGY SPREAD CONSTRAINTS                           -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-topology">
+      <div class="section-header">
+        <span class="section-num">G7</span>
+        <h2>Topology Spread Constraints <span class="gap-badge gap-medium">Medium Gap</span></h2>
+      </div>
+
+      <p>A more powerful and modern replacement for pod anti-affinity. Instead of a binary "don't put me next to my twin," Topology Spread Constraints say <strong>"spread my replicas as evenly as possible across zones/nodes, with at most N difference between any two"</strong>.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">⚖️ Analogy</span>
+        <strong>A fair election system vs. a restraining order.</strong> Pod anti-affinity is a restraining order: "I must not be near my replica." Topology Spread is a proportional representation system: "My replicas should be distributed across AZs in proportion to available capacity, with a maximum imbalance of 1." Much more nuanced and practical for multi-AZ HA.
+      </div>
+
+      <span class="code-label">Topology Spread — Even Distribution Across AZs</span>
+      <pre><code>spec:
+  topologySpreadConstraints:
+    - maxSkew: 1                          # Max difference in count between any two zones
+      topologyKey: topology.kubernetes.io/zone   # Spread by AZ
+      whenUnsatisfiable: DoNotSchedule   # Hard constraint — don't violate (or: ScheduleAnyway for soft)
+      labelSelector:
+        matchLabels:
+          app: pricing-be                # Count pods with this label
+
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname  # Also spread across nodes within AZ
+      whenUnsatisfiable: ScheduleAnyway   # Soft — try to spread, but schedule anyway if not possible
+      labelSelector:
+        matchLabels:
+          app: pricing-be</code></pre>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Concept</th><th>Explanation</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><code>maxSkew: 1</code></td><td>The maximum difference in pod count between any two topology domains. With 6 pods across 3 AZs: 2-2-2 is fine (skew=0). 3-2-1 is fine (skew=2 — wait, would violate maxSkew:1). So min is 2-2-2.</td></tr>
+            <tr><td class="td-blue"><code>topologyKey</code></td><td>The node label to define the "domain." <code>zone</code> = AZ-level spreading. <code>hostname</code> = node-level spreading. Can chain multiple constraints.</td></tr>
+            <tr><td class="td-amber"><code>DoNotSchedule</code></td><td>Hard rule — pod stays Pending if placing it would violate maxSkew. Use for AZ spreading where HA is critical.</td></tr>
+            <tr><td><code>ScheduleAnyway</code></td><td>Soft rule — scheduler tries to satisfy but will violate if needed. Use for node-level spreading where you prefer balance but it's not critical.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Why this matters for your Outposts setup:</strong> With pods running across both AWS cloud nodes and Outpost nodes, Topology Spread Constraints let you specify: "spread my replicas across the cloud-zone and the outpost-zone with maxSkew:1." This ensures your service always has replicas on both sides — if the network between Outpost and AWS region degrades, you still have pods in the cloud handling traffic.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What's the difference between pod anti-affinity and Topology Spread Constraints?"</div>
+        <div class="qa-answer">
+          "Both spread pods, but they're very different in approach.
+          <br><br>
+          <strong>Pod Anti-Affinity</strong> is binary: 'Don't schedule this pod on the same node/zone as another pod with this label.' It doesn't care about distribution — it just enforces separation. Problem: with 6 pods across 2 zones, you could end up with 5 in zone-A and 1 in zone-B as long as they're not on the exact same node. Not actually HA.
+          <br><br>
+          <strong>Topology Spread Constraints</strong> are proportional: 'Keep the count difference between any two zones at most 1.' With 6 pods, you'd get 3-3. With 7 pods, 3-3-1 across three zones. The scheduler actively balances the distribution, not just avoids co-location.
+          <br><br>
+          We use TSC in our platform for critical services. For RabbitMQ and PostgreSQL StatefulSets, we use anti-affinity (pods must not be on the same node — hard constraint). For stateless microservices, TSC gives better HA because it guarantees proportional distribution across AZs."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 8: ADMISSION CONTROLLERS & WEBHOOKS                      -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-admission">
+      <div class="section-header">
+        <span class="section-num">G8</span>
+        <h2>Admission Controllers &amp; Webhooks <span class="gap-badge gap-senior">Senior Differentiator</span></h2>
+      </div>
+
+      <p>Before any object is stored in etcd, it passes through a chain of <strong>admission controllers</strong>. These gatekeepers can <em>modify</em> objects (mutating) or <em>reject</em> them (validating). This is the mechanism behind Istio's automatic sidecar injection, OPA Gatekeeper, and resource limit enforcement.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">🏛️ Analogy</span>
+        <strong>Immigration airport pipeline — two phases.</strong> Phase 1 (Mutating): Customs can <em>modify</em> your luggage — add a sticker, stamp your passport, inject something. Phase 2 (Validating): Security checks if everything is valid — rejects you if you're missing required documents. In Kubernetes: Mutating webhooks run first and can change the object. Then Validating webhooks run and can reject the (now-modified) object.
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">API Server Admission Pipeline</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-adm1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-adm1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-adm1')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-adm1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    REQ["kubectl apply pod"] --> AUTHN["Authentication\n(who are you?)"]
+    AUTHN --> AUTHZ["Authorization\nRBAC check"]
+    AUTHZ --> MUT["Mutating Admission\nWebhooks\n(can modify object)"]
+    MUT --> SCHEMA["Schema\nValidation"]
+    SCHEMA --> VAL["Validating Admission\nWebhooks\n(approve or reject)"]
+    VAL --> ETCD["Written to etcd\n✓ Object created"]
+    VAL -->|"Rejected"| ERR["Error returned\nto user"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Mutating vs Validating Webhooks</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>What It Can Do</th><th>Real Examples</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-blue"><strong>MutatingWebhookConfiguration</strong></td>
+              <td>Intercepts object before storage, can <strong>modify the object</strong> (add/change fields). Returns a JSON Patch.</td>
+              <td>
+                <ul>
+                  <li><strong>Istio sidecar injection</strong> — adds <code>istio-proxy</code> container to every pod in labeled namespaces</li>
+                  <li><strong>Karpenter</strong> — annotates pods with scheduling requirements</li>
+                  <li>Default resource limits injection — adds CPU/memory limits if missing</li>
+                  <li>Secrets injection (Vault Agent Injector)</li>
+                </ul>
+              </td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>ValidatingWebhookConfiguration</strong></td>
+              <td>Intercepts object after mutation, can only <strong>approve or reject</strong>. Cannot modify.</td>
+              <td>
+                <ul>
+                  <li><strong>OPA Gatekeeper / Kyverno</strong> — rejects pods without resource limits, ensures labels required by policy</li>
+                  <li><strong>PSA (Pod Security Admission)</strong> — enforces restricted security context</li>
+                  <li>Reject Deployments with <code>latest</code> image tag</li>
+                  <li>Require specific annotations on all resources</li>
+                </ul>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>How Istio Sidecar Injection Actually Works</h3>
+      <p>This is a common "aha moment" question. Istio doesn't modify your Deployment YAML manually — it uses a MutatingAdmissionWebhook that fires whenever a pod is created in a labeled namespace.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Namespace labeled for injection</div>
+            <div class="step-desc"><code>kubectl label namespace 207804-confirmation-ci istio-injection=enabled</code> — this is the trigger. Istio's webhook watches for this label.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Pod creation request hits API Server</div>
+            <div class="step-desc">Your Helm chart deploys a pod. API Server receives the pod spec — no sidecar in it yet.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Mutating webhook intercepts</div>
+            <div class="step-desc">Istio's <code>MutatingWebhookConfiguration</code> (istiod) intercepts the request. Istiod injects the <code>istio-proxy</code> container and <code>istio-init</code> init container into the pod spec.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Modified pod spec stored in etcd</div>
+            <div class="step-desc">etcd now has a pod spec with 2 containers: your app + istio-proxy. Your original Helm chart was never changed — the injection is invisible at the source.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="warn-box">
+        <strong>Webhook Availability Risk:</strong> If a MutatingWebhook is configured with <code>failurePolicy: Fail</code> and the webhook server is down, ALL pod creations in matching namespaces will fail. This is why Istio's own namespace (<code>istio-system</code>) is excluded from the webhook — to prevent a broken Istio from blocking its own recovery. Always test webhook failure behavior.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "How does Istio's sidecar injection work without you adding it to your Helm chart?"</div>
+        <div class="qa-answer">
+          "Istio uses a MutatingAdmissionWebhook — a webhook registered with the Kubernetes API Server that intercepts all pod creation requests.
+          <br><br>
+          When I label a namespace with <code>istio-injection=enabled</code>, Istiod registers a webhook that fires for every pod created in that namespace. The webhook receives the pod spec before it's stored, adds the <code>istio-proxy</code> sidecar container and the <code>istio-init</code> init container (which sets up iptables rules for traffic interception), and returns the modified pod spec via a JSON Patch.
+          <br><br>
+          From our Helm chart's perspective, we define one container. Kubernetes stores a pod with two containers. The injection is transparent — our charts stay clean. If we need to disable injection for a specific pod (e.g., a database migration job), we add the annotation <code>sidecar.istio.io/inject: 'false'</code> to that pod, and the webhook skips it."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 9: STORAGE DEEP DIVE                                     -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-storage">
+      <div class="section-header">
+        <span class="section-num">G9</span>
+        <h2>Storage — PV / PVC / StorageClass Deep Dive <span class="gap-badge gap-medium">Medium Gap</span></h2>
+      </div>
+
+      <p>Your existing doc mentions PVCs in the StatefulSet section. This fills in the full mental model of how Kubernetes storage works — critical for explaining your PostgreSQL and RabbitMQ setups precisely.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">🏠 Analogy</span>
+        <strong>Real estate market.</strong> <strong>StorageClass</strong> is the property type/tier: luxury gp3 SSD, budget gp2, local NVMe (Outpost). <strong>PersistentVolume (PV)</strong> is a specific apartment unit — a real piece of storage provisioned from AWS EBS. <strong>PersistentVolumeClaim (PVC)</strong> is your lease agreement — a pod's request for storage of a specific size and class. The apartment complex manager (provisioner) matches leases to available units, or builds new units on demand.
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Storage Object Relationships</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-stor1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-stor1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-stor1')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-stor1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    SC["StorageClass\nebs-gp3\n(provisioner: ebs.csi.aws.com)"]
+    PVC["PersistentVolumeClaim\n'postgres-data-postgres-0'\nRequest: 50Gi RWO"]
+    PV["PersistentVolume\nActual EBS volume\nvol-0abc123\n50Gi gp3"]
+    POD["StatefulSet Pod\npostgres-0"]
+
+    PVC -->|"references"| SC
+    SC -->|"dynamic provisioning\ncreates"| PV
+    PVC -->|"bound to"| PV
+    POD -->|"uses"| PVC
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Static vs Dynamic Provisioning</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Approach</th><th>How It Works</th><th>When to Use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-amber"><strong>Static Provisioning</strong></td>
+              <td>Cluster admin pre-creates PVs manually (or via script). PVCs bind to existing PVs.</td>
+              <td>On-prem, Outposts with pre-existing storage, or specific volume requirements (pre-populated data).</td>
+            </tr>
+            <tr>
+              <td class="td-green"><strong>Dynamic Provisioning</strong></td>
+              <td>A PVC referencing a StorageClass automatically triggers the provisioner to create a PV (an EBS volume in AWS). Happens transparently when the PVC is created.</td>
+              <td>Cloud environments (EKS). Standard approach — no manual PV management. StorageClass + PVC is all you need.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Key StorageClass Parameters</h3>
+      <span class="code-label">StorageClass for EKS — gp3</span>
+      <pre><code>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"   # Used when PVC doesn't specify
+provisioner: ebs.csi.aws.com                              # AWS EBS CSI driver
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"                                       # MiB/s
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer                   # CRITICAL for multi-AZ
+reclaimPolicy: Retain                                     # Don't delete EBS on PVC deletion (for prod data)</code></pre>
+
+      <div class="warn-box">
+        <strong>Outposts Critical Gotcha — <code>WaitForFirstConsumer</code>:</strong> In a multi-AZ setup with Outposts, if you use <code>Immediate</code> binding mode, the EBS volume is provisioned in a random AZ — which might not be the AZ where the pod schedules. The pod can't mount a volume from a different AZ (EBS is AZ-local). <code>WaitForFirstConsumer</code> delays PV provisioning until the pod is scheduled to a node, so the volume is created in the right AZ. This was a real issue in your Outposts migration.
+      </div>
+
+      <h3>Access Modes — What They Mean</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Access Mode</th><th>Abbreviation</th><th>What It Means</th><th>Used For</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>ReadWriteOnce</strong></td><td><code>RWO</code></td><td>One node can mount read-write. Multiple pods on the same node can use it.</td><td>EBS volumes (standard). PostgreSQL data directory.</td></tr>
+            <tr><td class="td-blue"><strong>ReadOnlyMany</strong></td><td><code>ROX</code></td><td>Many nodes can mount read-only simultaneously.</td><td>Shared config files, static assets served by multiple pods.</td></tr>
+            <tr><td class="td-amber"><strong>ReadWriteMany</strong></td><td><code>RWX</code></td><td>Many nodes can mount read-write simultaneously.</td><td>EFS (NFS). Shared upload directories. EBS does NOT support RWX.</td></tr>
+            <tr><td class="td-purple"><strong>ReadWriteOncePod</strong></td><td><code>RWOP</code></td><td>Only one pod cluster-wide can mount read-write. Stricter than RWO.</td><td>K8s 1.22+. Databases where you want exactly-one-writer enforcement.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Explain the difference between PV, PVC, and StorageClass."</div>
+        <div class="qa-answer">
+          "They're three layers of abstraction for storage, each with a different owner.
+          <ul>
+            <li><strong>StorageClass</strong> — owned by the cluster admin. Defines the 'type' of storage and which provisioner creates it. Think of it as the menu of storage options. In EKS we have <code>ebs-gp3</code> for our app PVCs and a separate StorageClass for Outpost-local storage.</li>
+            <li><strong>PersistentVolume (PV)</strong> — the actual storage resource. In dynamic provisioning (our case), it's auto-created by the EBS CSI driver when a PVC is created. It maps directly to an AWS EBS volume. Cluster-scoped — not namespaced.</li>
+            <li><strong>PersistentVolumeClaim (PVC)</strong> — owned by the developer/app team. A request for a specific size and access mode of storage. The claim binds to a PV that satisfies it. Namespaced — lives in your workload's namespace.</li>
+          </ul>
+          The flow: developer defines PVC in the StatefulSet (50Gi gp3 RWO) → provisioner creates an EBS volume → PV object represents that volume → PVC binds to PV → pod mounts PVC. If the pod dies and restarts, the StatefulSet ensures the same pod name (<code>postgres-0</code>) gets the same PVC — so it reconnects to its original EBS volume with all data intact."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 10: CRDS & OPERATORS                                     -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-crds">
+      <div class="section-header">
+        <span class="section-num">G10</span>
+        <h2>CRDs &amp; the Operator Pattern <span class="gap-badge gap-senior">Senior Differentiator</span></h2>
+      </div>
+
+      <p>You use multiple CRDs every day — ArgoCD's <code>Application</code>, ESO's <code>ExternalSecret</code>, Argo Rollouts' <code>Rollout</code>, Istio's <code>VirtualService</code>. But the concept itself isn't explained in your doc. Interviewers expect you to understand the mechanism, not just use the tools.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">📚 Analogy</span>
+        <strong>Teaching Kubernetes a new noun.</strong> Kubernetes natively knows about Pods, Deployments, Services, ConfigMaps — these are built-in nouns. A CRD (Custom Resource Definition) lets you teach it a new noun: <code>ExternalSecret</code>, <code>Rollout</code>, <code>Application</code>. Once you define the CRD, the API Server starts accepting that new resource type — you can <code>kubectl get externalsecrets</code> just like <code>kubectl get pods</code>. A custom controller then watches for these new objects and acts on them.
+      </div>
+
+      <h3>How CRDs Work — Three-Step Pattern</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Register the CRD with the API Server</div>
+            <div class="step-desc">A YAML file defines the new resource type: its name, schema, validation rules, and scope (namespaced or cluster). After <code>kubectl apply</code>, the API Server adds a new API endpoint for this resource. <code>kubectl api-resources | grep externalsecrets</code> now works.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Create custom resources (CRs)</div>
+            <div class="step-desc">Now developers (or Helm charts) can create objects of this new type. <code>kind: ExternalSecret</code> is stored in etcd just like a <code>kind: Pod</code>. The API Server validates it against the CRD's schema and enforces RBAC.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Controller watches and reconciles</div>
+            <div class="step-desc">A custom controller (the operator) uses the watch API to receive events whenever a CR is created/updated/deleted. It implements reconciliation: "desired state in CR" vs "actual state in the world." ESO's controller sees an ExternalSecret → fetches from AWS Secrets Manager → creates a K8s Secret.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Operator Pattern — ExternalSecrets Example</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-crd1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-crd1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-crd1')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-crd1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    DEV["Developer\napplies ExternalSecret CR"] --> API["API Server\n(knows ExternalSecret\ndue to CRD registration)"]
+    API --> ETCD["etcd\nstores CR"]
+    ETCD -->|"watch event"| ESO["ESO Controller\n(Operator)"]
+    ESO -->|"IRSA → reads secret"| AWS["AWS Secrets Manager"]
+    AWS --> ESO
+    ESO -->|"creates/updates"| SECRET["K8s Secret\nin namespace"]
+    SECRET --> POD["Pod mounts\nthe Secret"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>CRDs You Use Every Day — Mapped to the Pattern</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>CRD / Kind</th><th>Installed By</th><th>What the Operator Does When It Sees This CR</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><code>ExternalSecret</code></td><td>External Secrets Operator</td><td>Fetches secret from AWS Secrets Manager/Parameter Store → creates/updates native K8s Secret → rotates on schedule</td></tr>
+            <tr><td class="td-blue"><code>Application</code></td><td>ArgoCD</td><td>Watches Git repo for changes → diffs against cluster state → applies Helm/Kustomize to bring cluster to desired state</td></tr>
+            <tr><td class="td-amber"><code>Rollout</code></td><td>Argo Rollouts</td><td>Implements canary/blue-green strategy — controls traffic split between stable and canary ReplicaSets → auto-promotes or rolls back</td></tr>
+            <tr><td><code>VirtualService</code></td><td>Istio</td><td>Configures Envoy proxy routing rules — traffic weights, retries, timeouts, header-based routing for canary</td></tr>
+            <tr><td class="td-purple"><code>ScaledObject</code></td><td>KEDA</td><td>Watches RabbitMQ queue depth / custom metrics → scales HPA replicas based on event-driven triggers</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What is a CRD and how does it relate to the Operator pattern?"</div>
+        <div class="qa-answer">
+          "A CRD — Custom Resource Definition — extends the Kubernetes API with new resource types. Kubernetes natively knows about Pods and Deployments. A CRD teaches it new nouns: ExternalSecret, Rollout, Application.
+          <br><br>
+          The Operator pattern builds on top of CRDs. An Operator = CRD + a controller that watches that CRD and reconciles the real world to match it. It's the same reconciliation loop pattern the built-in controllers use — a Deployment controller watches Deployment objects and reconciles pod count. An Operator does the same thing but for custom domain logic.
+          <br><br>
+          In our platform, the External Secrets Operator is a perfect example: we define an ExternalSecret CR (desired state: this K8s Secret should contain these values from AWS Secrets Manager). The ESO controller watches for these CRs and continuously reconciles — fetching from AWS, creating K8s Secrets, re-syncing on a schedule or when the source changes. The whole system is declarative and self-healing — exactly the Kubernetes philosophy applied to operational tasks."
+        </div>
+      </div>
+
+      <div class="success-box">
+        <strong>Senior-level insight to mention:</strong> Building your own Operator is not just a tool-user skill — it's how you extend Kubernetes for your own operational needs. Frameworks like Operator SDK (Go) or Kopf (Python) let you build controllers. The DevOps AI Assistant you built at Thomson Reuters is essentially an operator pattern at the API level — it watches for events, reconciles state (incident state), and takes action (tooling calls). Same mental model.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<nav class="bottom-nav">
+  <a href="02b-kubernetes-gaps-part-a.html">&larr; Previous: Gaps Part A (RBAC · NetPol · CA)</a>
+  <span class="nav-index">Gaps Part B of 2 — Complete</span>
+  <a href="03-istio-service-mesh.html">Next: Istio Service Mesh &rarr;</a>
+</nav>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true, theme: 'base',
+    themeVariables: { primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#22c55e', lineColor: '#7a9ab5', secondaryColor: '#0f1826', tertiaryColor: '#090d1a', background: '#090d1a', mainBkg: '#141f35', nodeBorder: '#1d2d4f', clusterBkg: '#0f1826', titleColor: '#dce8f5', edgeLabelBackground: '#0f1826', fontFamily: 'DM Sans, sans-serif', fontSize: '13px' }
+  });
+  const scales = {};
+  function zoom(id, f) { scales[id] = (scales[id] || 1) * f; document.getElementById(id).style.transform = `scale(${scales[id]})`; }
+  function reset(id) { scales[id] = 1; document.getElementById(id).style.transform = 'scale(1)'; }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#${id}`));
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

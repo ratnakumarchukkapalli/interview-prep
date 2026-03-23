@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 8: PostgreSQL HA & pgBackRest — Interview Prep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d1a;
+      --surface: #0f1826;
+      --surface2: #141f35;
+      --border: #1d2d4f;
+      --text: #dce8f5;
+      --text-muted: #7a9ab5;
+      --accent: #22c55e;
+      --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8;
+      --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b;
+      --accent3-dim: rgba(245,158,11,0.12);
+      --code-bg: #060a13;
+      --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      --radius: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .hero {
+      background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3rem 2rem 2.5rem;
+    }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .badge-green { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.025em;
+    }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    /* THEME TOGGLE */
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      z-index: 100;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2rem;
+      gap: 2.5rem;
+    }
+
+    /* TOC */
+    .toc { width: 195px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 0.63rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a {
+      display: block;
+      padding: 0.28rem 0.6rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .toc-list a:hover, .toc-list a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    /* MAIN */
+    .main-content { flex: 1; min-width: 0; }
+
+    /* SECTIONS */
+    .section { margin-bottom: 3.5rem; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .section h3 {
+      font-size: 0.93rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin: 1.5rem 0 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-mono);
+    }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    tbody td {
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+    .td-green { color: var(--accent) !important; font-weight: 500; }
+    .td-blue { color: var(--accent2) !important; }
+    .td-amber { color: var(--accent3) !important; }
+    .td-muted { color: var(--text-muted) !important; font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2) !important; }
+
+    /* COMPONENT GRID */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      transition: border-color 0.15s;
+    }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+    .card-ip {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--accent2);
+      background: var(--code-bg);
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+
+    /* CODE BLOCK */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: none;
+      padding: 0;
+    }
+
+    /* DIAGRAM */
+    .diagram-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .diagram-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow: auto; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+
+    /* INFO / WARN BOXES */
+    .info-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .info-box strong { color: var(--accent2); }
+    .warn-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent3);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .warn-box strong { color: var(--accent3); }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-top: 0.15rem;
+    }
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    /* BLOCKQUOTE (interview answers) */
+    blockquote {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    blockquote strong { color: var(--accent); }
+    blockquote p { margin-bottom: 0.6rem; }
+    blockquote p:last-child { margin-bottom: 0; }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      max-width: 1240px;
+      margin: 0 auto 3rem;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .bottom-nav a {
+      color: var(--accent2);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      padding: 0.4rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--text); }
+    .bottom-nav .nav-index { color: var(--text-muted); }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      .toc { display: none; }
+      .layout { padding: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
+    }
+
+    /* LIGHT MODE */
+    body.light {
+      --bg: #f2f6fc;
+      --surface: #ffffff;
+      --surface2: #eaeff8;
+      --border: #c8d6e8;
+      --text: #1a2535;
+      --text-muted: #4f6880;
+      --code-bg: #e2eaf5;
+      --code-text: #1d5fa0;
+    }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">PostgreSQL</span>
+      <span class="badge badge-amber">pgBackRest</span>
+    </div>
+    <h1>Section 8: PostgreSQL HA &amp; pgBackRest</h1>
+    <p class="hero-sub">Crunchy Postgres Operator, Patroni, PITR, Replication Slots</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Platform</span>
+        <span class="hero-meta-value">Confirmation &mdash; Audit &amp; Assurance</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Last Updated</span>
+        <span class="hero-meta-value">2026-03-12</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Sections</span>
+        <span class="hero-meta-value">13 topics</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Stack</span>
+        <span class="hero-meta-value" style="font-family: var(--font-mono); color: var(--accent); font-size: 0.85rem;">PG 16 &middot; PGO &middot; Patroni &middot; EKS</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#fundamentals">8.1 Fundamentals</a></li>
+        <li><a href="#fundamentals" class="toc-sub">WAL, MVCC, Vacuum</a></li>
+        <li><a href="#ha-architecture">8.2 HA Architecture</a></li>
+        <li><a href="#ha-architecture" class="toc-sub">Patroni Failover</a></li>
+        <li><a href="#crd">8.3 PostgresCluster CRD</a></li>
+        <li><a href="#tuning">8.4 Tuning Parameters</a></li>
+        <li><a href="#pgbackrest">8.5 pgBackRest Backup</a></li>
+        <li><a href="#pgbackrest" class="toc-sub">Backup Flow Diagram</a></li>
+        <li><a href="#fivetran-slots">8.6 Fivetran Slots</a></li>
+        <li><a href="#fivetran-slots" class="toc-sub">Failover Timeline</a></li>
+        <li><a href="#secrets">8.7 Secrets Management</a></li>
+        <li><a href="#db-ops">8.8 db-ops API</a></li>
+        <li><a href="#tls">8.9 Production TLS</a></li>
+        <li><a href="#ops-tasks">8.10 Operational Tasks</a></li>
+        <li><a href="#pitr">8.11 PITR</a></li>
+        <li><a href="#citus">8.12 Citus DWH</a></li>
+        <li><a href="#scenarios">8.13 Interview Scenarios</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- 8.1 FUNDAMENTALS -->
+    <section class="section" id="fundamentals">
+      <div class="section-header">
+        <span class="section-num">8.1</span>
+        <h2>PostgreSQL Fundamentals</h2>
+      </div>
+      <p>PostgreSQL is an open-source, ACID-compliant relational database. At Confirmation, it's the backbone &mdash; every microservice (pricing, forms, selfreg, nucleus, record, etc.) has its own dedicated database inside a shared PostgreSQL cluster.</p>
+
+      <h3>Key Concepts</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Concept</th><th>What It Is</th><th>Why It Matters</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ACID</strong></td><td>Atomicity, Consistency, Isolation, Durability</td><td>Guarantees data integrity &mdash; a bank audit confirmation either fully commits or fully rolls back</td></tr>
+            <tr><td><strong>WAL</strong></td><td>Write-Ahead Log &mdash; every change writes to WAL <em>before</em> the data file</td><td>Crash recovery + replication &mdash; replay WAL to recover or replicate data</td></tr>
+            <tr><td><strong>MVCC</strong></td><td>Multi-Version Concurrency Control</td><td>Readers don't block writers &mdash; each transaction sees a snapshot, not live data</td></tr>
+            <tr><td><strong>Vacuum</strong></td><td>Cleans up dead rows left by MVCC</td><td>Without vacuum, table bloat grows and queries slow down</td></tr>
+            <tr><td><strong>Shared Buffers</strong></td><td>In-memory cache of data pages</td><td>Reduces disk I/O &mdash; we set <code>shared_buffers: 16GB</code> on r5.4xlarge (128GB RAM)</td></tr>
+            <tr><td><strong>Work Mem</strong></td><td>Memory per sort/hash operation</td><td><code>work_mem: 256MB</code> &mdash; too low = disk sorts, too high = OOM with many connections</td></tr>
+            <tr><td><strong>WAL Level</strong></td><td>Controls how much info goes into WAL</td><td><code>replica</code> for streaming replication, <code>logical</code> for Fivetran CDC</td></tr>
+            <tr><td><strong>pg_hba.conf</strong></td><td>Host-based authentication file</td><td>Controls WHO can connect from WHERE with WHAT auth method</td></tr>
+            <tr><td><strong>Connection Pooling</strong></td><td>Reuse database connections</td><td>PgBouncer in front of PostgreSQL &mdash; avoids forking a process per connection</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Interview Answer &mdash; "Explain WAL and why it matters"</h3>
+      <blockquote>
+        <p>"WAL stands for Write-Ahead Log. Every change to PostgreSQL data is first written to the WAL file before the actual data pages. This gives us two critical capabilities:</p>
+        <p><strong>1. Crash recovery</strong>: If the server crashes mid-transaction, PostgreSQL replays the WAL on startup to recover committed transactions</p>
+        <p><strong>2. Replication</strong>: WAL records are streamed to replicas for high availability &mdash; this is called streaming replication</p>
+        <p>In our setup, we also use WAL for a third purpose: <strong>Change Data Capture</strong>. With <code>wal_level=logical</code>, PostgreSQL decodes the WAL into logical changes that Fivetran reads to replicate our operational data to the data warehouse. The trade-off is that logical WAL generates more data than replica WAL, so we only enable it in environments where Fivetran runs."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.2 HA ARCHITECTURE -->
+    <section class="section" id="ha-architecture">
+      <div class="section-header">
+        <span class="section-num">8.2</span>
+        <h2>HA Architecture &mdash; Crunchy Postgres Operator + Patroni</h2>
+      </div>
+      <p>We run PostgreSQL on Kubernetes using the <strong>Crunchy Data PostgreSQL Operator</strong> (PGO). The operator manages the entire lifecycle &mdash; provisioning, HA failover, backups, user management &mdash; through a Kubernetes CRD called <code>PostgresCluster</code>.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Patroni HA Failover Architecture</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d1')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    PGO["Crunchy Postgres Operator (PGO)\nWatches PostgresCluster CRDs\nManages pods, backups, users"]
+    P1["Instance-1 (Primary)\nPostgreSQL 16 + Patroni\n200Gi PVC · r5.4xlarge"]
+    P2["Instance-2 (Replica)\nPostgreSQL 16 + Patroni\n200Gi PVC · r5.4xlarge"]
+    REPO["pgBackRest Repo Host\n200Gi PVC\nDedicated backup pod"]
+    S3O["S3 Outposts\nSame data center\nDisaster recovery copy"]
+
+    PGO -->|"manages"| P1
+    PGO -->|"manages"| P2
+    P1 -->|"WAL streaming\nphysical replication"| P2
+    P1 -->|"WAL archiving"| REPO
+    REPO -->|"sync every 4h"| S3O
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>How Patroni Works</h3>
+      <p>Patroni is the HA manager that runs as a sidecar in each PostgreSQL pod. It handles:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Responsibility</th><th>How It Works</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Leader election</strong></td><td>Uses Kubernetes endpoints as DCS (Distributed Configuration Store)</td></tr>
+            <tr><td><strong>Health checks</strong></td><td>Continuously checks PostgreSQL process health</td></tr>
+            <tr><td><strong>Automatic failover</strong></td><td>If primary dies, promotes the healthiest replica within ~30 seconds</td></tr>
+            <tr><td><strong>Replication slots</strong></td><td>Manages physical replication slots for WAL streaming</td></tr>
+            <tr><td><strong>Configuration</strong></td><td>Dynamic configuration changes without pod restart</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Our Real Configuration (CI Environment)</h3>
+      <pre><code># From environments/ci/postgres-cluster/values.yaml
+cluster:
+  name: confirmation-pgdatabase
+  image: 833618288067.dkr.ecr.us-east-1.amazonaws.com/a207804-ue1-op-pgo:ubi8-16.4-2
+  instances:
+    - name: instance-1
+      replicas: 1
+      instanceType: r5.4xlarge
+      resources:
+        requests: { memory: "32Gi", cpu: "2" }
+        limits:   { memory: "64Gi", cpu: "4" }
+      storage: { size: 200Gi, class: plexus-gp2 }
+    - name: instance-2
+      replicas: 1
+      instanceType: r5.4xlarge
+      storage: { size: 200Gi, class: plexus-gp2 }
+  postgresVersion: 16
+  port: 5432</code></pre>
+
+      <h3>Non-Prod vs Production Differences</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspect</th><th>Non-Prod (CI/Demo/QA)</th><th>Production</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Cluster name</strong></td><td><code>confirmation-pgdatabase</code></td><td><code>confirmation-pgdb-av-common</code> (split by domain)</td></tr>
+            <tr><td><strong>Namespace</strong></td><td><code>207804-postgres-ci</code></td><td><code>207804-postgres-prod</code></td></tr>
+            <tr><td><strong>Replicas</strong></td><td>2 instances x 1 replica</td><td>2 replicas per instance</td></tr>
+            <tr><td><strong>Storage</strong></td><td>200Gi</td><td>600Gi</td></tr>
+            <tr><td><strong>Resources</strong></td><td>32Gi/2CPU req, 64Gi/4CPU limit</td><td>64Gi/8CPU req, 128Gi/16CPU limit</td></tr>
+            <tr><td><strong>TLS</strong></td><td>Disabled</td><td>Enabled (custom TLS + replication TLS)</td></tr>
+            <tr><td><strong>WAL level</strong></td><td><code>logical</code> (Fivetran needs it)</td><td><code>replica</code> (streaming only, no CDC in prod)</td></tr>
+            <tr><td><strong>Max replication slots</strong></td><td>20</td><td>5</td></tr>
+            <tr><td><strong>WAL retention</strong></td><td><code>max_slot_wal_keep_size: 15GB</code></td><td><code>wal_keep_size: 4GB</code></td></tr>
+            <tr><td><strong>Prod sharding</strong></td><td>Single cluster</td><td>4 clusters: av-common, av-core, av-lmd, av-record</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why Production Uses 4 Separate Clusters</h3>
+      <blockquote>
+        <p>"In production, we split PostgreSQL into domain-aligned clusters &mdash; <code>av-common</code> (shared services like pricing, forms, selfreg), <code>av-core</code> (nucleus, Orleans), <code>av-lmd</code> (LMD/GraphQL), and <code>av-record</code> (record silo). This gives us:</p>
+        <p><strong>Blast radius isolation</strong>: A runaway query in pricing doesn't kill the nucleus database</p>
+        <p><strong>Independent scaling</strong>: Core cluster can have more resources without over-provisioning common</p>
+        <p><strong>Independent maintenance</strong>: We can upgrade or restart av-record without touching av-common</p>
+        <p><strong>Compliance</strong>: Some data residency requirements need physical separation"</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.3 POSTGRES CRD -->
+    <section class="section" id="crd">
+      <div class="section-header">
+        <span class="section-num">8.3</span>
+        <h2>The PostgresCluster CRD</h2>
+      </div>
+      <p>When we apply a <code>PostgresCluster</code> CRD, the Crunchy operator creates ~15 Kubernetes resources automatically:</p>
+
+      <pre><code># From charts/postgres-cluster/templates/cluster.yaml
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: {{ .Values.cluster.name }}-{{ .Values.env }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    sidecar.istio.io/inject: "false"  # PostgreSQL bypasses Istio mesh</code></pre>
+
+      <h3>What the Operator Creates From One CRD</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Resource</th><th>Name Pattern</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><strong>StatefulSet</strong></td><td><code>confirmation-pgdatabase-ci-instance-1</code></td><td>Primary PostgreSQL pod</td></tr>
+            <tr><td><strong>StatefulSet</strong></td><td><code>confirmation-pgdatabase-ci-instance-2</code></td><td>Replica PostgreSQL pod</td></tr>
+            <tr><td><strong>StatefulSet</strong></td><td><code>confirmation-pgdatabase-ci-repo-host</code></td><td>pgBackRest dedicated backup pod</td></tr>
+            <tr><td><strong>Service</strong></td><td><code>confirmation-pgdatabase-ci-primary</code></td><td>Points to current primary (Patroni updates this)</td></tr>
+            <tr><td><strong>Service</strong></td><td><code>confirmation-pgdatabase-ci-replicas</code></td><td>Load-balanced across replicas</td></tr>
+            <tr><td><strong>PVC</strong></td><td><code>confirmation-pgdatabase-ci-instance-1-xxxx</code></td><td>200Gi data volume per instance</td></tr>
+            <tr><td><strong>PVC</strong></td><td><code>confirmation-pgdatabase-ci-repo-host-xxxx</code></td><td>200Gi pgBackRest repository</td></tr>
+            <tr><td><strong>Secret</strong></td><td><code>confirmation-pgdatabase-ci-pguser-cfm-pricing-user-ci</code></td><td>Per-database user credentials</td></tr>
+            <tr><td><strong>ConfigMap</strong></td><td><code>confirmation-pgdatabase-ci-config</code></td><td>postgresql.conf, pg_hba.conf</td></tr>
+            <tr><td><strong>ConfigMap</strong></td><td><code>confirmation-pgdatabase-ci-patroni</code></td><td>Patroni DCS configuration</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Key Design Decision &mdash; Istio Bypass</h3>
+      <blockquote>
+        <p>"PostgreSQL pods have <code>sidecar.istio.io/inject: false</code>. Database traffic uses its own TLS (native PostgreSQL SSL in prod) instead of Istio mTLS. Why? Because database connections are long-lived (pooled), and Istio's sidecar would add latency to every query. Also, PostgreSQL's wire protocol doesn't work well with Envoy's L7 proxy &mdash; it's a binary protocol, not HTTP."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.4 TUNING -->
+    <section class="section" id="tuning">
+      <div class="section-header">
+        <span class="section-num">8.4</span>
+        <h2>PostgreSQL Tuning Parameters</h2>
+      </div>
+
+      <pre><code># From our values.yaml
+parameters:
+  - name: max_connections
+    value: 500
+  - name: shared_buffers
+    value: '16GB'
+  - name: work_mem
+    value: '256MB'
+  - name: log_min_duration_statement
+    value: 1000           # Log queries slower than 1 second
+  - name: log_statement
+    value: 'ddl'          # Log CREATE/ALTER/DROP only (not every SELECT)
+  - name: archive_timeout
+    value: '120'          # Force WAL archive every 2 minutes
+  - name: wal_level
+    value: 'logical'      # For Fivetran CDC (non-prod only)
+  - name: max_replication_slots
+    value: '20'           # 5 Fivetran slots + headroom
+  - name: max_wal_senders
+    value: '20'           # WAL streaming connections
+  - name: hot_standby_feedback
+    value: 'on'           # Replica tells primary about long queries
+  - name: max_slot_wal_keep_size
+    value: '15GB'         # Safety cap on WAL retention per slot</code></pre>
+
+      <h3>Interview Answer &mdash; "How do you tune shared_buffers?"</h3>
+      <blockquote>
+        <p>"The rule of thumb is 25% of total RAM, but it depends on the workload. Our r5.4xlarge nodes have 128GB RAM, and we set <code>shared_buffers: 16GB</code> &mdash; that's about 12.5%. Why not 32GB?</p>
+        <p>Because PostgreSQL also relies on the OS page cache. If you set shared_buffers too high, you're double-caching data (once in shared_buffers, once in OS cache). 16GB is the sweet spot for our mixed workload &mdash; frequent reads (audit confirmations lookup) and write bursts (batch imports).</p>
+        <p>The more impactful tuning for us was <code>work_mem: 256MB</code>. Our reporting queries do large sorts and hash joins. With the default 4MB, PostgreSQL was spilling to disk constantly. 256MB eliminated most disk sorts. But you have to be careful &mdash; <code>work_mem</code> is <em>per-operation</em>, not per-connection. A complex query with 5 sort operations uses 5 x 256MB. With 500 max_connections, the theoretical max is enormous, so we also use PgBouncer to limit actual concurrent connections."</p>
+      </blockquote>
+
+      <h3>Interview Answer &mdash; "What's hot_standby_feedback?"</h3>
+      <blockquote>
+        <p>"When a replica runs a long query, the primary might vacuum rows that the replica still needs &mdash; causing the replica to cancel the query with a <code>canceling statement due to conflict with recovery</code> error. <code>hot_standby_feedback: on</code> tells the primary about the replica's oldest running transaction, so the primary delays vacuuming those rows. The trade-off is potential table bloat on the primary if the replica runs very long queries."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.5 PGBACKREST -->
+    <section class="section" id="pgbackrest">
+      <div class="section-header">
+        <span class="section-num">8.5</span>
+        <h2>pgBackRest &mdash; Backup Strategy</h2>
+      </div>
+      <p>pgBackRest is our PostgreSQL backup tool. It runs as a dedicated pod (repo-host) managed by the Crunchy operator.</p>
+
+      <h3>Backup Types</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>What It Does</th><th>Our Schedule</th><th>Size</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>Full</strong></td><td>Complete copy of all data files</td><td>Daily at 2:30 AM IST (<code>0 21 * * *</code> UTC)</td><td>~50-80GB</td></tr>
+            <tr><td class="td-blue"><strong>Differential</strong></td><td>Only files changed since last full</td><td>Every 6 hours (<code>0 */6 * * *</code>)</td><td>~5-15GB</td></tr>
+            <tr><td class="td-muted"><strong>Incremental</strong></td><td>Only files changed since last diff/incr</td><td>Not used (differential sufficient)</td><td>Smallest</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Retention Policy</h3>
+      <pre><code># From values.yaml
+global:
+  repo1-retention-full: "1"    # Keep 1 full backup
+  repo1-retention-diff: "4"    # Keep 4 differential backups per full</code></pre>
+
+      <h3>Dual-Destination Backup Architecture</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">pgBackRest Backup Flow</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d2', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d2', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d2')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d2">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    PG["PostgreSQL Pod\nContinuous WAL archiving"]
+    REPO["pgBackRest Repo Pod\n200Gi PVC\nFull daily + Diff every 6h"]
+    S3O["S3 Outposts\nSame data center\nDisaster recovery"]
+    S3C["S3 Cloud\na207804-cn-database-backup-postgres\nCross-region accessibility"]
+    PGDUMP["pg_dump CronJob\n15 databases in parallel\nDirectory format, 5 jobs"]
+
+    PG -->|"WAL + backups"| REPO
+    REPO -->|"Backup Sync CronJob\nevery 4h · kubectl cp + aws s3 cp"| S3O
+    PG -->|"pg_dump daily at 11 AM EST"| PGDUMP
+    PGDUMP -->|"Compressed dumps"| S3O
+    PGDUMP -->|"Compressed dumps"| S3C
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Why Two Destinations?</h3>
+      <blockquote>
+        <p>"pgBackRest writes to a local PVC first (200Gi plexus-gp2). Then we have two sync mechanisms:</p>
+        <p><strong>1. Backup Sync Job</strong> &mdash; A CronJob (<code>backup-sync-job.yaml</code>) runs every 4 hours, copies pgBackRest archives from the repo-host pod to S3 Outposts using <code>kubectl cp</code> + <code>aws s3 cp</code>. This is our disaster recovery copy &mdash; if the entire EKS cluster dies, we can restore from S3.</p>
+        <p><strong>2. Custom Backup Job</strong> &mdash; A separate CronJob (<code>custom-backup-cronjob.yaml</code>) runs <code>pg_dump</code> in parallel (5 databases at a time) and pushes to both S3 Outposts AND S3 Cloud. The cloud copy goes to <code>a207804-cn-database-backup-postgres</code> with environment-prefixed paths (<code>ci/</code>, <code>demo/</code>, <code>qa/</code>). This is for the db-ops portal &mdash; developers can download database backups through a presigned URL."</p>
+      </blockquote>
+
+      <h3>Backup Sync Job Details</h3>
+      <pre><code># CronJob that syncs pgBackRest repo to S3 Outposts
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: confirmation-pgdatabase-ci-backup-sync-job
+  namespace: 207804-postgres-ci
+spec:
+  schedule: "55 */4 * * *"    # Every 4 hours at :55
+  # Process:
+  # 1. Lock mechanism to prevent concurrent syncs
+  # 2. kubectl cp from repo-host pod to sync PVC
+  # 3. Organize by full backup interval (YYYYMMDD-HHMMSSF)
+  # 4. aws s3 cp to S3 Outposts with multipart (1024MB threshold, 16MB chunks)
+  # 5. Cleanup workspace after completion</code></pre>
+
+      <h3>Custom pg_dump Job Details</h3>
+      <pre><code>customBackup:
+  enabled: true
+  schedule: "0 16 * * *"  # Daily at 11:00 AM EST
+  storage: "200Gi"
+  databases:    # 15 databases backed up in parallel (5 concurrent)
+    - cfm_pricing_ci
+    - cfm_forms_ci
+    - cfm_selfreg_ci
+    - cfm_core_ci
+    - cfm_core_rel_ci
+    - cfm_record_ci
+    # ... 15 databases total</code></pre>
+
+      <h3>Interview Answer &mdash; "Explain your PostgreSQL backup strategy"</h3>
+      <blockquote>
+        <p>"We use a three-layer backup approach:</p>
+        <p><strong>Layer 1 &mdash; Continuous WAL archiving</strong>: pgBackRest continuously archives WAL segments. This gives us point-in-time recovery (PITR) &mdash; we can restore to any second within the retention window.</p>
+        <p><strong>Layer 2 &mdash; Scheduled full + differential</strong>: Daily full backup at 2:30 AM IST, plus differential every 6 hours. These are stored on a dedicated 200Gi PVC and synced to S3 Outposts every 4 hours. This is our disaster recovery path.</p>
+        <p><strong>Layer 3 &mdash; pg_dump to S3 Cloud</strong>: Daily logical backups of all 15 databases using parallel pg_dump (directory format, 5 jobs). These go to both S3 Outposts and S3 Cloud. The cloud copy powers our db-ops portal where developers can download backups via presigned URLs.</p>
+        <p>The key insight is: pgBackRest gives us fast, physical-level recovery (restore the whole cluster), while pg_dump gives us logical, portable backups (restore a single database, or import into a different environment). We need both."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.6 FIVETRAN SLOTS -->
+    <section class="section" id="fivetran-slots">
+      <div class="section-header">
+        <span class="section-num">8.6</span>
+        <h2>Fivetran Logical Replication &mdash; The Patroni Failover Problem</h2>
+      </div>
+
+      <h3>The Problem</h3>
+      <p>Fivetran uses PostgreSQL's logical replication to stream changes from our operational databases to the data warehouse. This requires <code>wal_level=logical</code> and logical replication slots. The problem? <strong>When Patroni fails over to a new primary, logical replication slots are lost.</strong></p>
+      <div class="warn-box">
+        <strong>Physical replication slots</strong> (used by Patroni for streaming replication) survive failover because Patroni manages them. But <strong>logical replication slots</strong> (used by Fivetran) are NOT managed by Patroni by default &mdash; they exist only on the primary and don't get recreated on the new primary.
+      </div>
+
+      <h3>The Solution &mdash; Two-Layer Protection</h3>
+
+      <p><strong>Layer 1: Patroni Managed Slots</strong></p>
+      <pre><code># From values.yaml — tells Patroni to recreate these slots on failover
+patroni:
+  useSlots: true
+  slots:
+    fivetran_core_slot:
+      type: logical
+      database: cfm_core_ci
+      plugin: pgoutput
+    fivetran_core_rel_slot:
+      type: logical
+      database: cfm_core_rel_ci
+      plugin: pgoutput
+    fivetran_forms_slot:
+      type: logical
+      database: cfm_forms_ci
+      plugin: pgoutput
+    fivetran_pricing_slot:
+      type: logical
+      database: cfm_pricing_ci
+      plugin: pgoutput
+    fivetran_record_slot:
+      type: logical
+      database: cfm_record_ci
+      plugin: pgoutput</code></pre>
+      <p>By declaring slots in Patroni's configuration, Patroni will recreate them on the new primary after failover. But there's a catch &mdash; the slot is recreated <em>empty</em> (no LSN position), so Fivetran doesn't know where it left off.</p>
+
+      <p><strong>Layer 2: Fivetran Slot Manager CronJob</strong></p>
+      <pre><code># From fivetran-slot-manager.yaml — runs every 5 minutes
+# 1. Connect to primary (skip if replica)
+# 2. Check each slot exists and has valid wal_status
+# 3. If slot missing → create with pg_create_logical_replication_slot()
+# 4. If slot has 'lost' wal_status → drop and recreate
+# 5. Fetch Fivetran API credentials from AWS Secrets Manager
+# 6. List Fivetran connectors targeting our database
+# 7. Trigger historical re-sync for affected connectors</code></pre>
+
+      <h3>The Full Failover Timeline</h3>
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <div>
+            <div class="step-title">T+0s &mdash; Primary crashes</div>
+            <div class="step-desc">Instance-1 (primary) goes down unexpectedly</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <div>
+            <div class="step-title">T+30s &mdash; Patroni promotes replica</div>
+            <div class="step-desc">Patroni detects failure, promotes instance-2 to primary</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <div>
+            <div class="step-title">T+31s &mdash; Logical slots recreated (empty)</div>
+            <div class="step-desc">Patroni recreates logical replication slots on new primary</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <div>
+            <div class="step-title">T+60s &mdash; Applications reconnect</div>
+            <div class="step-desc">Primary Service updated, .NET services reconnect automatically</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">5</span>
+          <div>
+            <div class="step-title">T+5min &mdash; Slot Manager detects and triggers re-sync</div>
+            <div class="step-desc">CronJob detects recreated slots (no LSN match), calls Fivetran API to trigger historical re-sync</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">6</span>
+          <div>
+            <div class="step-title">T+30min &mdash; Fivetran re-sync completes</div>
+            <div class="step-desc">Data warehouse is current again</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Interview Answer &mdash; "How did you solve the Fivetran replication slot problem?"</h3>
+      <blockquote>
+        <p>"This was one of our trickiest operational challenges. Fivetran uses PostgreSQL logical replication slots to stream CDC changes to our data warehouse. When Patroni does an automatic failover &mdash; say the primary pod gets evicted &mdash; the logical replication slots are lost because they only exist on the old primary.</p>
+        <p>We built a two-layer solution:</p>
+        <p>First, we configured Patroni to manage the slots by declaring them in the dynamic configuration. Patroni recreates them on the new primary after failover. But the recreated slot starts from the current WAL position, not where Fivetran left off &mdash; so Fivetran's position is stale.</p>
+        <p>Second, we built a <strong>Fivetran Slot Manager</strong> &mdash; a CronJob that runs every 5 minutes. It connects to the primary, checks each slot's WAL status, and if a slot was recently recreated (detected by checking if the WAL status is 'lost' or the slot was just created), it calls the Fivetran REST API to trigger a historical re-sync for affected connectors.</p>
+        <p>The slot manager also handles edge cases: it fetches Fivetran API credentials from AWS Secrets Manager using IRSA, filters connectors by target database, and skips re-sync if one is already in progress. The whole thing is idempotent &mdash; running it on an already-healthy cluster is a no-op."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.7 SECRETS -->
+    <section class="section" id="secrets">
+      <div class="section-header">
+        <span class="section-num">8.7</span>
+        <h2>Database Secrets Management</h2>
+      </div>
+      <p>Every database user's credentials are managed through a chain:</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Secrets Chain</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d3', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d3', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d3')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d3">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    ASM["AWS Secrets Manager\na207804-ue1-op-pricing-be-ci-db-sm"]
+    ESO["ExternalSecret CRD\nSyncs every 15 min"]
+    K8S["K8s Secret\nconfirmation-pgdatabase-ci-pguser-cfm-pricing-user-ci"]
+    APP[".NET Service\nReads connection string\nfrom mounted env vars"]
+
+    ASM -->|"sync"| ESO
+    ESO -->|"creates"| K8S
+    K8S -->|"mounted"| APP
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Naming Conventions</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Entity</th><th>Pattern</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><strong>AWS Secret</strong></td><td><code>a207804-ue1-op-{service}-{env}-db-sm</code></td><td><code>a207804-ue1-op-pricing-be-ci-db-sm</code></td></tr>
+            <tr><td><strong>K8s Secret</strong></td><td><code>{cluster}-pguser-{username}</code></td><td><code>confirmation-pgdatabase-ci-pguser-cfm-pricing-user-ci</code></td></tr>
+            <tr><td><strong>Database</strong></td><td><code>cfm_{service}_{env}</code></td><td><code>cfm_pricing_ci</code></td></tr>
+            <tr><td><strong>DB User</strong></td><td><code>cfm-{service}-user-{env}</code></td><td><code>cfm-pricing-user-ci</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>CI Cluster &mdash; 17 Database/User Pairs</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Database</th><th>Service</th><th>AWS Secret</th></tr></thead>
+          <tbody>
+            <tr><td><code>cfm_pricing_ci</code></td><td>Pricing BE</td><td><code>a207804-ue1-op-pricing-be-ci-db-sm</code></td></tr>
+            <tr><td><code>cfm_forms_ci</code></td><td>Forms BE</td><td><code>a207804-ue1-op-forms-be-ci-db-sm</code></td></tr>
+            <tr><td><code>cfm_selfreg_ci</code></td><td>SelfReg BE</td><td><code>a207804-ue1-op-selfreg-be-ci-db-sm</code></td></tr>
+            <tr><td><code>cfm_core_ci</code></td><td>Nucleus Orleans</td><td><code>a207804-ue1-op-nucleus-orl-be-ci-db-sm</code></td></tr>
+            <tr><td><code>cfm_core_rel_ci</code></td><td>Nucleus Relay</td><td><code>a207804-ue1-op-nucleus-rel-be-ci-db-sm</code></td></tr>
+            <tr><td><code>cfm_record_ci</code></td><td>Record Silo</td><td><code>a207804-ue1-op-record-silo-be-ci-db-sm</code></td></tr>
+            <tr><td><code>cfm_authorization_ci</code></td><td>Authorizations</td><td><code>a207804-ue1-op-authorizations-be-ci-db-sm</code></td></tr>
+            <tr><td><code>cfm_lmd_ci</code></td><td>LMD GraphQL</td><td><code>a207804-ue1-op-lmd-gql-be-ci-db-sm</code></td></tr>
+            <tr><td><code>cfm_datalake_ci</code></td><td>Datalake</td><td><code>a207804-ue1-op-datalake-ci-db-sm</code></td></tr>
+            <tr><td colspan="3" class="td-muted">+8 more databases</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why One Database Per Service?</h3>
+      <blockquote>
+        <p>"Each microservice gets its own database &mdash; not just a schema, a full database. This enforces hard boundaries. A bug in the pricing service can't accidentally query the forms database. It also lets us set per-database connection limits, backup independently, and grant minimal IAM permissions &mdash; the pricing service's Secrets Manager secret only contains credentials for <code>cfm_pricing_ci</code>."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.8 DB-OPS -->
+    <section class="section" id="db-ops">
+      <div class="section-header">
+        <span class="section-num">8.8</span>
+        <h2>The db-ops API &mdash; Cross-Namespace Database Diagnostics</h2>
+      </div>
+      <p>A FastAPI service (<code>audit-devops-db-ops</code>) that gives the team safe, audited access to PostgreSQL across all environments through the DevOps portal.</p>
+
+      <h3>Endpoints</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>/api/v1/database/query</code></td><td class="td-green">POST</td><td>Execute SELECT queries (read-only)</td></tr>
+            <tr><td><code>/api/v1/database/update</code></td><td class="td-amber">POST</td><td>Execute UPDATE/INSERT/DELETE</td></tr>
+            <tr><td><code>/api/v1/database/long-running-queries</code></td><td class="td-green">POST</td><td>Find queries running > N minutes</td></tr>
+            <tr><td><code>/api/v1/database/locks</code></td><td class="td-green">POST</td><td>Show current database locks</td></tr>
+            <tr><td><code>/api/v1/database/connections</code></td><td class="td-green">POST</td><td>Active connection details</td></tr>
+            <tr><td><code>/api/v1/database/stats</code></td><td class="td-green">POST</td><td>Database size, connection count, table count</td></tr>
+            <tr><td><code>/api/v1/database/table-sizes</code></td><td class="td-green">POST</td><td>Individual table sizes</td></tr>
+            <tr><td><code>/api/v1/database/kill-query</code></td><td class="td-amber">POST</td><td>Terminate a query by PID</td></tr>
+            <tr><td><code>/api/v1/s3-backup/generate-presigned-url</code></td><td class="td-blue">POST</td><td>Download backup via S3 presigned URL (5h expiry)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>How It Connects Cross-Namespace</h3>
+      <pre><code># The service reads credentials from K8s secrets in the POSTGRES namespace
+# Secret name pattern: {cluster_name}-pguser-{username}
+# It uses the K8s API to read secrets from 207804-postgres-{env} namespace
+# Then connects via the primary Service:
+#   confirmation-pgdatabase-{env}-primary.207804-postgres-{env}.svc.cluster.local:5432</code></pre>
+
+      <h3>Why This Matters for Operations</h3>
+      <blockquote>
+        <p>"Before db-ops, debugging a database issue meant: SSH into a pod, install psql, find the connection string, run the query, hope you don't accidentally run it against prod. Now our team goes to the portal, selects the environment and database from a dropdown, and runs diagnostic queries. Every query is logged and audited. The kill-query endpoint has saved us during incidents &mdash; when a runaway query locks the pricing table, we can kill it in seconds from the portal instead of scrambling for kubectl access."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.9 TLS -->
+    <section class="section" id="tls">
+      <div class="section-header">
+        <span class="section-num">8.9</span>
+        <h2>Production TLS Configuration</h2>
+      </div>
+      <p>Production PostgreSQL clusters use their own TLS certificates (not Istio mTLS):</p>
+
+      <pre><code># From environments/prod/postgres-cluster-av-common/values.yaml
+tls:
+  enabled: true
+customTLSSecret:
+  name: confirmation-pgdb-av-common-prod-tls-secret
+customReplicationTLSSecret:
+  name: confirmation-pgdb-av-common-prod-repl-tls-secret</code></pre>
+
+      <h3>Two Separate TLS Certificates</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Certificate</th><th>Purpose</th><th>Scope</th></tr></thead>
+          <tbody>
+            <tr><td><code>customTLSSecret</code></td><td>Client &rarr; PostgreSQL connections</td><td>Application services connecting to the database</td></tr>
+            <tr><td><code>customReplicationTLSSecret</code></td><td>Primary &rarr; Replica WAL streaming</td><td>Inter-node replication traffic</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why Separate Certificates?</h3>
+      <blockquote>
+        <p>"Client TLS and replication TLS have different trust requirements. Client certificates are issued by our corporate CA &mdash; any service with a valid certificate can connect. Replication certificates use a cluster-internal CA &mdash; only PostgreSQL nodes can authenticate as replication peers. If a client certificate is compromised, the attacker can read data but can't impersonate a replica and inject fake WAL records."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.10 OPS TASKS -->
+    <section class="section" id="ops-tasks">
+      <div class="section-header">
+        <span class="section-num">8.10</span>
+        <h2>Common Operational Tasks</h2>
+      </div>
+
+      <h3>Expand PVC Storage (200Gi &rarr; 600Gi)</h3>
+      <pre><code># Our StorageClass (plexus-gp2) has allowVolumeExpansion: true
+# Edit the PVC directly — Crunchy operator handles the rest
+kubectl edit pvc confirmation-pgdatabase-ci-instance-1-xxxx -n 207804-postgres-ci
+# Change storage: 200Gi → 600Gi
+# EBS volume expands online — no downtime
+# IMPORTANT: You can only expand, NEVER shrink</code></pre>
+
+      <h3>Check Replication Lag</h3>
+      <pre><code>-- On the primary
+SELECT client_addr, state, sent_lsn, write_lsn, flush_lsn, replay_lsn,
+       pg_wal_lsn_diff(sent_lsn, replay_lsn) AS replay_lag_bytes
+FROM pg_stat_replication;</code></pre>
+
+      <h3>Find and Kill Long-Running Queries</h3>
+      <pre><code>-- Find queries running more than 5 minutes
+SELECT pid, now() - pg_stat_activity.query_start AS duration, query, state
+FROM pg_stat_activity
+WHERE (now() - pg_stat_activity.query_start) > interval '5 minutes'
+  AND state != 'idle';
+
+-- Kill a specific query (graceful)
+SELECT pg_cancel_backend(12345);
+
+-- Force kill (if cancel doesn't work)
+SELECT pg_terminate_backend(12345);</code></pre>
+
+      <h3>Check Table Bloat</h3>
+      <pre><code>-- Estimate dead tuples (need vacuum)
+SELECT relname, n_live_tup, n_dead_tup,
+       ROUND(n_dead_tup::numeric / NULLIF(n_live_tup, 0) * 100, 2) AS dead_pct
+FROM pg_stat_user_tables
+WHERE n_dead_tup > 1000
+ORDER BY n_dead_tup DESC;</code></pre>
+
+      <h3>Manual pgBackRest Backup</h3>
+      <pre><code># Exec into the repo-host pod
+kubectl exec -it confirmation-pgdatabase-ci-repo-host-0 -n 207804-postgres-ci -- bash
+
+# Run a full backup
+pgbackrest --stanza=db --type=full backup
+
+# Check backup info
+pgbackrest --stanza=db info</code></pre>
+    </section>
+
+    <!-- 8.11 PITR -->
+    <section class="section" id="pitr">
+      <div class="section-header">
+        <span class="section-num">8.11</span>
+        <h2>Point-in-Time Recovery (PITR)</h2>
+      </div>
+      <p>PITR lets you restore the database to any specific moment &mdash; critical for "undo" scenarios like accidental data deletion.</p>
+
+      <h3>How PITR Works with pgBackRest</h3>
+      <div class="info-box">
+        <strong>Recovery chain:</strong> pgBackRest restores the closest full backup before target time, applies the differential backup closest to target time, then replays WAL records up to the exact target timestamp. PostgreSQL opens in recovery mode, then promotes to primary.
+      </div>
+
+      <pre><code>Full Backup          Diff Backup          Diff Backup         Current
+(2:30 AM)           (8:30 AM)            (2:30 PM)           (3:45 PM)
+   |                    |                    |                    |
+   v                    v                    v                    v
+   ████████████████████████████████████████████████████████████████
+   └──────── Continuous WAL archiving fills the gaps ────────────┘
+                                                    ^
+                                              Restore to here
+                                              (e.g., 1:00 PM)</code></pre>
+
+      <h3>Recovery Process</h3>
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <div>
+            <div class="step-title">Restore closest full backup</div>
+            <div class="step-desc">pgBackRest restores the full backup taken before the target time</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <div>
+            <div class="step-title">Apply differential backup</div>
+            <div class="step-desc">Applies the differential backup closest to (but before) the target time</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <div>
+            <div class="step-title">Replay WAL records</div>
+            <div class="step-desc">Replays WAL records up to the exact target timestamp</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <div>
+            <div class="step-title">Promote to primary</div>
+            <div class="step-desc">PostgreSQL opens in recovery mode, then promotes to primary</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Interview Answer &mdash; "A developer accidentally deleted production data"</h3>
+      <blockquote>
+        <p>"First, I'd assess the blast radius &mdash; which table, how many rows, when did it happen. Then:</p>
+        <p><strong>1. Don't panic, don't restart</strong> &mdash; the WAL still has the delete operation, but pgBackRest has the data before it</p>
+        <p><strong>2. Check the exact timestamp</strong> from application logs or <code>pg_stat_activity</code> history</p>
+        <p><strong>3. Spin up a recovery instance</strong> &mdash; NOT restore in-place. Use pgBackRest to restore to a separate PostgreSQL instance with <code>--target-time='2026-03-10 14:30:00'</code> and <code>--target-action=promote</code></p>
+        <p><strong>4. Verify the recovered data</strong> &mdash; connect to the recovery instance, confirm the rows exist</p>
+        <p><strong>5. Extract and re-insert</strong> &mdash; pg_dump the affected table from recovery, pg_restore into production</p>
+        <p><strong>6. Post-mortem</strong> &mdash; add guardrails: the db-ops portal should require confirmation for DELETE operations, and consider enabling <code>log_statement=mod</code> temporarily to catch this earlier"</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.12 CITUS -->
+    <section class="section" id="citus">
+      <div class="section-header">
+        <span class="section-num">8.12</span>
+        <h2>Data Warehouse &mdash; Citus (Distributed PostgreSQL)</h2>
+      </div>
+      <p>For analytics and reporting, we run a separate <strong>Citus</strong> cluster (distributed PostgreSQL):</p>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">Coordinator</div>
+          <div class="card-title">Citus Coordinator</div>
+          <div class="card-desc">Receives queries, routes to workers. postgres-dwh entry point for all analytics.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">Worker Node</div>
+          <div class="card-title">Worker-101</div>
+          <div class="card-desc">Holds distributed table shards. Parallel query execution on local data.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">Worker Node</div>
+          <div class="card-title">Worker-102</div>
+          <div class="card-desc">Holds distributed table shards. Scales horizontally with data volume.</div>
+        </div>
+      </div>
+
+      <h3>How Data Flows</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Data Warehouse Pipeline</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d4', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d4', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d4')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d4">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    SVC[".NET Services"]
+    PG["PostgreSQL\n(operational)"]
+    FT["Fivetran CDC"]
+    DWH["Citus DWH\n(distributed)"]
+    DBT["dbt\nTransformations"]
+    PBI["Power BI\nReports"]
+
+    SVC --> PG
+    PG -->|"WAL logical replication"| FT
+    FT -->|"Bronze tables"| DWH
+    DWH --> DBT
+    DBT -->|"Silver + Gold layers"| DWH
+    DWH --> PBI
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Why Citus Instead of Regular PostgreSQL?</h3>
+      <blockquote>
+        <p>"Our analytics queries scan millions of rows across months of confirmation data. A single PostgreSQL instance would take minutes. Citus distributes the data across worker nodes and parallelizes the query &mdash; each worker scans its shard, the coordinator aggregates results. We went from 5-minute reports to sub-second responses for most dashboard queries."</p>
+      </blockquote>
+    </section>
+
+    <!-- 8.13 INTERVIEW SCENARIOS -->
+    <section class="section" id="scenarios">
+      <div class="section-header">
+        <span class="section-num">8.13</span>
+        <h2>Interview Scenario Questions</h2>
+      </div>
+
+      <h3>Q: "Your PostgreSQL primary pod got OOMKilled. What happens?"</h3>
+      <blockquote>
+        <p>"When the primary pod gets OOMKilled:</p>
+        <p><strong>1. Patroni detects the failure</strong> within ~30 seconds and promotes the replica to primary</p>
+        <p><strong>2. The primary Service</strong> (<code>confirmation-pgdatabase-ci-primary</code>) is updated to point to the new primary</p>
+        <p><strong>3. Applications reconnect</strong> &mdash; .NET services use the Service DNS, so they automatically connect to the new primary</p>
+        <p><strong>4. The old primary restarts</strong> and rejoins as a replica (Patroni handles this)</p>
+        <p>To investigate the OOM:</p>
+        <p>- <code>kubectl describe pod</code> &mdash; check the <code>lastState</code> for OOMKilled and the memory limit</p>
+        <p>- Check <code>pg_stat_activity</code> on the new primary &mdash; was there a connection spike?</p>
+        <p>- Check <code>work_mem</code> usage &mdash; a complex query with many sort/hash operations can consume <code>work_mem x operations x connections</code></p>
+        <p>- Check for connection leaks &mdash; <code>SELECT count(*) FROM pg_stat_activity GROUP BY state</code> &mdash; are there hundreds of idle connections?</p>
+        <p>- Solution: either increase the memory limit, tune <code>work_mem</code> down, or fix the connection leak in the application"</p>
+      </blockquote>
+
+      <h3>Q: "Fivetran shows 'connector broken' after a weekend"</h3>
+      <blockquote>
+        <p>"This is usually a replication slot issue. My troubleshooting steps:</p>
+        <p><strong>1. Check the slot manager logs</strong>: <code>kubectl logs -l app=fivetran-slot-manager -n 207804-postgres-ci</code> &mdash; did it detect and fix the slot?</p>
+        <p><strong>2. Check slot status directly</strong>:</p>
+        <pre><code>SELECT slot_name, active, restart_lsn, confirmed_flush_lsn, wal_status
+FROM pg_replication_slots WHERE slot_type = 'logical';</code></pre>
+        <p>If <code>wal_status = 'lost'</code>, the WAL Fivetran needs has been recycled &mdash; the slot manager should recreate it</p>
+        <p><strong>3. Check <code>max_slot_wal_keep_size</code></strong> &mdash; we set it to 15GB. If Fivetran was down for the weekend and WAL accumulated beyond 15GB, PostgreSQL drops the oldest WAL, making the slot 'lost'</p>
+        <p><strong>4. Fix</strong>: The slot manager handles this automatically. If the slot manager isn't running, do it manually:</p>
+        <pre><code>SELECT pg_drop_replication_slot('fivetran_core_slot');
+SELECT pg_create_logical_replication_slot('fivetran_core_slot', 'pgoutput');</code></pre>
+        <p>Then trigger re-sync in the Fivetran dashboard or via API."</p>
+      </blockquote>
+
+      <h3>Q: "How would you migrate from PostgreSQL 15 to 16 with zero downtime?"</h3>
+      <blockquote>
+        <p>"The Crunchy operator supports this with <code>PGUpgrade</code> CRD:</p>
+        <p><strong>1. Test in non-prod first</strong> &mdash; run the upgrade in CI, verify all .NET services work with PG 16</p>
+        <p><strong>2. Take a fresh backup</strong> &mdash; full pgBackRest backup before any upgrade attempt</p>
+        <p><strong>3. Update the image and version in values.yaml</strong> &mdash; change <code>postgresVersion: 15</code> to <code>16</code> and update the image tag</p>
+        <p><strong>4. Apply PGUpgrade CRD</strong> &mdash; the operator creates new PG 16 pods, runs <code>pg_upgrade --link</code> (hard links, fast), switches traffic</p>
+        <p><strong>5. Run ANALYZE</strong> &mdash; after upgrade, statistics are stale. Run <code>ANALYZE</code> on all databases to rebuild planner stats</p>
+        <p><strong>6. Monitor for 24 hours</strong> &mdash; watch query latency, connection errors, replication lag</p>
+        <p><strong>7. Clean up</strong> &mdash; remove old PG 15 data volumes after confirming stability</p>
+        <p>The key is the <code>--link</code> mode &mdash; it uses hard links instead of copying data files, so the upgrade itself takes minutes, not hours. The downtime window is just the time to stop the old primary, run pg_upgrade, and start the new primary &mdash; typically under 5 minutes."</p>
+      </blockquote>
+
+      <h3>Q: "Your database storage is at 85%. What do you do?"</h3>
+      <blockquote>
+        <p>"Immediate actions:</p>
+        <p><strong>1. Check table bloat</strong>: <code>SELECT relname, pg_size_pretty(pg_total_relation_size(relid)) FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 10</code> &mdash; if dead tuples are high, run <code>VACUUM FULL</code> on the worst offenders (note: VACUUM FULL locks the table, schedule during low traffic)</p>
+        <p><strong>2. Check for orphaned data</strong>: Old audit confirmations that can be archived or deleted</p>
+        <p><strong>3. Expand the PVC</strong>: Since our StorageClass has <code>allowVolumeExpansion: true</code>, I can edit the PVC from 200Gi to 400Gi &mdash; EBS expands online, no downtime. In production we already went from 200Gi to 600Gi this way.</p>
+        <p><strong>4. Long-term</strong>: If the growth pattern is consistent, set up monitoring alerts at 70% and 85%, and plan for either larger PVCs or partitioning large tables by date."</p>
+      </blockquote>
+
+      <h3>Q: "How do you ensure database credentials are secure in Kubernetes?"</h3>
+      <blockquote>
+        <p>"We use a full secrets chain:</p>
+        <p><strong>1. Credentials are born in AWS Secrets Manager</strong> &mdash; never hardcoded, never in git</p>
+        <p><strong>2. ExternalSecrets Operator</strong> syncs them to K8s Secrets &mdash; the ESO checks Secrets Manager every 15 minutes for changes</p>
+        <p><strong>3. K8s Secrets are mounted as environment variables</strong> in the .NET service pods</p>
+        <p><strong>4. Network isolation</strong> &mdash; PostgreSQL runs in its own namespace (<code>207804-postgres-ci</code>), and Istio AuthorizationPolicy restricts which namespaces can connect</p>
+        <p><strong>5. Per-service credentials</strong> &mdash; each service has its own database user with access only to its own database. The pricing service literally cannot query the forms database.</p>
+        <p><strong>6. No wildcard pg_hba</strong> in production &mdash; we restrict source IPs to the pod CIDR ranges</p>
+        <p>The naming convention makes auditing easy: <code>a207804-ue1-op-pricing-be-ci-db-sm</code> tells you the asset (a207804), region (ue1), Outpost (op), service (pricing-be), environment (ci), and that it's a database secret (db-sm)."</p>
+      </blockquote>
+
+      <h3>Q: "Explain physical vs logical replication"</h3>
+      <blockquote>
+        <p>"Physical replication (streaming replication) copies WAL records byte-by-byte to the replica. The replica is an exact binary copy of the primary &mdash; same databases, same tables, same indexes. It's fast and simple. We use it for HA &mdash; our Patroni setup streams WAL from primary to replica for automatic failover.</p>
+        <p>Logical replication decodes the WAL into logical changes (INSERT row X, UPDATE row Y, DELETE row Z). It's more flexible &mdash; you can replicate specific tables, specific databases, or even transform data during replication. We use it for Fivetran CDC &mdash; Fivetran reads the logical changes through the <code>pgoutput</code> plugin to stream data to the warehouse.</p>
+        <p>The trade-offs:</p>
+        <p>- <strong>Physical</strong>: faster, lower overhead, but all-or-nothing (entire cluster)</p>
+        <p>- <strong>Logical</strong>: flexible, selective replication, but higher WAL overhead (<code>wal_level=logical</code> generates more WAL than <code>replica</code>)</p>
+        <p>That's why we use <code>wal_level=logical</code> only in non-prod (where Fivetran runs) and <code>wal_level=replica</code> in production &mdash; production doesn't need CDC, so we avoid the extra WAL overhead."</p>
+      </blockquote>
+    </section>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <a href="07-observability.html">&larr; 07: Observability</a>
+  <a href="index.html" class="nav-index">Index</a>
+  <a href="09-rabbitmq.html">09: RabbitMQ &rarr;</a>
+</nav>
+
+<script>
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#141f35',
+      primaryTextColor: '#dce8f5',
+      primaryBorderColor: '#22c55e',
+      lineColor: '#7a9ab5',
+      secondaryColor: '#0f1826',
+      tertiaryColor: '#090d1a',
+      background: '#090d1a',
+      mainBkg: '#141f35',
+      nodeBorder: '#1d2d4f',
+      clusterBkg: '#0f1826',
+      titleColor: '#dce8f5',
+      edgeLabelBackground: '#0f1826',
+      fontFamily: 'DM Sans, sans-serif',
+      fontSize: '13px'
+    }
+  });
+
+  // Theme toggle
+  const toggle = document.getElementById('themeToggle');
+  toggle.addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    toggle.textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+
+  // Zoom controls
+  const scales = {};
+  function zoom(id, factor) {
+    scales[id] = (scales[id] || 1) * factor;
+    document.getElementById(id).style.transform = `scale(${scales[id]})`;
+  }
+  function reset(id) {
+    scales[id] = 1;
+    document.getElementById(id).style.transform = 'scale(1)';
+  }
+
+  // TOC active state
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const sections = document.querySelectorAll('.section');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        tocLinks.forEach(a => a.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const link = document.querySelector(`.toc-list a[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

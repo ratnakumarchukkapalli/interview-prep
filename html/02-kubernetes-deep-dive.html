@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 2: Kubernetes Deep Dive — Interview Prep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d1a;
+      --surface: #0f1826;
+      --surface2: #141f35;
+      --border: #1d2d4f;
+      --text: #dce8f5;
+      --text-muted: #7a9ab5;
+      --accent: #22c55e;
+      --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8;
+      --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b;
+      --accent3-dim: rgba(245,158,11,0.12);
+      --code-bg: #060a13;
+      --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      --radius: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .hero {
+      background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3rem 2rem 2.5rem;
+    }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .badge-green { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.025em;
+    }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    /* THEME TOGGLE */
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      z-index: 100;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2rem;
+      gap: 2.5rem;
+    }
+
+    /* TOC */
+    .toc { width: 220px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 0.63rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a {
+      display: block;
+      padding: 0.28rem 0.6rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .toc-list a:hover, .toc-list a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    /* MAIN */
+    .main-content { flex: 1; min-width: 0; }
+
+    /* SECTIONS */
+    .section { margin-bottom: 3.5rem; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .section h3 {
+      font-size: 0.93rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin: 1.5rem 0 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-mono);
+    }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    tbody td {
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+    .td-green { color: var(--accent) !important; font-weight: 500; }
+    .td-blue { color: var(--accent2) !important; }
+    .td-amber { color: var(--accent3) !important; }
+    .td-muted { color: var(--text-muted) !important; font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2) !important; }
+
+    /* COMPONENT GRID */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      transition: border-color 0.15s;
+    }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+    .card-ip {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--accent2);
+      background: var(--code-bg);
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+
+    /* CODE BLOCK */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: none;
+      padding: 0;
+    }
+    .code-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      display: block;
+    }
+
+    /* DIAGRAM */
+    .diagram-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .diagram-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow: auto; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+
+    /* INFO / WARN BOXES */
+    .info-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .info-box strong { color: var(--accent2); }
+    .warn-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent3);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .warn-box strong { color: var(--accent3); }
+
+    /* Q&A BOXES */
+    .qa-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.25rem;
+    }
+    .qa-question {
+      font-weight: 600;
+      color: var(--accent);
+      font-size: 0.88rem;
+      margin-bottom: 0.6rem;
+      font-family: var(--font-mono);
+    }
+    .qa-answer { color: var(--text-muted); font-size: 0.85rem; line-height: 1.65; }
+    .qa-answer strong { color: var(--text); }
+    .qa-answer ol, .qa-answer ul { padding-left: 1.2rem; margin: 0.4rem 0; }
+    .qa-answer li { margin-bottom: 0.25rem; }
+    .qa-answer code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-top: 0.15rem;
+    }
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .bottom-nav a {
+      color: var(--accent2);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+      padding: 0.4rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--accent); }
+    .bottom-nav .nav-index {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      .toc { display: none; }
+      .layout { padding: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
+      .bottom-nav { flex-direction: column; text-align: center; }
+    }
+
+    /* LIGHT MODE */
+    body.light {
+      --bg: #f2f6fc;
+      --surface: #ffffff;
+      --surface2: #eaeff8;
+      --border: #c8d6e8;
+      --text: #1a2535;
+      --text-muted: #4f6880;
+      --code-bg: #e2eaf5;
+      --code-text: #1d5fa0;
+    }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">Kubernetes</span>
+      <span class="badge badge-amber">EKS Outposts</span>
+    </div>
+    <h1>Section 2: Kubernetes Deep Dive</h1>
+    <p class="hero-sub">EKS Outposts, Pod Lifecycle, HPA, PVC, StatefulSets &mdash; Confirmation Platform</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Sections</span>
+        <span class="hero-meta-value">15 sections</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Topics</span>
+        <span class="hero-meta-value">Control Plane, Nodes, Pods, HPA, PVC, Outposts</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Last Updated</span>
+        <span class="hero-meta-value">2026-03-12</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Source</span>
+        <span class="hero-meta-value" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">02-kubernetes-deep-dive.md</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#s2-1">2.1 Control Plane</a></li>
+        <li><a href="#s2-2">2.2 Worker Nodes</a></li>
+        <li><a href="#s2-3">2.3 Pod Lifecycle</a></li>
+        <li><a href="#s2-4">2.4 Resource Management</a></li>
+        <li><a href="#s2-4" class="toc-sub">QoS Classes</a></li>
+        <li><a href="#s2-5">2.5 Scheduling</a></li>
+        <li><a href="#s2-5" class="toc-sub">Affinity &amp; Taints</a></li>
+        <li><a href="#s2-6">2.6 Networking &amp; DNS</a></li>
+        <li><a href="#s2-7">2.7 EKS Concepts</a></li>
+        <li><a href="#s2-7" class="toc-sub">IRSA &amp; VPC CNI</a></li>
+        <li><a href="#s2-8">2.8 K8s Objects</a></li>
+        <li><a href="#s2-9">2.9 HPA</a></li>
+        <li><a href="#s2-10">2.10 Environments</a></li>
+        <li><a href="#s2-11">2.11 Secrets</a></li>
+        <li><a href="#s2-12">2.12 PVC &amp; Storage</a></li>
+        <li><a href="#s2-13">2.13 Cloud vs Outposts</a></li>
+        <li><a href="#s2-14">2.14 Migration Story</a></li>
+        <li><a href="#s2-15">2.15 Advanced Scenarios</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- 2.1 CONTROL PLANE -->
+    <section class="section" id="s2-1">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2>Kubernetes Architecture &mdash; Control Plane</h2>
+      </div>
+      <p>Every K8s cluster has a <strong>control plane</strong> (brain) and <strong>worker nodes</strong> (muscle). Know every component.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Control Plane Architecture</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d1')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    subgraph CP["CONTROL PLANE (AWS manages in EKS)"]
+        API["API Server"]
+        ETCD["etcd\nCluster State DB"]
+        SCHED["Scheduler\nAssigns pods to nodes"]
+        CM["Controller Manager\nReplicaSet | Deployment\nNode | ServiceAccount"]
+        CCM["Cloud Controller Manager\n(AWS)"]
+    end
+    USER["User / CI\nkubectl"] -->|REST/HTTPS| API
+    API --> ETCD
+    API --> SCHED
+    API --> CM
+    API --> CCM
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Component</th><th>What It Does</th><th>Interview-Level Detail</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>API Server</strong></td>
+              <td>Front door to the cluster. ALL communication goes through it &mdash; kubectl, kubelet, controllers, everything. REST API over HTTPS.</td>
+              <td>"Every component talks to API server. It validates requests, authenticates (RBAC), and writes state to etcd."</td>
+            </tr>
+            <tr>
+              <td><strong>etcd</strong></td>
+              <td>Distributed key-value store. Holds ALL cluster state &mdash; pods, services, secrets, configmaps.</td>
+              <td>"etcd is the single source of truth. If etcd dies, you lose your cluster. That's why EKS manages it HA across 3 AZs."</td>
+            </tr>
+            <tr>
+              <td><strong>Scheduler</strong></td>
+              <td>Watches for unscheduled pods, picks the best node based on: resource requests, affinity rules, taints/tolerations, topology spread.</td>
+              <td>"Scheduler scores each node. Factors: available CPU/memory, node affinity, pod anti-affinity, taints."</td>
+            </tr>
+            <tr>
+              <td><strong>Controller Manager</strong></td>
+              <td>Runs control loops. Each controller watches a resource type and ensures actual state matches desired state.</td>
+              <td>"The Deployment controller ensures N replicas are running. If a pod dies, it creates a new one. Reconciliation loop."</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Your kubectl commands are timing out. What could be wrong?"</div>
+        <div class="qa-answer">
+          "kubectl talks to the API Server. If it's timing out:
+          <ol>
+            <li><strong>API Server unreachable</strong> &mdash; check if the EKS control plane endpoint is healthy (AWS manages this, rare but check AWS status)</li>
+            <li><strong>Network issue</strong> &mdash; my machine can't reach the cluster endpoint. Check VPN, security groups, kubeconfig context</li>
+            <li><strong>API Server overloaded</strong> &mdash; too many watchers or large LIST calls. Check with <code>kubectl get --raw /healthz</code></li>
+            <li><strong>etcd slow</strong> &mdash; if API server is up but slow, etcd might be under pressure (disk I/O). In EKS, this is AWS's problem &mdash; open a support case</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.2 WORKER NODES -->
+    <section class="section" id="s2-2">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2>Worker Nodes &mdash; What Runs on Each Node</h2>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Worker Node Internals</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d2', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d2', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d2')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d2">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    subgraph NODE["WORKER NODE"]
+        KL["kubelet\nTalks to API Server\nManages pods"]
+        KP["kube-proxy\niptables / IPVS\nService routing"]
+        CR["containerd\nContainer Runtime"]
+        subgraph POD1["Pod"]
+            C1["container(app)"]
+            S1["sidecar(istio-proxy)"]
+            P1["pause container"]
+        end
+        subgraph POD2["Pod"]
+            C2["container(app)"]
+            S2["sidecar(istio-proxy)"]
+            P2["pause container"]
+        end
+        DS["DaemonSets:\ndatadog-agent\naws-node (VPC CNI)"]
+    end
+    KL --> POD1
+    KL --> POD2
+    CR --> POD1
+    CR --> POD2
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>kubelet</strong></td>
+              <td>Node agent. Receives pod specs from API Server, ensures containers are running. Reports node status back.</td>
+              <td>"kubelet is what actually starts/stops containers on the node. It also runs liveness/readiness probes."</td>
+            </tr>
+            <tr>
+              <td><strong>kube-proxy</strong></td>
+              <td>Maintains network rules (iptables or IPVS) so Services can route traffic to pods.</td>
+              <td>"When you create a Service, kube-proxy programs iptables rules on every node to forward traffic to the right pods."</td>
+            </tr>
+            <tr>
+              <td><strong>Container Runtime</strong></td>
+              <td>Runs containers. EKS uses <code>containerd</code> (Docker was deprecated in K8s 1.24).</td>
+              <td>"We use containerd. Docker shim was removed in K8s 1.24. Doesn't affect us &mdash; our Dockerfiles still work, containerd just runs them."</td>
+            </tr>
+            <tr>
+              <td><strong>pause container</strong></td>
+              <td>Holds the network namespace for the pod. All containers in a pod share this namespace.</td>
+              <td>"The pause container is why containers in the same pod can talk via localhost."</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "A node shows NotReady status. How do you troubleshoot?"</div>
+        <div class="qa-answer">
+          "NotReady means kubelet stopped reporting to the API Server, or node conditions failed.
+          <ol>
+            <li><code>kubectl describe node &lt;name&gt;</code> &mdash; check Conditions: MemoryPressure, DiskPressure, PIDPressure, Ready</li>
+            <li>If MemoryPressure/DiskPressure &mdash; node is running out of resources, kubelet starts evicting pods</li>
+            <li>SSH to node (if possible) &rarr; check <code>systemctl status kubelet</code> &mdash; is it running?</li>
+            <li>Check <code>/var/log/messages</code> or <code>journalctl -u kubelet</code> for errors</li>
+            <li>Common in Outposts: network hiccup between Outpost rack and AWS Region breaks kubelet &rarr; API Server heartbeat. Usually self-heals in 40s (node-monitor-grace-period)</li>
+            <li>If node stays NotReady &rarr; cordon it (<code>kubectl cordon</code>), drain pods (<code>kubectl drain --ignore-daemonsets</code>), investigate or replace</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.3 POD LIFECYCLE -->
+    <section class="section" id="s2-3">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2>Pod Lifecycle &mdash; Know Every State</h2>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Pod Lifecycle State Machine</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d3', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d3', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d3')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d3">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    PENDING["Pending"] --> CREATING["ContainerCreating"]
+    CREATING --> RUNNING["Running"]
+    RUNNING --> SUCCESS["Succeeded"]
+    RUNNING --> FAILED["Failed"]
+    RUNNING --> CRASH["CrashLoopBackOff"]
+    CREATING --> IMGPULL["ImagePullBackOff"]
+    RUNNING --> EVICTED["Evicted"]
+    RUNNING --> TERM["Terminating"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>State</th><th>Meaning</th><th>Common Cause</th></tr></thead>
+          <tbody>
+            <tr><td class="td-amber"><strong>Pending</strong></td><td>Scheduler can't find a node</td><td>Insufficient CPU/memory, no matching nodeSelector, PVC not bound</td></tr>
+            <tr><td class="td-blue"><strong>ContainerCreating</strong></td><td>Image pulling or volumes mounting</td><td>Slow ECR pull, ImagePullBackOff (wrong tag/auth), volume mount timeout</td></tr>
+            <tr><td class="td-green"><strong>Running</strong></td><td>At least one container running</td><td>Normal state</td></tr>
+            <tr><td class="td-amber"><strong>CrashLoopBackOff</strong></td><td>Container crashes, kubelet backs off restart</td><td>App error, OOMKilled, missing config/secret</td></tr>
+            <tr><td class="td-amber"><strong>ImagePullBackOff</strong></td><td>Can't pull image</td><td>Wrong image tag, ECR auth expired, rate limited</td></tr>
+            <tr><td class="td-amber"><strong>Evicted</strong></td><td>Node under pressure, kubelet evicted pod</td><td>DiskPressure or MemoryPressure on node</td></tr>
+            <tr><td class="td-blue"><strong>Terminating</strong></td><td>Pod is shutting down</td><td>Stuck if finalizers exist or preStop hook hangs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Pods are stuck in Pending. What do you check?"</div>
+        <div class="qa-answer">
+          "Pending means the scheduler can't place the pod.
+          <ol>
+            <li><code>kubectl describe pod</code> &rarr; Events section shows WHY</li>
+            <li><strong>Insufficient resources</strong>: Node has 4Gi free, pod requests 8Gi &rarr; <code>0/5 nodes have sufficient memory</code><br>Fix: scale up node group, or reduce resource requests</li>
+            <li><strong>Node selector mismatch</strong>: Pod has <code>nodeSelector: outpost=true</code> but no nodes have that label</li>
+            <li><strong>PVC not bound</strong>: If pod mounts a PVC and the PVC is Pending &rarr; check StorageClass, provisioner</li>
+            <li><strong>Taints</strong>: Node has taint <code>dedicated=database:NoSchedule</code> but pod has no toleration</li>
+            <li><strong>Pod anti-affinity</strong>: Pod says "don't schedule on same node as another replica" but only 1 node available</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.4 RESOURCE MANAGEMENT -->
+    <section class="section" id="s2-4">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2>Resource Management &mdash; Requests vs Limits</h2>
+      </div>
+      <div class="warn-box">
+        <strong>MUST-KNOW concept.</strong> Interviewers love this topic. Understand the difference between requests (guaranteed) and limits (max allowed).
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Term</th><th>What It Means</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Request</strong></td>
+              <td>Guaranteed minimum resources for the pod</td>
+              <td>Scheduler uses this to decide which node. Pod ALWAYS gets this much.</td>
+            </tr>
+            <tr>
+              <td><strong>Limit</strong></td>
+              <td>Maximum resources the pod can use</td>
+              <td>If pod exceeds memory limit &rarr; OOMKilled. If pod exceeds CPU limit &rarr; throttled (not killed).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span class="code-label">Resource Spec Example (YAML)</span>
+      <pre><code>resources:
+  requests:
+    cpu: 250m       # 0.25 CPU core guaranteed
+    memory: 512Mi   # 512 MiB guaranteed
+  limits:
+    cpu: 1000m      # can burst up to 1 core
+    memory: 1Gi     # killed if exceeds 1 GiB</code></pre>
+
+      <h3>QoS Classes</h3>
+      <p>Determined by how you set requests/limits:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>QoS Class</th><th>Condition</th><th>Eviction Priority</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>Guaranteed</strong></td><td>requests = limits for ALL containers</td><td>Last to be evicted (safest)</td></tr>
+            <tr><td class="td-blue"><strong>Burstable</strong></td><td>requests &lt; limits (at least one set)</td><td>Evicted after BestEffort</td></tr>
+            <tr><td class="td-amber"><strong>BestEffort</strong></td><td>No requests or limits set at all</td><td>First to be evicted</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Our approach:</strong> In our Helm charts, every service has both requests and limits. Critical services like PostgreSQL and RabbitMQ have requests=limits (Guaranteed QoS) so they're never evicted. Application pods are Burstable &mdash; they get a guaranteed baseline but can burst during spikes.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Your .NET service keeps getting OOMKilled. How do you handle it?"</div>
+        <div class="qa-answer">
+          "OOMKilled means the container exceeded its memory limit.
+          <ol>
+            <li><code>kubectl describe pod</code> &rarr; check <code>Last State: Terminated, Reason: OOMKilled</code></li>
+            <li>Check Datadog: <code>env:ci service:&lt;name&gt;</code> &rarr; look at memory usage pattern</li>
+            <li>Is it a memory leak or genuine need?
+              <ul>
+                <li><strong>Gradual climb</strong> = memory leak in the .NET app &rarr; escalate to dev team</li>
+                <li><strong>Spike during load</strong> = limit too tight &rarr; increase memory limit in Helm values</li>
+              </ul>
+            </li>
+            <li>In our Helm values: <code>resources.limits.memory: 1Gi</code> &rarr; try <code>1.5Gi</code></li>
+            <li>After changing: merge to Helm chart &rarr; ArgoCD auto-syncs &rarr; Argo Rollout does canary with new limits</li>
+            <li>Monitor in Datadog for 24h to confirm stability</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.5 SCHEDULING -->
+    <section class="section" id="s2-5">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2>Scheduling &mdash; Affinity, Taints, Tolerations</h2>
+      </div>
+      <p>These control WHERE pods run. Critical for Outposts.</p>
+
+      <h3>Node Affinity &mdash; "I want to run on specific nodes"</h3>
+      <pre><code>affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:  # HARD rule - must match
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: In
+              values: ["us-east-1-op1"]  # Outpost zone</code></pre>
+
+      <h3>Pod Anti-Affinity &mdash; "Don't put me on the same node as my replica"</h3>
+      <pre><code>affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:  # SOFT rule - try to spread
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: rabbitmq
+          topologyKey: kubernetes.io/hostname</code></pre>
+
+      <h3>Taints &amp; Tolerations &mdash; "This node is special, only matching pods allowed"</h3>
+      <pre><code># On the node (taint):
+kubectl taint nodes db-node-1 dedicated=database:NoSchedule
+
+# On the pod (toleration):
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "database"
+    effect: "NoSchedule"</code></pre>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Concept</th><th>Analogy</th><th>Your Usage</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>nodeAffinity</strong></td><td>"I want to sit in this section"</td><td>Ensuring pods land on Outpost nodes, not cloud nodes</td></tr>
+            <tr><td class="td-blue"><strong>podAntiAffinity</strong></td><td>"Don't seat me next to my twin"</td><td>Spreading RabbitMQ/PostgreSQL replicas across nodes for HA</td></tr>
+            <tr><td class="td-amber"><strong>Taints</strong></td><td>"VIP section &mdash; invitation only"</td><td>Database nodes tainted so only DB pods schedule there</td></tr>
+            <tr><td><strong>Tolerations</strong></td><td>"I have an invitation to VIP"</td><td>PostgreSQL pods tolerate the database taint</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "How do you ensure your database pods run on dedicated nodes?"</div>
+        <div class="qa-answer">
+          "We use a combination of taints and node affinity.
+          <ol>
+            <li><strong>Taint the database nodes</strong>: <code>dedicated=database:NoSchedule</code> &mdash; prevents any random pod from scheduling there</li>
+            <li><strong>Add toleration to PostgreSQL pods</strong> in Helm chart &mdash; they're allowed on tainted nodes</li>
+            <li><strong>Add nodeAffinity</strong> &mdash; PostgreSQL pods MUST schedule on nodes with label <code>role=database</code></li>
+            <li>This guarantees: database pods run only on dedicated nodes, and no other pods compete for resources on those nodes</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.6 NETWORKING -->
+    <section class="section" id="s2-6">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h2>Kubernetes Networking &mdash; Services &amp; DNS</h2>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Service Routing</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d6', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d6', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d6')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d6">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    PA["Pod A\n10.0.1.15"] -->|DNS lookup| SVC["Service 'my-svc'\nClusterIP 172.20.0.50"]
+    SVC -->|kube-proxy\niptables rule| PB["Pod B\n10.0.2.30"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Service Type</th><th>What It Does</th><th>When to Use</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>ClusterIP</strong></td><td>Internal-only IP. Accessible only within cluster.</td><td>95% of our services &mdash; internal microservice-to-microservice</td></tr>
+            <tr><td><strong>NodePort</strong></td><td>Opens a port (30000-32767) on every node</td><td>Rarely used &mdash; Istio handles external routing</td></tr>
+            <tr><td class="td-blue"><strong>LoadBalancer</strong></td><td>Creates an AWS ELB/NLB</td><td>Istio IngressGateway uses this for external traffic</td></tr>
+            <tr><td class="td-amber"><strong>Headless</strong> (ClusterIP: None)</td><td>No virtual IP &mdash; DNS returns individual pod IPs</td><td>StatefulSets like RabbitMQ and PostgreSQL</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>DNS in Kubernetes</h3>
+      <p>Every Service gets a DNS entry: <code>&lt;service-name&gt;.&lt;namespace&gt;.svc.cluster.local</code></p>
+      <div class="info-box">
+        <strong>Platform example:</strong> If <code>pricing-be</code> in namespace <code>207804-confirmation-ci</code> needs to talk to <code>nucleus-be</code>, it calls <code>nucleus-be.207804-confirmation-ci.svc.cluster.local</code>. But with Istio, traffic goes through the sidecar proxy, so the DNS resolution is intercepted by Envoy.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Service A can't reach Service B. How do you debug?"</div>
+        <div class="qa-answer">
+          "Network debugging in K8s &mdash; I follow this order:
+          <ol>
+            <li><strong>Is Service B running?</strong> <code>kubectl get pods -l app=service-b</code> &mdash; check if pods are Ready</li>
+            <li><strong>Is the Service endpoint populated?</strong> <code>kubectl get endpoints service-b</code> &mdash; if empty, label selector doesn't match pods</li>
+            <li><strong>DNS resolution works?</strong> Exec into Service A pod: <code>kubectl exec -it &lt;pod&gt; -- nslookup service-b</code></li>
+            <li><strong>Port correct?</strong> Service port might differ from container port (targetPort)</li>
+            <li><strong>Istio blocking it?</strong> Check AuthorizationPolicy &mdash; might be denying traffic from Service A's service account</li>
+            <li><strong>NetworkPolicy?</strong> If cluster uses NetworkPolicies, check if ingress from Service A is allowed</li>
+            <li><strong>Test direct pod-to-pod</strong>: <code>kubectl exec -it &lt;pod-a&gt; -- curl http://&lt;pod-b-ip&gt;:&lt;port&gt;/health</code> &mdash; bypasses Service layer</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.7 EKS SPECIFIC -->
+    <section class="section" id="s2-7">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h2>EKS Specific Concepts</h2>
+      </div>
+
+      <h3>IRSA &mdash; IAM Roles for Service Accounts</h3>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">IRSA Flow</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d7', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d7', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d7')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d7">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    SA["K8s ServiceAccount\nannotated with IAM Role ARN"] --> OIDC["OIDC Federation"]
+    OIDC --> ROLE["IAM Role\nTemp credentials"]
+    ROLE --> AWS["AWS APIs\nSecrets Manager, S3, DynamoDB"]
+    POD["Pod"] -->|assumes role| SA
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>IRSA eliminates the need for AWS access keys in pods.</strong> We annotate the Kubernetes ServiceAccount with an IAM role ARN. When the pod starts, the AWS SDK automatically gets temporary credentials through OIDC federation. We use this for pods that need Secrets Manager access, S3 access, DynamoDB access &mdash; all without a single credential stored anywhere.
+      </div>
+
+      <h3>VPC CNI &mdash; How EKS Networking Works</h3>
+      <div class="info-box">
+        <strong>Real VPC IPs for pods:</strong> EKS uses the VPC CNI plugin. Each pod gets a real VPC IP address (not an overlay network). This means pods can talk directly to RDS, ElastiCache, and other VPC resources without NAT. The tradeoff: you need enough IP addresses in your subnets. Each EC2 instance has a limit on ENIs and IPs per ENI.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Pods can't get IP addresses &mdash; new pods stuck in Pending."</div>
+        <div class="qa-answer">
+          "This is an IP exhaustion issue with VPC CNI.
+          <ol>
+            <li>Each EC2 instance type has a max ENI count and IPs per ENI. For example, <code>m5.xlarge</code> = 4 ENIs x 15 IPs = 58 pod IPs max per node</li>
+            <li>Check: <code>kubectl describe node</code> &rarr; look at <code>Allocatable: pods</code> and current count</li>
+            <li>Solutions:
+              <ul>
+                <li><strong>Prefix delegation</strong>: Enable VPC CNI prefix mode &mdash; assigns /28 prefixes instead of individual IPs, 16x more IPs per ENI</li>
+                <li><strong>Scale out</strong>: Add more nodes to the node group</li>
+                <li><strong>Larger subnets</strong>: If CIDR is exhausted, add secondary CIDR ranges</li>
+              </ul>
+            </li>
+            <li>In Outposts specifically, IP range is constrained to the on-prem network allocation, so this is a real concern we monitor</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.8 K8S OBJECTS -->
+    <section class="section" id="s2-8">
+      <div class="section-header">
+        <span class="section-num">08</span>
+        <h2>Key Kubernetes Objects Deep Dive</h2>
+      </div>
+
+      <h3>Deployment vs StatefulSet vs DaemonSet</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Resource</th><th>Use Case</th><th>Pod Identity</th><th>Storage</th><th>Scaling</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Deployment</strong></td>
+              <td>Stateless apps (API, web)</td>
+              <td>Pods are interchangeable, random names</td>
+              <td>Shared or none</td>
+              <td>HPA can scale</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>StatefulSet</strong></td>
+              <td>Stateful apps (DB, MQ)</td>
+              <td>Stable names: <code>rabbitmq-0</code>, <code>rabbitmq-1</code></td>
+              <td>Each pod gets own PVC</td>
+              <td>Ordered scale up/down</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>DaemonSet</strong></td>
+              <td>One pod per node (agents)</td>
+              <td>One per node, scheduled automatically</td>
+              <td>Node-local</td>
+              <td>Scales with nodes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Our setup:</strong> .NET microservices use Argo Rollouts (superset of Deployment) for canary. PostgreSQL and RabbitMQ use StatefulSets &mdash; they need stable network identity and persistent storage. Datadog agent runs as a DaemonSet &mdash; one agent pod per node collecting metrics from all pods on that node.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Why can't you use a Deployment for your database?"</div>
+        <div class="qa-answer">
+          "Deployments treat all pods as interchangeable. If a Deployment pod dies and restarts:
+          <ul>
+            <li>It gets a new name (random suffix)</li>
+            <li>It might get a different PVC (or none)</li>
+            <li>Other pods can't reliably find it</li>
+          </ul>
+          StatefulSet guarantees:
+          <ul>
+            <li><strong>Stable names</strong>: <code>postgres-0</code>, <code>postgres-1</code> &mdash; always the same</li>
+            <li><strong>Stable storage</strong>: Each pod binds to its own PVC, survives restarts</li>
+            <li><strong>Ordered operations</strong>: Scale up 0&rarr;1&rarr;2, scale down 2&rarr;1&rarr;0</li>
+            <li><strong>Stable DNS</strong>: <code>postgres-0.postgres-headless.namespace.svc.cluster.local</code></li>
+          </ul>
+          For PostgreSQL HA, the primary is always <code>postgres-0</code> and replicas know to connect to it by name."
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.9 HPA -->
+    <section class="section" id="s2-9">
+      <div class="section-header">
+        <span class="section-num">09</span>
+        <h2>HPA &mdash; Horizontal Pod Autoscaler</h2>
+      </div>
+
+      <span class="code-label">HPA Spec (autoscaling/v2)</span>
+      <pre><code>apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70   # scale up when avg CPU > 70%</code></pre>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Setting</th><th>What It Means</th></tr></thead>
+          <tbody>
+            <tr><td><code>minReplicas: 2</code></td><td>Never go below 2 pods (HA minimum)</td></tr>
+            <tr><td><code>maxReplicas: 10</code></td><td>Cap at 10 to prevent runaway scaling</td></tr>
+            <tr><td><code>averageUtilization: 70</code></td><td>When avg CPU across all pods exceeds 70%, add a pod</td></tr>
+            <tr><td>Cooldown (default)</td><td>Scale up: 0s (immediate), Scale down: 5 min (prevents flapping)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">HPA Scaling Loop</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d9', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d9', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d9')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d9">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    MS["Metrics Server\nCollects CPU/Memory"] --> HPA["HPA Controller\nEvaluates every 15s"]
+    HPA -->|"avg CPU > 70%"| UP["Scale UP\nAdd pod immediately"]
+    HPA -->|"avg CPU < 70%\nfor 5 min"| DOWN["Scale DOWN\nRemove pod (cooldown)"]
+    HPA -->|"current = max"| CAP["At maxReplicas\nCannot scale further"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Your service is getting slow during peak hours but HPA isn't scaling. Why?"</div>
+        <div class="qa-answer">
+          "Several possible causes:
+          <ol>
+            <li><strong>Metrics Server not running</strong> &mdash; HPA needs metrics-server to get CPU/memory data. Check: <code>kubectl top pods</code></li>
+            <li><strong>Resource requests not set</strong> &mdash; HPA calculates utilization as <code>actual / request</code>. If no request is set, it can't compute percentage</li>
+            <li><strong>Already at maxReplicas</strong> &mdash; check <code>kubectl get hpa</code> &mdash; if current = max, it can't scale further</li>
+            <li><strong>Bottleneck isn't CPU/memory</strong> &mdash; if the slowness is due to database connection pool exhaustion or external API latency, CPU stays low and HPA won't trigger</li>
+            <li><strong>Custom metrics needed</strong> &mdash; for RabbitMQ queue depth or HTTP request rate, you need custom metrics adapter (Datadog Metrics Server)</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.10 ENVIRONMENTS -->
+    <section class="section" id="s2-10">
+      <div class="section-header">
+        <span class="section-num">10</span>
+        <h2>Your 8 Environments</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Environment</th><th>Namespace</th><th>Cluster</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>CI</strong></td><td><code>207804-confirmation-ci</code></td><td>non-prod</td><td>Continuous Integration, automated tests</td></tr>
+            <tr><td class="td-green"><strong>Demo</strong></td><td><code>207804-confirmation-demo</code></td><td>non-prod</td><td>Stakeholder demos, UAT</td></tr>
+            <tr><td class="td-green"><strong>QA</strong></td><td><code>207804-confirmation-qa</code></td><td>non-prod</td><td>QA team testing</td></tr>
+            <tr><td class="td-blue"><strong>Preprod</strong></td><td><code>207804-datawarehouse-preprod</code></td><td>preprod</td><td>Pre-production validation</td></tr>
+            <tr><td class="td-amber"><strong>Prod</strong></td><td><code>207804-confirmation-prod</code></td><td>prod</td><td>Live production</td></tr>
+            <tr><td class="td-amber"><strong>DR</strong></td><td><code>207804-confirmation-proddr</code></td><td>prod-dr</td><td>Disaster Recovery</td></tr>
+            <tr><td><strong>QED</strong></td><td><code>207804-confirmation-qed</code></td><td>qed</td><td>Quality Engineering</td></tr>
+            <tr><td><strong>Sandbox</strong></td><td><code>207804-confirmation-sbx</code></td><td>sandbox</td><td>Experimentation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>ArgoCD sync policy:</strong> "I manage 8 environments across 4 clusters. Non-prod environments (CI, Demo, QA) have auto-sync enabled in ArgoCD. Production, DR, QED, and Sandbox require manual sync approval &mdash; separation of duties."
+      </div>
+    </section>
+
+    <!-- 2.11 SECRETS -->
+    <section class="section" id="s2-11">
+      <div class="section-header">
+        <span class="section-num">11</span>
+        <h2>Secrets Management &mdash; ExternalSecrets Operator</h2>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">ExternalSecrets Sync Flow</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d11', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d11', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d11')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d11">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    ASM["AWS Secrets Manager\n/207804/ci/\nDB_PASSWORD, API_KEY, DD_API_KEY"] -->|"ExternalSecret Operator\nsyncs every 5 min"| K8S["K8s Secret\nmy-service\nDB_PASSWORD: ****\nAPI_KEY: ****"]
+    K8S -->|"env var or\nvolume mount"| POD["Pod"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>Our approach:</strong> "We never put secrets in Helm values or Git. AWS Secrets Manager is the source of truth. ExternalSecrets Operator runs in the cluster and syncs them into native K8s Secrets. Each service's Helm chart has an ExternalSecret CRD that maps AWS paths to K8s secret keys. The operator polls every 5 minutes, so rotation is automatic &mdash; change it in AWS, K8s picks it up."
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "A secret was rotated in AWS but the application is still using the old value. Why?"</div>
+        <div class="qa-answer">
+          "Several layers to check:
+          <ol>
+            <li><strong>ExternalSecret sync interval</strong> &mdash; default is 5 min. Check <code>kubectl get externalsecret</code> &rarr; SYNCED status</li>
+            <li><strong>K8s Secret updated but pod not restarted</strong> &mdash; environment variables are injected at pod start. If the secret changes, running pods still use the old value</li>
+            <li><strong>Fix</strong>: We use <strong>Reloader Operator</strong> pattern &mdash; it watches for Secret changes and triggers rolling restart. OR we do a manual rollout: <code>kubectl rollout restart deployment/my-service</code></li>
+            <li>If using volume-mounted secrets, Kubernetes eventually updates the mount (kubelet sync period ~1 min), but apps may cache the file content</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.12 PVC & STORAGE -->
+    <section class="section" id="s2-12">
+      <div class="section-header">
+        <span class="section-num">12</span>
+        <h2>PVC &amp; Storage Deep Dive</h2>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Storage Provisioning Flow</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d12', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d12', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d12')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d12">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    SC["StorageClass\ngp2 (EBS)\nDefines provisioner"] --> PVC["PVC\nRequests 200Gi RWO"]
+    PVC --> PV["PV\nAWS EBS volume\nAuto-created"]
+    PV --> POD["Pod\nMounts volume"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Term</th><th>What</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>StorageClass</strong></td><td>Template for creating volumes</td><td>Defines provisioner (EBS, EFS), reclaim policy, expansion</td></tr>
+            <tr><td class="td-blue"><strong>PV</strong></td><td>Actual persistent volume</td><td>In dynamic provisioning, created automatically by StorageClass</td></tr>
+            <tr><td class="td-blue"><strong>PVC</strong></td><td>Request for storage</td><td>Pod references this &mdash; "I need 200Gi of gp2 storage"</td></tr>
+            <tr><td><strong>Access Modes</strong></td><td>Who can mount</td><td>RWO (one node), ROX (many nodes read), RWX (many nodes read-write)</td></tr>
+            <tr><td class="td-amber"><strong>Reclaim Policy</strong></td><td>What happens when PVC deleted</td><td>Retain (keep data) or Delete (destroy volume)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Our approach:</strong> "For PostgreSQL we use <code>Retain</code> reclaim policy &mdash; if we ever delete the PVC, the data stays on the EBS volume. For temporary workloads, <code>Delete</code> is fine. PVC expansion: we grew PostgreSQL from 200Gi to 600Gi by editing the PVC spec &mdash; StorageClass has <code>allowVolumeExpansion: true</code>. Key rule: you can only expand, never shrink."
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Your PVC is stuck in Pending. What's wrong?"</div>
+        <div class="qa-answer">
+          "PVC Pending means the provisioner can't create the PV.
+          <ol>
+            <li><strong>StorageClass doesn't exist</strong> &mdash; <code>kubectl get sc</code> to verify</li>
+            <li><strong>No capacity</strong> &mdash; in Outposts, local EBS capacity is finite (unlike cloud). Check Outpost capacity</li>
+            <li><strong>Zone mismatch</strong> &mdash; PVC requests a zone where no nodes exist</li>
+            <li><strong>WaitForFirstConsumer</strong> &mdash; StorageClass has <code>volumeBindingMode: WaitForFirstConsumer</code>. PVC stays Pending until a pod actually needs it. This is normal and correct for topology-aware scheduling.</li>
+            <li><strong>Provisioner broken</strong> &mdash; check the EBS CSI driver pods: <code>kubectl get pods -n kube-system -l app=ebs-csi-controller</code></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.13 CLOUD vs OUTPOSTS -->
+    <section class="section" id="s2-13">
+      <div class="section-header">
+        <span class="section-num">13</span>
+        <h2>AWS Cloud vs AWS Outposts &mdash; The Core Difference</h2>
+      </div>
+
+      <p><strong>AWS Cloud</strong>: Workloads run in AWS data centers (us-east-1, etc.)<br>
+      <strong>AWS Outposts</strong>: AWS ships a physical rack to YOUR data center. Same AWS services, but hardware sits in your building.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Cloud vs Outpost Architecture</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d13', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d13', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d13')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d13">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    subgraph CLOUD["AWS Cloud (us-east-1)"]
+        EKS_CP["EKS Control Plane\nAPI Server, etcd"]
+        S3["S3, DynamoDB, RDS"]
+    end
+    subgraph DC["TR Data Center"]
+        subgraph OP["AWS Outpost Rack"]
+            NODES["Worker Nodes (EC2)"]
+            PODS["Pods (your apps)"]
+            EBS["EBS (local storage)"]
+        end
+        ONPREM["On-prem DB\nLegacy Systems"]
+    end
+    EKS_CP -->|"manages"| NODES
+    CLOUD -->|"AWS Service Link"| DC
+    PODS <-->|"same LAN"| ONPREM
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspect</th><th>EKS (Cloud)</th><th>EKS on Outposts</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Where pods run</strong></td><td>AWS data center</td><td>Your data center (on-prem rack)</td></tr>
+            <tr><td><strong>Control plane</strong></td><td>In AWS Region</td><td><strong>Same</strong> &mdash; still in AWS Region</td></tr>
+            <tr><td><strong>Worker nodes</strong></td><td>EC2 in cloud VPC</td><td>EC2 on Outpost rack</td></tr>
+            <tr><td><strong>Network</strong></td><td>AWS VPC (cloud CIDR)</td><td>On-prem network (your CIDR)</td></tr>
+            <tr><td><strong>Latency to on-prem</strong></td><td class="td-amber">High (VPN/DirectConnect)</td><td class="td-green">Sub-millisecond (same LAN)</td></tr>
+            <tr><td><strong>Storage</strong></td><td>EBS (unlimited, cloud)</td><td class="td-amber">EBS local to Outpost (finite capacity)</td></tr>
+            <tr><td><strong>IP addresses</strong></td><td>Large VPC CIDR</td><td class="td-amber">On-prem CIDR (constrained)</td></tr>
+            <tr><td><strong>Capacity</strong></td><td>Virtually unlimited</td><td class="td-amber">Fixed by rack size &mdash; plan ahead</td></tr>
+            <tr><td><strong>Link goes down</strong></td><td>Normal operation</td><td>Existing pods run, no new deployments</td></tr>
+            <tr><td><strong>Data residency</strong></td><td>Data in AWS Region</td><td class="td-green">Data stays in your building</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why TR Chose Outposts</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div><span class="step-title">Data residency</span><br><span class="step-desc">Financial data must stay within TR's physical boundary</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div><span class="step-title">Low latency</span><br><span class="step-desc">Microservices talk to on-prem DBs; cloud adds 5-10ms over DirectConnect</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div><span class="step-title">Hybrid consistency</span><br><span class="step-desc">Same K8s APIs, same Helm charts, same ArgoCD pipeline</span></div>
+        </div>
+      </div>
+
+      <h3>The Proxy Problem (Unique to Outposts)</h3>
+      <div class="warn-box">
+        <strong>Key challenge:</strong> On Outposts, pods are on-prem. To reach AWS services (S3, DynamoDB, Secrets Manager), traffic must go through corporate proxy to the Region. But K8s internal traffic and on-prem DB traffic must NOT use the proxy.
+      </div>
+
+      <span class="code-label">Per-service proxy config in Helm values</span>
+      <pre><code>env:
+  HTTP_PROXY: "http://proxy.corp:8080"
+  HTTPS_PROXY: "http://proxy.corp:8080"
+  NO_PROXY: "10.0.0.0/8,.svc,.cluster.local,dynamodb.us-east-1.amazonaws.com,..."</code></pre>
+
+      <p>Each service needs custom NO_PROXY &mdash; DynamoDB via VPC endpoint (bypass proxy), external FTP (needs proxy), K8s API (bypass). This was the hardest part of the migration.</p>
+
+      <div class="qa-box">
+        <div class="qa-question">Scenario: "Connection between Outpost and AWS Region goes down. What happens?"</div>
+        <div class="qa-answer">
+          "Existing pods keep running &mdash; kubelet manages them locally. But:
+          <ul>
+            <li>Can't deploy new pods (scheduler is in Region)</li>
+            <li>Can't create/delete resources (API Server in Region)</li>
+            <li>No scaling, no config changes</li>
+            <li>DNS/Service discovery continues (CoreDNS cached)</li>
+            <li>Impact: platform stays up but frozen</li>
+            <li>Recovery: once link restores, everything syncs automatically</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.14 MIGRATION STORY -->
+    <section class="section" id="s2-14">
+      <div class="section-header">
+        <span class="section-num">14</span>
+        <h2>Migration Story (This WILL Be Asked)</h2>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Tell me about the Cloud to Outposts migration."</div>
+        <div class="qa-answer">
+          <strong>Situation:</strong> When I joined in January 2025, the Confirmation platform (40+ .NET microservices) was running on standard AWS EKS in the cloud.
+          <br><br>
+          <strong>Task:</strong> Migrate 30+ services to EKS Outposts for data locality and compliance &mdash; the platform needs low-latency access to on-prem databases and must meet data residency requirements.
+          <br><br>
+          <strong>Action:</strong>
+          <ol>
+            <li><strong>Helm chart updates</strong> &mdash; Updated node affinity/selectors, storage classes, resource limits for Outpost node types</li>
+            <li><strong>30+ services</strong> &mdash; Each service needed its Helm values validated per environment</li>
+            <li><strong>8 environments</strong> &mdash; Rolled out CI first (lowest risk), then Demo/QA, then Preprod, and finally Prod/DR</li>
+            <li><strong>Networking</strong> &mdash; Outpost nodes join the on-prem network, so security groups, Istio config, and proxy settings all needed updating</li>
+            <li><strong>HTTPS proxy</strong> &mdash; Rolled out proxy config across all 40+ services with per-service NO_PROXY tuning for DynamoDB, K8s CIDRs, FTP endpoints</li>
+            <li><strong>Zero-downtime</strong> &mdash; Used Argo Rollouts canary strategy, migrated traffic gradually</li>
+          </ol>
+          <br>
+          <strong>Challenges:</strong>
+          <ul>
+            <li>Storage class differences between cloud EBS and Outpost-local EBS</li>
+            <li>Proxy configuration was service-specific &mdash; some services talk to DynamoDB (needs proxy bypass), others to external FTP</li>
+            <li>IP address management &mdash; Outpost uses on-prem CIDR, more constrained than cloud VPC</li>
+            <li>Coordinated with infra team for Outpost rack capacity planning</li>
+          </ul>
+          <br>
+          <strong>Result:</strong> All 30+ services migrated successfully by September 2025 with zero downtime. 8 environments fully operational on Outposts.
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.15 ADVANCED SCENARIOS -->
+    <section class="section" id="s2-15">
+      <div class="section-header">
+        <span class="section-num">15</span>
+        <h2>Advanced Scenario Questions</h2>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "A deployment rollout is stuck. How do you troubleshoot?"</div>
+        <div class="qa-answer">
+          "A stuck rollout usually means new pods aren't becoming Ready.
+          <ol>
+            <li><code>kubectl rollout status deployment/my-service</code> &mdash; shows progress</li>
+            <li><code>kubectl get pods</code> &mdash; look for new pods in Pending/CrashLoopBackOff/ImagePullBackOff</li>
+            <li>If Pending &rarr; scheduling issue (see 2.3 above)</li>
+            <li>If CrashLoopBackOff &rarr; app error (check logs of new pods)</li>
+            <li>If Running but not Ready &rarr; readiness probe failing. <code>kubectl describe pod</code> &rarr; check probe config and endpoint</li>
+            <li>Common trap: new image has a bug, readiness probe fails, rollout waits forever for Ready. Fix: <code>kubectl rollout undo deployment/my-service</code> to rollback, then fix the image</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "How do you handle a Kubernetes cluster upgrade?"</div>
+        <div class="qa-answer">
+          "EKS makes this manageable:
+          <ol>
+            <li><strong>Control plane first</strong>: AWS upgrades the control plane (API server, etcd, controllers). In EKS, one click &mdash; but validate compatibility first</li>
+            <li><strong>API deprecations</strong>: Before upgrading, check if any deprecated APIs are used &mdash; <code>kubectl deprecations</code> or tools like pluto. For example, K8s 1.25 removed PodSecurityPolicy</li>
+            <li><strong>Worker nodes</strong>: Update the managed node group AMI. Use rolling update &mdash; drains one node at a time, reschedules pods, then terminates old node</li>
+            <li><strong>Add-ons</strong>: VPC CNI, CoreDNS, kube-proxy, EBS CSI driver &mdash; all need version-compatible updates</li>
+            <li><strong>Testing</strong>: Upgrade non-prod first (CI environment), validate all services, then roll to higher environments</li>
+            <li><strong>Rollback plan</strong>: Can't downgrade EKS control plane. If something breaks, rollback by fixing the workload, not the cluster version</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "How do you handle node maintenance or drain a node?"</div>
+        <div class="qa-answer">
+          "<code>kubectl drain</code> gracefully evicts all pods from a node.
+          <ol>
+            <li><code>kubectl cordon &lt;node&gt;</code> &mdash; marks node as unschedulable (no new pods)</li>
+            <li><code>kubectl drain &lt;node&gt; --ignore-daemonsets --delete-emptydir-data</code> &mdash; evicts all pods</li>
+            <li>DaemonSet pods stay (--ignore-daemonsets) &mdash; they're supposed to be on every node</li>
+            <li>Pods with PodDisruptionBudget (PDB) are respected &mdash; drain waits until PDB allows eviction</li>
+            <li>Once drained: perform maintenance (OS patch, instance type change, etc.)</li>
+            <li><code>kubectl uncordon &lt;node&gt;</code> &mdash; makes node schedulable again</li>
+          </ol>
+          We set PDBs on critical services: <code>minAvailable: 1</code> ensures at least one pod stays running during drain."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What is a PodDisruptionBudget and why is it important?"</div>
+        <div class="qa-answer">
+          "PDB protects availability during voluntary disruptions &mdash; node drain, cluster upgrade, pod eviction.
+          <pre><code>apiVersion: policy/v1
+kind: PodDisruptionBudget
+spec:
+  minAvailable: 1        # OR maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: my-service</code></pre>
+          Without PDB: <code>kubectl drain</code> evicts ALL pods at once &rarr; downtime.<br>
+          With PDB <code>minAvailable: 1</code>: drain evicts one pod at a time, waits for replacement to be Ready before evicting the next."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What's the difference between <code>kubectl delete pod</code> and <code>kubectl drain node</code>?"</div>
+        <div class="qa-answer">
+          "Very different:
+          <ul>
+            <li><code>kubectl delete pod</code> &mdash; kills one specific pod. Controller creates a replacement immediately. No coordination.</li>
+            <li><code>kubectl drain node</code> &mdash; gracefully evicts ALL pods from a node. Respects PDBs, waits for graceful termination (terminationGracePeriodSeconds), ensures pods are rescheduled elsewhere first. Used for planned maintenance.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "How do you debug a service that's intermittently slow?"</div>
+        <div class="qa-answer">
+          "Intermittent slowness is the hardest to debug. My approach:
+          <ol>
+            <li><strong>Datadog APM traces</strong> &mdash; look at p99 latency, find the slow requests. <code>@duration_ms:&gt;5000</code> in Datadog</li>
+            <li><strong>Is it pod-specific?</strong> If only one pod is slow &rarr; could be noisy neighbor, GC pause, or node issue</li>
+            <li><strong>Resource throttling?</strong> Check CPU throttling: <code>container_cpu_cfs_throttled_seconds_total</code> metric. If CPU limit is too low, container gets throttled</li>
+            <li><strong>Network?</strong> Istio sidecar adds latency. Check Envoy metrics for upstream response time vs total time</li>
+            <li><strong>Dependency?</strong> The service itself might be fast but waiting on a slow DB query or external API</li>
+            <li><strong>HPA flapping?</strong> If pods keep scaling up and down, new pods taking traffic before warm-up</li>
+            <li>Correlate with node metrics &mdash; if the node is overloaded, all pods on it suffer</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <a href="01-tell-me-about-yourself.html">&larr; Previous: Tell Me About Yourself</a>
+  <span class="nav-index">Section 2 of 14</span>
+  <a href="03-istio-service-mesh.html">Next: Istio Service Mesh &rarr;</a>
+</nav>
+
+<script>
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#141f35',
+      primaryTextColor: '#dce8f5',
+      primaryBorderColor: '#22c55e',
+      lineColor: '#7a9ab5',
+      secondaryColor: '#0f1826',
+      tertiaryColor: '#090d1a',
+      background: '#090d1a',
+      mainBkg: '#141f35',
+      nodeBorder: '#1d2d4f',
+      clusterBkg: '#0f1826',
+      titleColor: '#dce8f5',
+      edgeLabelBackground: '#0f1826',
+      fontFamily: 'DM Sans, sans-serif',
+      fontSize: '13px'
+    }
+  });
+
+  // Zoom controls
+  const scales = {};
+  function zoom(id, factor) {
+    scales[id] = (scales[id] || 1) * factor;
+    document.getElementById(id).style.transform = `scale(${scales[id]})`;
+  }
+  function reset(id) {
+    scales[id] = 1;
+    document.getElementById(id).style.transform = 'scale(1)';
+  }
+
+  // Theme toggle
+  const toggleBtn = document.getElementById('themeToggle');
+  toggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    toggleBtn.textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+
+  // Active ToC highlighting via IntersectionObserver
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
