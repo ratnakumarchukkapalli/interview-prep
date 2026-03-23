@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview Session 1 | Interview Prep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #090d1a; --surface: #0f1826; --surface2: #141f35;
+            --border: #1d2d4f; --text: #dce8f5; --text-muted: #7a9ab5;
+            --accent: #22c55e; --accent2: #38bdf8; --accent3: #f59e0b;
+            --code-bg: #060a13; --shadow: 0 2px 16px rgba(0,0,0,0.3); --radius: 12px;
+        }
+        [data-theme="light"] {
+            --bg: #f2f6fc; --surface: #ffffff; --surface2: #eaeff8;
+            --border: #c8d6e5; --text: #1a2332; --text-muted: #5a6a7a;
+            --accent: #16a34a; --accent2: #0284c7; --accent3: #d97706;
+            --code-bg: #e8edf5; --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; scroll-padding-top: 32px; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; transition: background 0.3s, color 0.3s; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+        .theme-toggle { position: fixed; top: 20px; right: 24px; z-index: 1000; background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.3s; box-shadow: var(--shadow); }
+        .theme-toggle:hover { border-color: var(--accent2); transform: scale(1.1); }
+        .layout { display: flex; max-width: 1400px; margin: 0 auto; }
+        .toc { position: sticky; top: 0; left: 0; width: 260px; min-width: 260px; height: 100vh; overflow-y: auto; padding: 32px 20px; border-right: 1px solid var(--border); background: var(--surface); }
+        .toc-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+        .toc a { display: block; padding: 8px 12px; margin: 2px 0; color: var(--text-muted); text-decoration: none; font-size: 13px; border-radius: 6px; border-left: 2px solid transparent; transition: all 0.2s; }
+        .toc a:hover { color: var(--text); background: var(--surface2); }
+        .toc a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(34,197,94,0.06); font-weight: 500; }
+        .content { flex: 1; min-width: 0; padding: 0 48px 80px; }
+        .hero { padding: 56px 0 40px; margin-bottom: 40px; border-bottom: 1px solid var(--border); }
+        .hero-badges { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .badge { display: inline-flex; align-items: center; padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-green { background: rgba(34,197,94,0.12); color: var(--accent); border: 1px solid rgba(34,197,94,0.25); }
+        .badge-blue { background: rgba(56,189,248,0.12); color: var(--accent2); border: 1px solid rgba(56,189,248,0.25); }
+        .badge-amber { background: rgba(245,158,11,0.12); color: var(--accent3); border: 1px solid rgba(245,158,11,0.25); }
+        .hero h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+        .hero .subtitle { font-size: 1.1rem; color: var(--text-muted); max-width: 680px; }
+        .hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+        .hero-meta span { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); display: inline-block; }
+        .section-header { display: flex; align-items: center; gap: 14px; margin: 52px 0 24px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+        .section-num { width: 36px; height: 36px; border-radius: 10px; background: rgba(34,197,94,0.12); color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(34,197,94,0.2); }
+        .section-header h2 { font-size: 1.55rem; font-weight: 600; }
+        p { margin-bottom: 16px; line-height: 1.8; }
+        strong { color: var(--accent2); font-weight: 600; }
+        .info-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent2); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; line-height: 1.8; }
+        .warn-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent3); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; }
+        .success-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; }
+        ul, ol { padding-left: 24px; margin-bottom: 16px; }
+        li { margin-bottom: 8px; line-height: 1.7; }
+
+        /* Q&A Blocks */
+        .qa-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 20px 0; overflow: hidden; }
+        .qa-q { background: rgba(56,189,248,0.06); padding: 16px 20px; font-weight: 600; font-size: 0.95rem; border-bottom: 1px solid var(--border); color: var(--accent2); display: flex; align-items: flex-start; gap: 10px; }
+        .qa-q-label { background: rgba(56,189,248,0.15); color: var(--accent2); font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(56,189,248,0.3); white-space: nowrap; margin-top: 2px; font-family: 'Fira Code', monospace; }
+        .qa-a { padding: 16px 20px; font-size: 0.93rem; line-height: 1.8; border-bottom: 1px solid var(--border); }
+        .qa-a-label { font-size: 0.7rem; color: var(--accent); font-family: 'Fira Code', monospace; font-weight: 600; margin-bottom: 8px; }
+        .qa-insight { padding: 12px 20px; font-size: 0.85rem; background: rgba(34,197,94,0.04); color: var(--text-muted); border-top: 1px solid var(--border); }
+        .qa-insight strong { color: var(--accent); }
+
+        /* Progress cards */
+        .progress-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 24px 0; }
+        .progress-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+        .progress-card.done { border-color: rgba(34,197,94,0.4); }
+        .progress-card.weak { border-color: rgba(245,158,11,0.4); }
+        .progress-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 4px; }
+        .progress-status { font-size: 0.75rem; color: var(--text-muted); font-family: 'Fira Code', monospace; }
+        .progress-card.done .progress-status { color: var(--accent); }
+        .progress-card.weak .progress-status { color: var(--accent3); }
+
+        code { font-family: 'Fira Code', monospace; font-size: 0.88em; background: var(--code-bg); color: var(--accent2); padding: 2px 7px; border-radius: 5px; border: 1px solid var(--border); }
+        pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; overflow-x: auto; margin: 20px 0; font-family: 'Fira Code', monospace; font-size: 0.88em; line-height: 1.7; color: #a8c4d8; }
+        pre code { background: none; border: none; padding: 0; }
+        @media (max-width: 860px) { .toc { display: none; } .content { padding: 0 20px 60px; } .hero h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme"><span id="theme-icon">&#9789;</span></button>
+
+    <div class="layout">
+        <nav class="toc">
+            <div class="toc-title">Session 1 Topics</div>
+            <a href="#progress" class="active">Progress Summary</a>
+            <a href="#tgw">Transit Gateway</a>
+            <a href="#vpc-subnets">VPC &amp; Subnets</a>
+            <a href="#vpc-endpoints">VPC Endpoints</a>
+            <a href="#sg-nacl">Security Groups vs NACLs</a>
+            <a href="#direct-connect">Direct Connect &amp; BGP</a>
+            <a href="#eks-cni">EKS VPC CNI</a>
+            <a href="#route53">Route 53 &amp; DNS</a>
+            <a href="#network-firewall">Network Firewall</a>
+            <a href="#terraform">Terraform</a>
+            <a href="#lessons">Key Lessons</a>
+        </nav>
+
+        <main class="content">
+            <div class="hero">
+                <div class="hero-badges">
+                    <span class="badge badge-green">Mock Interview</span>
+                    <span class="badge badge-blue">Session 1 — March 2026</span>
+                    <span class="badge badge-amber">AWS Networking + Terraform</span>
+                </div>
+                <h1>Mock Interview Session 1</h1>
+                <p class="subtitle">Real questions asked, real answers given. This is what you understood through conversation — not what you read. These answers are yours.</p>
+                <div class="hero-meta">
+                    <span><span class="dot"></span> AWS Networking</span>
+                    <span><span class="dot"></span> Terraform Fundamentals</span>
+                    <span><span class="dot"></span> 20+ Questions Covered</span>
+                </div>
+            </div>
+
+            <!-- Progress Summary -->
+            <div class="section-header" id="progress">
+                <span class="section-num">0</span>
+                <h2>Session Progress</h2>
+            </div>
+
+            <div class="progress-grid">
+                <div class="progress-card done">
+                    <div class="progress-title">Transit Gateway</div>
+                    <div class="progress-status">✅ Strong</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">VPC Subnets</div>
+                    <div class="progress-status">✅ Strong</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">VPC Endpoints</div>
+                    <div class="progress-status">✅ Understood after prompt</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">Security Groups vs NACLs</div>
+                    <div class="progress-status">✅ Strong</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">Direct Connect vs VPN</div>
+                    <div class="progress-status">✅ Strong</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">BGP</div>
+                    <div class="progress-status">✅ Understood after explanation</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">EKS VPC CNI</div>
+                    <div class="progress-status">✅ Strong</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">Route 53 / Split-horizon</div>
+                    <div class="progress-status">✅ Strong</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">Network Firewall</div>
+                    <div class="progress-status">✅ Strong</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">Terraform State</div>
+                    <div class="progress-status">✅ Reasoned independently</div>
+                </div>
+                <div class="progress-card done">
+                    <div class="progress-title">Terraform Modules</div>
+                    <div class="progress-status">✅ CDK bridge worked</div>
+                </div>
+                <div class="progress-card weak">
+                    <div class="progress-title">VPC Endpoints (initial)</div>
+                    <div class="progress-status">⚠️ Needed prompting</div>
+                </div>
+            </div>
+
+            <!-- Transit Gateway -->
+            <div class="section-header" id="tgw">
+                <span class="section-num">1</span>
+                <h2>Transit Gateway</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> What is a Transit Gateway and why would Westpac use it over VPC Peering?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>VPC peering is not a router — it's a point-to-point private link. AWS explicitly blocks transitive routing — traffic arriving on one peering connection cannot exit via another. Transit Gateway is a central hub-and-spoke router. Instead of n(n-1)/2 VPC peering connections, every VPC connects once to TGW. For Westpac it enables centralised traffic inspection, connects on-prem via Direct Connect, and scales cleanly across multiple AWS accounts.</p>
+                </div>
+                <div class="qa-insight"><strong>Insight:</strong> You also correctly calculated n(n-1)/2 = 45 connections for 10 VPCs (not 50 — caught your own mistake). This shows attention to detail interviewers notice.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> Why can't VPC A talk to VPC C through VPC B in a peering setup?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>VPC Peering is not a router. AWS explicitly blocks transitive routing — traffic arriving on one peering connection cannot exit via another peering connection. Even if B is peered with both A and C, the A-B peering connection cannot carry traffic destined for C. They're isolated tunnels, not a network fabric. TGW fixes this because it IS a real router with its own route tables.</p>
+                </div>
+                <div class="qa-insight"><strong>Key word to use:</strong> "transitive" — that's the exact term interviewers use.</div>
+            </div>
+
+            <!-- VPC Subnets -->
+            <div class="section-header" id="vpc-subnets">
+                <span class="section-num">2</span>
+                <h2>VPC &amp; Subnets</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> What is a route table and what does it do?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>A route table is a set of rules that tells traffic where to go. It is attached at the subnet level — each subnet has its own route table, which is why public and private subnets behave differently. For example, the public subnet has 0.0.0.0/0 → Internet Gateway so traffic can reach the internet. The private subnet has 0.0.0.0/0 → NAT Gateway so pods can go out but nothing comes in directly.</p>
+                </div>
+                <div class="qa-insight"><strong>Insight:</strong> You connected this correctly — route tables at subnet level explain why subnets behave differently. Good architecture thinking.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> Why does NAT Gateway sit in the PUBLIC subnet and not the private subnet?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>Because NAT Gateway needs to reach the internet and it has to sit with the public subnet. It needs a public IP to talk to the internet. If it sat in the private subnet, it would have no path to the internet itself.</p>
+                </div>
+                <div class="qa-insight"><strong>Flow to remember:</strong> EKS Pod → NAT Gateway (public subnet, has public IP) → Internet Gateway → Internet.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> Why do we reference Security Group IDs in rules instead of IP addresses?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (after prompt)</div>
+                    <p>Because EKS nodes scale constantly — new node gets a new IP. If RDS Security Group allowed a specific IP, the new node would be blocked. By referencing the Security Group ID, any instance that belongs to that SG is automatically allowed regardless of its IP address.</p>
+                </div>
+                <div class="qa-insight"><strong>Analogy:</strong> IP = allowing a specific person by name. SG = allowing anyone with a specific badge/role. Staff changes, badge rule stays.</div>
+            </div>
+
+            <!-- VPC Endpoints -->
+            <div class="section-header" id="vpc-endpoints">
+                <span class="section-num">3</span>
+                <h2>VPC Endpoints</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> EKS pods must have zero internet egress but still need to pull images from ECR and send logs to CloudWatch. How?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (needed prompting initially)</div>
+                    <p>Use VPC Endpoints. Interface Endpoints create a private IP inside your subnet for each AWS service. ECR, CloudWatch, Secrets Manager, STS all get private endpoints. Traffic goes Pod → private IP → AWS service. Never leaves the AWS network. No NAT Gateway needed for AWS service calls.</p>
+                </div>
+                <div class="qa-insight"><strong>Remember:</strong> Gateway Endpoint = route table entry (S3, DynamoDB, free). Interface Endpoint = private IP/ENI in your subnet (everything else, costs ~$0.01/hr per AZ).</div>
+            </div>
+
+            <!-- Security Groups vs NACLs -->
+            <div class="section-header" id="sg-nacl">
+                <span class="section-num">4</span>
+                <h2>Security Groups vs NACLs</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> What is the difference between stateful and stateless in networking?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (after explanation)</div>
+                    <p>Security Groups are stateful — when you allow inbound traffic, the return traffic is automatically allowed. You don't need a rule for the response. NACLs are stateless — they have no memory. Every packet is evaluated independently. You must explicitly allow both the inbound request AND the outbound response.</p>
+                </div>
+                <div class="qa-insight"><strong>NACL gotcha:</strong> If you block port 443 inbound on a NACL, you must also block the outbound response — it's stateless so it won't do it automatically.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> How do you set up Security Groups for ALB → EKS → RDS?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>Three Security Groups, each only accepting from the layer above: ALB SG allows 443 from internet. EKS Node SG allows 8080 only from ALB SG — not from internet directly. RDS SG allows 5432 only from EKS Node SG. Defence in depth — each layer is a separate barrier. A compromised internet request cannot jump straight to RDS.</p>
+                </div>
+                <div class="qa-insight"><strong>Key principle:</strong> Each layer only talks to the adjacent layer. This is defence in depth — same concept as your 7-layer security in Section 11.</div>
+            </div>
+
+            <!-- Direct Connect -->
+            <div class="section-header" id="direct-connect">
+                <span class="section-num">5</span>
+                <h2>Direct Connect &amp; BGP</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> Why wouldn't a bank just use VPN to connect on-premises to AWS?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>VPN is encrypted but goes over the public internet — unpredictable latency, no SLA, shared with everyone. Direct Connect is a dedicated private fibre connection — it never touches the public internet, consistent latency, up to 10Gbps, with an SLA. For a bank with sensitive financial data, DX is preferred. We run VPN in parallel as backup — DX is preferred via BGP, VPN activates automatically if DX fails.</p>
+                </div>
+                <div class="qa-insight"><strong>Nuanced point that impresses:</strong> DX is NOT encrypted by default — but the private dedicated line is more secure than encrypted public internet for a bank. Add MACsec for L2 encryption on DX if needed.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> What is BGP?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (after explanation)</div>
+                    <p>BGP is the routing protocol that exchanges network reachability information between on-premises and AWS. On-prem tells AWS which CIDRs it owns, AWS tells on-prem which VPC CIDRs it owns. In a DX + VPN setup, DX is configured with a shorter AS path so BGP prefers it. When DX goes down, BGP withdraws the DX routes and traffic automatically fails over to VPN within 30-90 seconds.</p>
+                </div>
+                <div class="qa-insight"><strong>One liner:</strong> "BGP is the routing protocol that makes automatic failover between Direct Connect and VPN work."</div>
+            </div>
+
+            <!-- EKS CNI -->
+            <div class="section-header" id="eks-cni">
+                <span class="section-num">6</span>
+                <h2>EKS VPC CNI</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> What makes EKS pod networking special compared to other Kubernetes CNIs?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>AWS VPC CNI gives every pod a real VPC IP address — not an overlay network IP. This means pods are first-class VPC citizens. Security Groups work on pods directly, VPC Endpoints work, route tables work. With overlay IPs, AWS infrastructure doesn't understand the pod IPs and traffic gets dropped.</p>
+                </div>
+                <div class="qa-insight"><strong>The tradeoff:</strong> Real VPC IPs = IP exhaustion risk. 10 nodes × 30 pods = 300 IPs consumed. Always use /21 or larger for EKS subnets. Fix with secondary CIDR (100.64.0.0/16) if running out.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> You have a /24 subnet for EKS. Is it enough?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>No. /24 = 256 IPs, minus 5 AWS reserved = 251 usable. With autoscaling, 10 nodes at 30 pods each = 300 IPs. New pods will fail to schedule with "insufficient IPs" error. Use /21 minimum (2048 IPs). Fix existing exhaustion by adding secondary CIDR — zero downtime.</p>
+                </div>
+                <div class="qa-insight"><strong>Real incident pattern:</strong> Cluster looks healthy, nodes are fine, but pods won't start. Always check subnet IP availability first in this scenario.</div>
+            </div>
+
+            <!-- Route 53 -->
+            <div class="section-header" id="route53">
+                <span class="section-num">7</span>
+                <h2>Route 53 &amp; DNS</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> What is split-horizon DNS and why does Westpac need it?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong — got it immediately)</div>
+                    <p>Same domain resolves differently inside vs outside the VPC. api.westpac.com.au resolves to the internal ALB IP inside the VPC, and the public ALB IP externally. This avoids hairpin routing — without it, internal traffic would go out to the internet and come back in, which is slower, more expensive, and exposes internal traffic to the public internet unnecessarily.</p>
+                </div>
+                <div class="qa-insight"><strong>This was your strongest answer of the session</strong> — you got it without any hints.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> How do you solve DNS in a hybrid environment where on-prem needs to resolve AWS hostnames?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>Route 53 Resolver endpoints in both directions. Inbound endpoint — on-prem DNS forwards *.westpac.internal queries to a private IP in the VPC, Route 53 resolves it. Outbound endpoint — AWS forwards *.corp.westpac queries to on-prem DNS. Pods can resolve mainframe hostnames, on-prem machines can resolve RDS endpoints.</p>
+                </div>
+                <div class="qa-insight"><strong>Analogy:</strong> Inbound = reception accepting calls from outside. Outbound = staff calling the external phone book.</div>
+            </div>
+
+            <!-- Network Firewall -->
+            <div class="section-header" id="network-firewall">
+                <span class="section-num">8</span>
+                <h2>Network Firewall</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> We have Security Groups and NACLs. Why do we need Network Firewall?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>Security Groups and NACLs can block ports and IPs but cannot block domain names. A compromised pod may try to reach an attacker's server on port 443 — SG allows port 443 for legitimate traffic, so it can't block this. Network Firewall operates at Layer 7 and understands domain names via TLS SNI. We use an allowlist — only *.amazonaws.com and *.datadog.com are allowed. Everything else is blocked by default. It's deployed in a centralised inspection VPC so all accounts' egress traffic passes through one policy.</p>
+                </div>
+                <div class="qa-insight"><strong>Key insight you provided:</strong> Allowlist is better than blocklist — millions of malicious domains exist, you can't block them all. Easier to define the small set of approved destinations.</div>
+            </div>
+
+            <!-- Terraform -->
+            <div class="section-header" id="terraform">
+                <span class="section-num">9</span>
+                <h2>Terraform</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> Where does Terraform track what infrastructure it has deployed?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong — reasoned independently)</div>
+                    <p>Terraform manages its own state file (terraform.tfstate). In a team environment this must be stored remotely — in an S3 bucket so everyone can access it, with a DynamoDB table for locking to prevent two people running apply simultaneously.</p>
+                </div>
+                <div class="qa-insight"><strong>You reasoned this independently</strong> — I asked "what AWS service stores files everyone can access?" and you said S3. Then "what provides locking?" and you said DynamoDB. That's the right way to think through architecture.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> You have CDK experience but we use Terraform. How quickly can you be productive?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong)</div>
+                    <p>I've built 11 production CDK stacks at Thomson Reuters covering EKS, RDS, networking, and observability. While I haven't used Terraform in production, the core concepts map directly — modules are CDK Constructs, state is like CloudFormation stacks, plan is like cdk diff. I understand remote state with S3 and DynamoDB, environment separation, and CI/CD integration. I'm confident I'd be writing meaningful Terraform within days, not weeks.</p>
+                </div>
+                <div class="qa-insight"><strong>Why this answer works:</strong> Opens with real experience, honest about no production Terraform, shows conceptual understanding, ends with confidence not apology.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q"><span class="qa-q-label">Q</span> What are the steps in a Terraform CI/CD pipeline?</div>
+                <div class="qa-a">
+                    <div class="qa-a-label">YOUR ANSWER (strong — got it immediately)</div>
+                    <p>terraform fmt (format check), terraform validate (syntax check), terraform plan (show changes, post to PR as comment), human review and approval, terraform apply (only on merge to main). Apply never runs on a PR — only after human approval. In banking this is mandatory — APRA requires change approval before production changes.</p>
+                </div>
+                <div class="qa-insight"><strong>Banking addition:</strong> Use OIDC for AWS authentication in GitHub Actions — no static AWS credentials stored in GitHub Secrets.</div>
+            </div>
+
+            <!-- Key Lessons -->
+            <div class="section-header" id="lessons">
+                <span class="section-num">10</span>
+                <h2>Key Lessons from This Session</h2>
+            </div>
+
+            <div class="warn-box">
+                <strong>What to work on:</strong>
+                <ul style="margin-top: 8px; margin-bottom: 0;">
+                    <li>VPC Endpoints — needed multiple prompts initially. Review Section 3 of 15-aws-networking.html before the interview.</li>
+                    <li>Don't guess with wrong terminology (LGW, "vpc" as fallback). If unsure, say "I'm not certain of the exact solution but the direction I'd think is..."</li>
+                    <li>Read before the session — skimming doesn't work. Conversation + reading together builds retention.</li>
+                </ul>
+            </div>
+
+            <div class="success-box">
+                <strong>What went well:</strong>
+                <ul style="margin-top: 8px; margin-bottom: 0;">
+                    <li>Split-horizon DNS — answered immediately without hints.</li>
+                    <li>Terraform state — reasoned S3 + DynamoDB independently without being told.</li>
+                    <li>Security Group layering (ALB → EKS → RDS) — strong answer.</li>
+                    <li>Direct Connect vs VPN nuance — correctly identified that private line beats encrypted public internet for banking.</li>
+                    <li>CDK to Terraform bridge — confident, honest answer that will work well in interviews.</li>
+                    <li>Caught your own VPC peering math error (50 vs 45) — shows self-correction under pressure.</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <strong>Next session topics to cover:</strong>
+                <ul style="margin-top: 8px; margin-bottom: 0;">
+                    <li>Kubernetes deep dive — pod lifecycle, HPA, scheduling, RBAC</li>
+                    <li>Secret Management — IRSA, ESO, Vault vs Secrets Manager</li>
+                    <li>Terraform advanced — modules hands-on, lifecycle rules, for_each</li>
+                    <li>Behavioral / STAR questions — practice answering out loud</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+            html.dataset.theme = next;
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-icon').innerHTML = next === 'light' ? '&#9788;' : '&#9789;';
+        }
+        const saved = localStorage.getItem('theme');
+        if (saved) { document.documentElement.dataset.theme = saved; document.getElementById('theme-icon').innerHTML = saved === 'light' ? '&#9788;' : '&#9789;'; }
+
+        const sections = document.querySelectorAll('[id]');
+        const tocLinks = document.querySelectorAll('.toc a');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    tocLinks.forEach(l => l.classList.remove('active'));
+                    const active = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+                    if (active) active.classList.add('active');
+                }
+            });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+        sections.forEach(s => observer.observe(s));
+    </script>
+</body>
+</html>

@@ -188,15 +188,15 @@
         <p class="hero-sub">Ratna Kumar Chukkapalli — Confirmation Platform @ Thomson Reuters</p>
         <div class="hero-stats">
             <div class="stat">
-                <div class="stat-value">14</div>
+                <div class="stat-value">19</div>
                 <div class="stat-label">Sections</div>
             </div>
             <div class="stat">
-                <div class="stat-value">6,700+</div>
+                <div class="stat-value">12,000+</div>
                 <div class="stat-label">Lines of Content</div>
             </div>
             <div class="stat">
-                <div class="stat-value">40+</div>
+                <div class="stat-value">55+</div>
                 <div class="stat-label">Scenario Q&As</div>
             </div>
             <div class="stat">
@@ -220,7 +220,7 @@
         <div class="study-card" style="border-left: 3px solid var(--accent2);">
             <div class="study-label">Core Technical</div>
             <div class="study-title">K8s + Istio + Helm/ArgoCD + CI/CD</div>
-            <div class="study-desc">Sections 2, 3, 4, 5 — the foundation they'll quiz hardest on</div>
+            <div class="study-desc">Sections 2, 2B, 2C, 3, 4, 5 — the foundation they'll quiz hardest on</div>
         </div>
         <div class="study-card" style="border-left: 3px solid var(--accent);">
             <div class="study-label">Platform Depth</div>
@@ -232,10 +232,15 @@
             <div class="study-title">CDK + Observability + AI Assistant</div>
             <div class="study-desc">Sections 6, 7, 12 — what sets you apart from other candidates</div>
         </div>
+        <div class="study-card" style="border-left: 3px solid #f87171;">
+            <div class="study-label">Banking / Westpac Critical</div>
+            <div class="study-title">AWS Networking + Secrets + Terraform</div>
+            <div class="study-desc">Sections 15, 16, 17 — gaps filled for APRA-regulated banking environment</div>
+        </div>
     </div>
 
     <!-- All Sections -->
-    <div class="section-heading">All 14 Sections</div>
+    <div class="section-heading">All 19 Sections</div>
     <div class="sections-grid">
         <a class="section-card" href="01-tell-me-about-yourself.html">
             <div class="card-top">
@@ -259,6 +264,32 @@
                 <span class="card-tag">Outposts</span>
                 <span class="card-tag">Pods</span>
                 <span class="card-tag">HPA</span>
+            </div>
+        </a>
+        <a class="section-card" href="02b-kubernetes-gaps-part-a.html" style="border-color: rgba(239,68,68,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:#f87171; background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3);">2B</span>
+                <span class="card-title">K8s Gaps — Part A</span>
+            </div>
+            <div class="card-desc">RBAC, Network Policies, Cluster Autoscaler &amp; Karpenter — critical missing topics</div>
+            <div class="card-tags">
+                <span class="card-tag">RBAC</span>
+                <span class="card-tag">NetworkPolicy</span>
+                <span class="card-tag">Karpenter</span>
+                <span class="card-tag" style="color:#f87171; border-color:rgba(239,68,68,0.3);">🔴 Critical</span>
+            </div>
+        </a>
+        <a class="section-card" href="02c-kubernetes-gaps-part-b.html" style="border-color: rgba(245,158,11,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:var(--accent3); background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.3);">2C</span>
+                <span class="card-title">K8s Gaps — Part B</span>
+            </div>
+            <div class="card-desc">VPA, Init Containers, ConfigMaps, Topology Spread, Admission Webhooks, Storage, CRDs</div>
+            <div class="card-tags">
+                <span class="card-tag">VPA</span>
+                <span class="card-tag">Init Containers</span>
+                <span class="card-tag">CRDs</span>
+                <span class="card-tag" style="color:var(--accent3); border-color:rgba(245,158,11,0.3);">🟡 Medium</span>
             </div>
         </a>
         <a class="section-card" href="03-istio-service-mesh.html">
@@ -403,6 +434,58 @@
                 <span class="card-tag">STAR</span>
                 <span class="card-tag">Behavioral</span>
                 <span class="card-tag">Incidents</span>
+            </div>
+        </a>
+        <a class="section-card" href="15-aws-networking.html" style="border-color: rgba(239,68,68,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:#f87171; background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3);">15</span>
+                <span class="card-title">AWS Networking</span>
+            </div>
+            <div class="card-desc">VPC 3-tier architecture, Transit Gateway, Direct Connect, EKS CNI, VPC Endpoints, Network Firewall</div>
+            <div class="card-tags">
+                <span class="card-tag">VPC</span>
+                <span class="card-tag">TGW</span>
+                <span class="card-tag">Direct Connect</span>
+                <span class="card-tag" style="color:#f87171; border-color:rgba(239,68,68,0.3);">Banking Critical</span>
+            </div>
+        </a>
+        <a class="section-card" href="16-secret-management.html" style="border-color: rgba(239,68,68,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:#f87171; background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3);">16</span>
+                <span class="card-title">Secret Management</span>
+            </div>
+            <div class="card-desc">AWS Secrets Manager, HashiCorp Vault, External Secrets Operator, IRSA, APRA audit requirements</div>
+            <div class="card-tags">
+                <span class="card-tag">Vault</span>
+                <span class="card-tag">ESO</span>
+                <span class="card-tag">IRSA</span>
+                <span class="card-tag" style="color:#f87171; border-color:rgba(239,68,68,0.3);">Banking Critical</span>
+            </div>
+        </a>
+        <a class="section-card" href="17-terraform.html" style="border-color: rgba(239,68,68,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:#f87171; background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3);">17</span>
+                <span class="card-title">Terraform</span>
+            </div>
+            <div class="card-desc">HCL, state management, modules, CI/CD with OIDC, CDK vs Terraform, EKS provisioning, banking patterns</div>
+            <div class="card-tags">
+                <span class="card-tag">HCL</span>
+                <span class="card-tag">State</span>
+                <span class="card-tag">Modules</span>
+                <span class="card-tag" style="color:#f87171; border-color:rgba(239,68,68,0.3);">Banking Critical</span>
+            </div>
+        </a>
+        <a class="section-card" href="18-mock-interview-session-1.html" style="border-color: rgba(168,85,247,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:#c084fc; background:rgba(168,85,247,0.12); border-color:rgba(168,85,247,0.3);">18</span>
+                <span class="card-title">Mock Interview Session 1</span>
+            </div>
+            <div class="card-desc">Real Q&amp;As from session — AWS Networking + Terraform. What you got right, what needs work, key lessons.</div>
+            <div class="card-tags">
+                <span class="card-tag">Mock Interview</span>
+                <span class="card-tag">AWS Networking</span>
+                <span class="card-tag">Terraform</span>
+                <span class="card-tag" style="color:#c084fc; border-color:rgba(168,85,247,0.3);">Session 1</span>
             </div>
         </a>
     </div>
