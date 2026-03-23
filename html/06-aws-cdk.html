@@ -560,7 +560,8 @@
       </div>
 
       <h3>CDK compiles to CloudFormation</h3>
-      <pre><code>Python code &rarr; cdk synth &rarr; CloudFormation template (JSON) &rarr; cdk deploy &rarr; AWS creates resources</code></pre>
+      <pre><code>Python code  ──▶  cdk synth  ──▶  CloudFormation template (JSON)  ──▶  cdk deploy  ──▶  AWS resources created
+   (you write)      (generate)         (intermediate artifact)          (provision)       (VPCs, KMS, ECR…)</code></pre>
       <p>You write Python, CDK generates a CloudFormation template, and CloudFormation provisions the actual resources. If something fails, CloudFormation rolls back automatically.</p>
     </section>
 

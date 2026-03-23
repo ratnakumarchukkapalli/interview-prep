@@ -283,11 +283,11 @@ terraform force-unlock LOCK-ID</code></pre>
 
             <pre><code># Standard module file structure
 modules/
-  eks-cluster/
-    main.tf        # resources
-    variables.tf   # input variables (the module's "API")
-    outputs.tf     # what the module exposes to callers
-    versions.tf    # provider requirements
+└── eks-cluster/
+    ├── main.tf        ← resources
+    ├── variables.tf   ← input variables (the module's "API")
+    ├── outputs.tf     ← what the module exposes to callers
+    └── versions.tf    ← provider requirements
 
 # Root module calls child modules
 module "eks" {
@@ -335,24 +335,24 @@ resource "aws_route53_record" "eks_api" {
                 <strong>For banking (Westpac):</strong> Do NOT use workspaces for prod vs non-prod separation. A mistake like <code>terraform workspace select prod</code> followed by <code>terraform destroy</code> is catastrophic. Use <strong>separate AWS accounts with separate state files</strong>. The extra complexity is worth the safety.
             </div>
 
-            <pre><code># Recommended structure for banking
+            <pre><code># Recommended project structure for banking
 terraform/
-  modules/
-    eks/
-    vpc/
-    rds/
-  environments/
-    prod/
-      main.tf      # calls modules with prod values
-      variables.tf
-      terraform.tfvars
-      backend.tf   # points to prod state bucket
-    staging/
-      main.tf
-      backend.tf   # points to staging state bucket
-    dev/
-      main.tf
-      backend.tf</code></pre>
+├── modules/                        ← reusable building blocks
+│   ├── eks/
+│   ├── vpc/
+│   └── rds/
+└── environments/                   ← one directory per env
+    ├── prod/
+    │   ├── main.tf                 ← calls modules with prod values
+    │   ├── variables.tf
+    │   ├── terraform.tfvars
+    │   └── backend.tf              ← points to prod state bucket
+    ├── staging/
+    │   ├── main.tf
+    │   └── backend.tf              ← points to staging state bucket
+    └── dev/
+        ├── main.tf
+        └── backend.tf</code></pre>
 
             <!-- 17.5 -->
             <div class="section-header" id="cicd">

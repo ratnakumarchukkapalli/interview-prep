@@ -717,10 +717,18 @@ flowchart LR
       </div>
 
       <h3>Span Hierarchy (Datadog APM)</h3>
-      <pre><code>devops_assistant.agent.handle (4200ms total)
-  ├── devops_assistant.agent.llm_call (790ms, iteration=1, tokens_in=4821, tokens_out=180)
-  ├── devops_assistant.agent.tool_call (1840ms, tool=query_logs, status=success)
-  └── devops_assistant.agent.llm_call (1520ms, iteration=2, tokens_in=7200, tokens_out=640)</code></pre>
+      <pre><code>┌─────────────────────────────────────────────────────────────────────┐
+│  devops_assistant.agent.handle                      ⏱ 4200ms total  │
+│                                                                      │
+│  ├── devops_assistant.agent.llm_call                ⏱  790ms        │
+│  │     iteration=1 · tokens_in=4821 · tokens_out=180                │
+│  │                                                                   │
+│  ├── devops_assistant.agent.tool_call               ⏱ 1840ms        │
+│  │     tool=query_logs · status=success                              │
+│  │                                                                   │
+│  └── devops_assistant.agent.llm_call                ⏱ 1520ms        │
+│        iteration=2 · tokens_in=7200 · tokens_out=640                │
+└─────────────────────────────────────────────────────────────────────┘</code></pre>
 
       <h3>The agent_span() Context Manager</h3>
       <pre><code># framework/telemetry.py — helper for clean instrumentation

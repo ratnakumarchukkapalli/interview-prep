@@ -265,12 +265,26 @@ graph TB
 
             <h3 style="margin: 28px 0 12px; font-size: 1.1rem; color: var(--accent2);">Multi-Account Strategy (AWS Organizations)</h3>
             <p>Westpac won't run everything in one account. The standard pattern:</p>
-            <pre><code>Management Account    — billing, SCPs, AWS Organizations
-├── Security Account  — GuardDuty aggregator, Security Hub, CloudTrail archive
-├── Shared Services   — Transit Gateway owner, DNS (Route 53 Resolver), ECR
-├── Prod Account      — production workloads (EKS, RDS)
-├── NonProd Account   — staging, UAT
-└── Sandbox Account   — developer experiments (restricted SCPs)</code></pre>
+            <pre><code>┌────────────────────────────────────────────────────────────────────────┐
+│  Management Account   billing · SCPs · AWS Organizations control       │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ AWS Organizations
+              ┌─────────────────────┼─────────────────────┐
+              │                     │                     │
+    ┌─────────▼────────┐  ┌─────────▼────────┐  ┌────────▼─────────┐
+    │ Security Account │  │ Shared Services  │  │  Prod Account    │
+    │                  │  │                  │  │                  │
+    │ GuardDuty aggr.  │  │ Transit Gateway  │  │ EKS · RDS        │
+    │ Security Hub     │  │ Route 53 Resolver│  │ production loads │
+    │ CloudTrail arch. │  │ ECR (shared)     │  └──────────────────┘
+    └──────────────────┘  └──────────────────┘
+              │                     │
+    ┌─────────▼────────┐  ┌─────────▼────────┐
+    │ NonProd Account  │  │ Sandbox Account  │
+    │                  │  │                  │
+    │ staging · UAT    │  │ developer exps   │
+    └──────────────────┘  │ (restricted SCPs)│
+                          └──────────────────┘</code></pre>
 
             <!-- 15.2 Transit Gateway -->
             <div class="section-header" id="transit-gateway">
@@ -327,13 +341,15 @@ graph LR
             <h3 style="margin: 28px 0 12px; font-size: 1.1rem; color: var(--accent2);">TGW Route Tables — Segmentation</h3>
             <p>TGW has its own route tables separate from VPC route tables. This lets you control which VPCs can talk to which — critical for separating prod from non-prod.</p>
             <pre><code># TGW Route Table: "prod-rt"
-# Only prod VPC and Shared Services can communicate
-Destination       Target
-10.0.0.0/16   →  prod-vpc-attachment
-10.2.0.0/16   →  shared-services-attachment
-172.16.0.0/12 →  direct-connect-attachment
-
-# NonProd VPC is NOT in this route table — it cannot reach prod</code></pre>
+# Only Prod VPC and Shared Services can communicate — NonProd is excluded
+┌──────────────────┬───────────────────────────────────────┐
+│  Destination     │  Target                               │
+├──────────────────┼───────────────────────────────────────┤
+│  10.0.0.0/16     │  prod-vpc-attachment                  │
+│  10.2.0.0/16     │  shared-services-attachment           │
+│  172.16.0.0/12   │  direct-connect-attachment            │
+└──────────────────┴───────────────────────────────────────┘
+  NonProd VPC (10.1.0.0/16) is NOT in this table → cannot reach prod</code></pre>
 
             <div class="warn-box">
                 <strong>Common mistake:</strong> Attaching all VPCs to one TGW route table. That means prod and non-prod can talk — a security and compliance violation. Always use separate route tables per security domain.
@@ -378,16 +394,20 @@ Destination       Target
             </div>
 
             <p><strong>Essential endpoints for an EKS banking cluster:</strong></p>
-            <pre><code># These must be Interface Endpoints in a no-internet EKS cluster
-com.amazonaws.ap-southeast-2.ecr.api       # ECR image metadata
-com.amazonaws.ap-southeast-2.ecr.dkr       # ECR image pull
-com.amazonaws.ap-southeast-2.s3            # ECR layer storage (Gateway)
-com.amazonaws.ap-southeast-2.sts           # IRSA token exchange
-com.amazonaws.ap-southeast-2.secretsmanager # Secret retrieval
-com.amazonaws.ap-southeast-2.logs          # CloudWatch logs
-com.amazonaws.ap-southeast-2.monitoring    # CloudWatch metrics
-com.amazonaws.ap-southeast-2.ssm           # Systems Manager
-com.amazonaws.ap-southeast-2.ec2           # EC2 API for nodes</code></pre>
+            <pre><code># Required VPC Endpoints for a no-internet EKS cluster (ap-southeast-2)
+┌─────────────────────────────────────────────┬──────────┬──────────────────────────┐
+│  Endpoint                                   │  Type    │  Purpose                 │
+├─────────────────────────────────────────────┼──────────┼──────────────────────────┤
+│  ...ap-southeast-2.ecr.api                  │Interface │  ECR image metadata      │
+│  ...ap-southeast-2.ecr.dkr                  │Interface │  ECR image pull          │
+│  ...ap-southeast-2.s3                       │ Gateway  │  ECR layer storage       │
+│  ...ap-southeast-2.sts                      │Interface │  IRSA token exchange     │
+│  ...ap-southeast-2.secretsmanager           │Interface │  Secret retrieval        │
+│  ...ap-southeast-2.logs                     │Interface │  CloudWatch logs         │
+│  ...ap-southeast-2.monitoring               │Interface │  CloudWatch metrics      │
+│  ...ap-southeast-2.ssm                      │Interface │  Systems Manager         │
+│  ...ap-southeast-2.ec2                      │Interface │  EC2 API for nodes       │
+└─────────────────────────────────────────────┴──────────┴──────────────────────────┘</code></pre>
 
             <div class="info-box">
                 <strong>For Westpac:</strong> EKS nodes in isolated subnets with no NAT Gateway must use Interface Endpoints for everything. This is the most secure setup — zero internet egress from compute. APRA auditors love this architecture.
@@ -428,16 +448,24 @@ com.amazonaws.ap-southeast-2.ec2           # EC2 API for nodes</code></pre>
                 <strong>Banking pattern:</strong> Use Security Groups as primary control (granular, per-service). Use NACLs as a coarse backup — e.g., explicitly deny the RFC 1918 ranges you should never receive from the internet, or block a specific IP range during an incident without touching Security Groups.
             </div>
 
-            <pre><code># Security Group for EKS nodes — only what's needed
-ingress:
-  - port: 443,  from: ALB Security Group  # API traffic
-  - port: 10250, from: Control Plane SG   # kubelet
-  - port: all,  from: same SG             # pod-to-pod (within node group)
-
-egress:
-  - port: 443,  to: VPC Endpoints SG      # AWS API calls
-  - port: 5432, to: RDS Security Group    # database
-  - port: 5672, to: RabbitMQ Security Group</code></pre>
+            <pre><code># Security Group for EKS nodes — least-privilege example
+┌─────────────────────────────────────────────────────────────────┐
+│  INGRESS (inbound)                                              │
+├──────────┬────────────────────────┬───────────────────────────  │
+│  Port    │  Source                │  Purpose                    │
+├──────────┼────────────────────────┼───────────────────────────  │
+│  443     │  ALB Security Group    │  API traffic                │
+│  10250   │  Control Plane SG      │  kubelet                    │
+│  all     │  same SG (self-ref)    │  pod-to-pod within nodegroup│
+├──────────┴────────────────────────┴───────────────────────────  │
+│  EGRESS (outbound)                                              │
+├──────────┬────────────────────────┬───────────────────────────  │
+│  Port    │  Destination           │  Purpose                    │
+├──────────┼────────────────────────┼───────────────────────────  │
+│  443     │  VPC Endpoints SG      │  AWS API calls              │
+│  5432    │  RDS Security Group    │  PostgreSQL                 │
+│  5672    │  RabbitMQ Security Group│  AMQP messaging           │
+└──────────┴────────────────────────┴───────────────────────────  ┘</code></pre>
 
             <!-- 15.5 Direct Connect -->
             <div class="section-header" id="direct-connect">

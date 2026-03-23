@@ -509,18 +509,22 @@
       </div>
       <p>Helm is a <strong>package manager for Kubernetes</strong>. Instead of writing 10+ YAML files per service (Deployment, Service, VirtualService, DestinationRule, ExternalSecret, HPA, PDB, etc.), you write <strong>templates</strong> with variables and a <code>values.yaml</code> to fill them.</p>
 
-      <pre><code>Without Helm (per service, per environment):
-  pricing-be-ci-deployment.yaml
-  pricing-be-ci-service.yaml
-  pricing-be-ci-virtualservice.yaml
-  pricing-be-ci-destinationrule.yaml
-  ... x 40 services x 8 environments = 2000+ YAML files
-
-With Helm:
-  charts/pricing-be/templates/  &larr; shared templates
-  environments/ci/pricing-be/values.yaml   &larr; CI-specific values
-  environments/demo/pricing-be/values.yaml &larr; Demo-specific values
-  ... only the VALUES change per environment</code></pre>
+      <pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+│  WITHOUT Helm (per service, per environment):                           │
+│                                                                         │
+│    pricing-be-ci-deployment.yaml                                        │
+│    pricing-be-ci-service.yaml                                           │
+│    pricing-be-ci-virtualservice.yaml                                    │
+│    pricing-be-ci-destinationrule.yaml                                   │
+│    ... × 40 services × 8 environments  =  2,000+ YAML files            │
+├─────────────────────────────────────────────────────────────────────────┤
+│  WITH Helm:                                                             │
+│                                                                         │
+│    charts/pricing-be/templates/                 ← shared templates      │
+│    environments/ci/pricing-be/values.yaml       ← CI-specific values   │
+│    environments/demo/pricing-be/values.yaml     ← Demo-specific values │
+│    ... only the VALUES change per environment                           │
+└─────────────────────────────────────────────────────────────────────────┘</code></pre>
 
       <h3>Helm Concepts</h3>
       <div class="table-wrap">
@@ -574,47 +578,48 @@ With Helm:
       </div>
       <p>We have <strong>two Helm repos</strong> &mdash; one for non-prod, one for prod:</p>
 
-      <pre><code>audit-devops-confirmation-helm-charts (non-prod)
-+-- charts/
-|   +-- audit-devops-assistant/
-|   |   +-- Chart.yaml
-|   |   +-- values.yaml              &larr; chart defaults
-|   |   +-- templates/
-|   |       +-- _helpers.tpl          &larr; shared template functions
-|   |       +-- rollout.yaml          &larr; Argo Rollout (canary)
-|   |       +-- service.yaml          &larr; K8s Service
-|   |       +-- virtual-service.yaml  &larr; Istio routing
-|   |       +-- destination-rule.yaml &larr; Istio mTLS + subsets
-|   |       +-- authorization-policy.yaml &larr; access control
-|   |       +-- rollout-externalsecret.yaml &larr; AWS secrets
-|   |       +-- service-entry.yaml    &larr; external egress
-|   |       +-- hpa.yaml              &larr; autoscaler
-|   |       +-- pdb.yaml              &larr; disruption budget
-|   |       +-- serviceaccount.yaml
-|   +-- pricing-be/
-|   +-- nucleus-be/
-|   +-- ... (40+ service charts)
-|   +-- kwaf-service-mesh/            &larr; shared Gateway, PeerAuth
-|
-+-- environments/
-    +-- ci/
-    |   +-- audit-devops-assistant/
-    |   |   +-- values.yaml           &larr; CI overrides (image tag, replicas, env vars)
-    |   +-- pricing-be/
-    |   |   +-- values.yaml
-    |   +-- ...
-    +-- demo/
-    |   +-- ...
-    +-- qa/
-        +-- ...
+      <pre><code>audit-devops-confirmation-helm-charts/        ← non-prod repo
+│
+├── charts/
+│   ├── audit-devops-assistant/
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml                       ← chart defaults
+│   │   └── templates/
+│   │       ├── _helpers.tpl                  ← shared template functions
+│   │       ├── rollout.yaml                  ← Argo Rollout (canary)
+│   │       ├── service.yaml                  ← K8s Service
+│   │       ├── virtual-service.yaml          ← Istio routing
+│   │       ├── destination-rule.yaml         ← Istio mTLS + subsets
+│   │       ├── authorization-policy.yaml     ← access control
+│   │       ├── rollout-externalsecret.yaml   ← AWS secrets
+│   │       ├── service-entry.yaml            ← external egress
+│   │       ├── hpa.yaml                      ← autoscaler
+│   │       ├── pdb.yaml                      ← disruption budget
+│   │       └── serviceaccount.yaml
+│   ├── pricing-be/
+│   ├── nucleus-be/
+│   ├── ... (40+ service charts)
+│   └── kwaf-service-mesh/                    ← shared Gateway, PeerAuth
+│
+└── environments/
+    ├── ci/
+    │   ├── audit-devops-assistant/
+    │   │   └── values.yaml                   ← CI overrides: image tag, replicas, env
+    │   ├── pricing-be/
+    │   │   └── values.yaml
+    │   └── ...
+    ├── demo/
+    │   └── ...
+    └── qa/
+        └── ...
 
-audit-itops-confirmation-helm-charts (prod/DR/QED/SBX)
-+-- charts/                           &larr; same structure
-+-- environments/
-    +-- prod/
-    +-- proddr/
-    +-- qed/
-    +-- sbx/</code></pre>
+audit-itops-confirmation-helm-charts/         ← prod repo (same structure)
+├── charts/                                   ← same chart templates
+└── environments/
+    ├── prod/
+    ├── proddr/
+    ├── qed/
+    └── sbx/</code></pre>
 
       <div class="info-box">
         <strong>Why two repos?</strong> Separation of concerns and access control. The non-prod repo (CI, Demo, QA) allows faster iteration &mdash; developers can push image tags freely. The prod repo (Prod, DR, QED, Sandbox) has stricter review gates. Different teams have write access to different repos.

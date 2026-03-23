@@ -1133,15 +1133,20 @@ pgbackrest --stanza=db info</code></pre>
         <strong>Recovery chain:</strong> pgBackRest restores the closest full backup before target time, applies the differential backup closest to target time, then replays WAL records up to the exact target timestamp. PostgreSQL opens in recovery mode, then promotes to primary.
       </div>
 
-      <pre><code>Full Backup          Diff Backup          Diff Backup         Current
-(2:30 AM)           (8:30 AM)            (2:30 PM)           (3:45 PM)
-   |                    |                    |                    |
-   v                    v                    v                    v
-   ████████████████████████████████████████████████████████████████
-   └──────── Continuous WAL archiving fills the gaps ────────────┘
-                                                    ^
-                                              Restore to here
-                                              (e.g., 1:00 PM)</code></pre>
+      <pre><code>Time ────────────────────────────────────────────────────────────────────────▶
+
+  ┌─ FULL ─┐           ┌─ DIFF ─┐           ┌─ DIFF ─┐            Current
+  │ 2:30 AM│           │ 8:30 AM│           │ 2:30 PM│            3:45 PM
+  └────┬───┘           └────┬───┘           └────┬───┘               │
+       │                    │                    │                    │
+       ▼                    ▼                    ▼                    ▼
+  ─────●════════════════════●════════════════════●════════════════════●─────
+       ╚══════════ Continuous WAL archiving fills all gaps ══════════╝
+
+                                              ▲
+                                       Restore target
+                                        (e.g., 1:00 PM)
+                              ← apply DIFF from 8:30 AM + WAL replay →</code></pre>
 
       <h3>Recovery Process</h3>
       <div class="steps">

@@ -698,13 +698,25 @@ graph LR
 
             <h3>The Certificate Trust Chain (Real Example)</h3>
 
-            <pre><code><span class="code-label">trust-chain</span>ROOT CA:         Sectigo (USERTrust RSA Certification Authority)
-                   &larr; pre-installed in every browser/OS trust store
-INTERMEDIATE:    Sectigo RSA Domain Validation Secure Server CA
-                   &larr; signed by root, signs our leaf
-LEAF:            *.tr.confirmation.com
-                   &larr; our wildcard cert, presented by F5 BigIP
-                   &larr; SANs: *.tr.confirmation.com, tr.confirmation.com</code></pre>
+            <pre><code><span class="code-label">trust-chain</span>
+┌──────────────────────────────────────────────────────────────────┐
+│  ROOT CA                                                         │
+│  Sectigo (USERTrust RSA Certification Authority)                 │
+│  ← pre-installed in every browser/OS trust store                │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │ signs ↓
+┌─────────────────────────────▼────────────────────────────────────┐
+│  INTERMEDIATE CA                                                 │
+│  Sectigo RSA Domain Validation Secure Server CA                  │
+│  ← signed by root CA · signs our leaf certificate               │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │ signs ↓
+┌─────────────────────────────▼────────────────────────────────────┐
+│  LEAF CERTIFICATE                                                │
+│  *.tr.confirmation.com                                           │
+│  ← presented by F5 BigIP                                        │
+│  ← SANs: *.tr.confirmation.com, tr.confirmation.com             │
+└──────────────────────────────────────────────────────────────────┘</code></pre>
 
             <!-- 11.3 JWT RS256 -->
             <div class="section-header" id="jwt-rs256">
@@ -1452,15 +1464,18 @@ securityContext:
 
             <h3>AWS Secrets Manager Naming Convention</h3>
 
-            <pre><code><span class="code-label">naming</span>a207804-ue1-op-{service}-{env}-{type}-sm
-  |      |   |     |       |     |     |
-  |      |   |     |       |     |     &larr; "secrets manager"
-  |      |   |     |       |     &larr; app/db/rabbitmq
-  |      |   |     |       &larr; ci/demo/qa/prod
-  |      |   |     &larr; service name
-  |      |   &larr; outpost
-  |      &larr; us-east-1
-  &larr; asset ID 207804</code></pre>
+            <pre><code><span class="code-label">naming</span>
+  a207804  - ue1  - op  - {service}  - {env}  - {type}  - sm
+  │          │      │      │            │         │         │
+  │          │      │      │            │         │         └─ "secrets manager"
+  │          │      │      │            │         └─────────── app / db / rabbitmq
+  │          │      │      │            └───────────────────── ci / demo / qa / prod
+  │          │      │      └────────────────────────────────── service name
+  │          │      └───────────────────────────────────────── outpost (op)
+  │          └──────────────────────────────────────────────── us-east-1 (ue1)
+  └─────────────────────────────────────────────────────────── asset ID 207804
+
+  Example:  a207804-ue1-op-pricing-be-ci-db-sm</code></pre>
 
             <div class="info-box">
                 <p>"The naming convention is self-documenting. <code>a207804-ue1-op-pricing-be-ci-db-sm</code> tells you: asset 207804, us-east-1, outpost, pricing backend, CI environment, database secret. Auditors love it &mdash; they can verify secret scope just from the name."</p>

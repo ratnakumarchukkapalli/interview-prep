@@ -512,13 +512,15 @@
       </div>
 
       <p><strong>Without a service mesh:</strong></p>
-      <pre><code>Pod A ──direct HTTP──&gt; Pod B
-       (no encryption, no access control, no observability)</code></pre>
+      <pre><code>┌─────────┐   plain HTTP (unencrypted)   ┌─────────┐
+│  Pod A  │ ──────────────────────────▶ │  Pod B  │
+└─────────┘  no auth · no observability  └─────────┘</code></pre>
 
       <p><strong>With Istio service mesh:</strong></p>
-      <pre><code>Pod A ──&gt; Envoy Sidecar ──mTLS encrypted──&gt; Envoy Sidecar ──&gt; Pod B
-          (proxy injected        (transparent to           (proxy injected
-           automatically)         the application)          automatically)</code></pre>
+      <pre><code>┌─────────┐   ┌───────────────┐   mTLS encrypted   ┌───────────────┐   ┌─────────┐
+│  Pod A  │──▶│ Envoy Sidecar │ ══════════════════▶ │ Envoy Sidecar │──▶│  Pod B  │
+└─────────┘   │ (auto-inject) │    (transparent to  │ (auto-inject) │   └─────────┘
+              └───────────────┘     application)    └───────────────┘</code></pre>
 
       <p><strong>What Istio gives you (without changing application code):</strong></p>
       <div class="table-wrap">
@@ -1402,48 +1404,57 @@ flowchart TD
       </div>
 
       <p><strong>Simplified one-liner</strong> (for quick reference):</p>
-      <pre><code>Browser -> F5 (10.230.34.4) -> IngressGateway [TLS termination] -> Gateway -> VirtualService -> DestinationRule -> Service -> AuthorizationPolicy -> Pod [mTLS]</code></pre>
+      <pre><code>Browser ──▶ F5 BigIP ──▶ IngressGateway ──▶ Gateway ──▶ VirtualService ──▶ DestinationRule ──▶ Service ──▶ AuthorizationPolicy ──▶ Pod
+              (10.230.34.4)  [TLS terminate]                 [route]            [subset/LB]                       [allow/deny]       [mTLS]</code></pre>
 
       <h3>The Two Layers of TLS Encryption</h3>
 
       <p>This is critical to explain clearly in interviews:</p>
 
-      <pre><code>LAYER 1: External TLS (Browser <-> IngressGateway)
-==================================================
-
-  IngressName CRD                    Plexus Platform
-  (plexus.tr.com/v1alpha1)           (TR cert automation)
-         |                                  |
-         |  Lists domain names              |  Provisions TLS certificate
-         |  e.g., demo-outpost.api...       |  for listed domains
-         v                                  v
-   K8s Secret: demo-outpost-cert
-   Namespace: private-ingressgateway
-   Type: kubernetes.io/tls
-         |
-         |  Referenced by Gateway
-         |  credentialName: demo-outpost-cert
-         v
-   Istio IngressGateway Pod
-   - TLS mode: SIMPLE (server-side only)
-   - Terminates HTTPS from browser
-   - Decrypts to plaintext HTTP
-
-
-LAYER 2: Internal mTLS (Pod <-> Pod within mesh)
-==================================================
-
-   DestinationRule
-   trafficPolicy.tls.mode: ISTIO_MUTUAL
-         |
-         |  Istio control plane (istiod)
-         |  auto-issues short-lived certs
-         |  to each pod's Envoy sidecar
-         v
-   Pod A (Envoy sidecar) <--mTLS--> Pod B (Envoy sidecar)
-   - Mutual authentication (both sides present certs)
-   - Encrypted in transit
-   - Auto-rotated certificates (istiod manages lifecycle)</code></pre>
+      <pre><code>╔══════════════════════════════════════════════════════════════════════════╗
+║          LAYER 1: External TLS  (Browser ↔ IngressGateway)             ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║                                                                          ║
+║  ┌─────────────────────────┐      ┌──────────────────────────────┐      ║
+║  │   IngressName CRD       │      │      Plexus Platform         │      ║
+║  │  (plexus.tr.com/v1alpha1│      │   (TR cert automation)       │      ║
+║  │  lists domain names,    │      │   provisions TLS cert        │      ║
+║  │  e.g. demo-outpost.api) │      │   for listed domains         │      ║
+║  └────────────┬────────────┘      └──────────────┬───────────────┘      ║
+║               │                                  │                      ║
+║               └─────────────┬────────────────────┘                      ║
+║                             ▼                                            ║
+║           ┌─────────────────────────────────────┐                       ║
+║           │  K8s Secret: demo-outpost-cert       │                       ║
+║           │  Namespace:  private-ingressgateway  │                       ║
+║           │  Type:       kubernetes.io/tls       │                       ║
+║           └─────────────────┬───────────────────┘                       ║
+║                             │  Gateway: credentialName: demo-outpost-cert║
+║                             ▼                                            ║
+║           ┌─────────────────────────────────────┐                       ║
+║           │    Istio IngressGateway Pod          │                       ║
+║           │    TLS mode: SIMPLE (server-side)    │                       ║
+║           │    Terminates HTTPS from browser     │                       ║
+║           │    Decrypts → forwards plain HTTP    │                       ║
+║           └─────────────────────────────────────┘                       ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║          LAYER 2: Internal mTLS  (Pod ↔ Pod within mesh)               ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║                                                                          ║
+║  ┌─────────────────────────────────────┐                                ║
+║  │  DestinationRule                    │                                ║
+║  │  trafficPolicy.tls.mode: ISTIO_MUTUAL│                               ║
+║  └──────────────────┬──────────────────┘                                ║
+║                     │  istiod auto-issues short-lived certs              ║
+║                     │  to each pod's Envoy sidecar                       ║
+║                     ▼                                                    ║
+║  ┌──────────────────────┐  mTLS   ┌──────────────────────┐             ║
+║  │ Pod A (Envoy sidecar)│◀══════▶│ Pod B (Envoy sidecar) │             ║
+║  └──────────────────────┘         └──────────────────────┘             ║
+║   • Mutual authentication — both sides present certificates              ║
+║   • All traffic encrypted in transit                                     ║
+║   • Certificates auto-rotated (istiod manages lifecycle)                 ║
+╚══════════════════════════════════════════════════════════════════════════╝</code></pre>
 
       <div class="table-wrap">
         <table>
@@ -1578,14 +1589,14 @@ LAYER 2: Internal mTLS (Pod <-> Pod within mesh)
 
       <p>When a new image tag is pushed for selfreg-be:</p>
 
-      <pre><code>Time ->
+      <pre><code>Time ──────────────────────────────────────────────────────────────────────▶
 
-           |-- setWeight:50 --|-- pause:1m --|-- auto-promote --|
-           |                  |              |                  |
- Stable:  100% ------------> 50% ---------> 50% -------------> 100% (new version)
- Canary:    0% ------------> 50% ---------> 50% ------>  0% (old scaled down)
-           |                  |              |                  |
-         deploy             shift          monitor            done</code></pre>
+          ┌── setWeight:50 ──┬── pause:1m ──┬── auto-promote ──┐
+          │                  │              │                   │
+Stable:  100% ─────────────▶ 50% ─────────▶ 50% ────────────▶ 0%  (old: scaled down)
+Canary:    0% ─────────────▶ 50% ─────────▶ 50% ────────────▶100%  (new: fully promoted)
+          │                  │              │                   │
+        deploy             shift         monitor              done</code></pre>
 
       <p>The Argo Rollout modifies the VirtualService weights and injects <code>rollouts-pod-template-hash</code> labels into the DestinationRule subsets so Istio knows which physical pods are stable vs canary.</p>
 

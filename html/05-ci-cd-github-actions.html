@@ -1173,7 +1173,11 @@ CIAM_TOKEN_URL = "https://auth.thomsonreuters.com"  # nosec B105 -- URL constant
 
       <p><strong>Interview Question: "How do you promote code across environments?"</strong></p>
 
-      <pre><code><span class="code-label">promotion flow</span>CI (auto on merge) &rarr; Demo (auto on merge) &rarr; QA (manual promotion) &rarr; Preprod &rarr; Prod</code></pre>
+      <pre><code><span class="code-label">promotion flow</span>
+  ┌─────────────┐    auto      ┌──────────────┐    auto      ┌──────────────┐   manual   ┌──────────────┐   manual   ┌──────┐
+  │     CI      │ ──────────▶ │     Demo     │ ──────────▶ │      QA      │ ─────────▶ │   Preprod    │ ─────────▶ │ Prod │
+  │ (on merge)  │             │  (on merge)  │             │  (drift det.)│            │              │            │      │
+  └─────────────┘             └──────────────┘             └──────────────┘            └──────────────┘            └──────┘</code></pre>
 
       <p><strong>CI/Demo are automatic</strong> &mdash; the Docker build workflow updates Helm values and ArgoCD auto-syncs.</p>
       <p><strong>QA promotion uses drift detection:</strong></p>
