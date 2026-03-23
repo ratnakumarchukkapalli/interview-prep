@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Section 1: Tell Me About Yourself | Interview Prep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #090d1a;
+            --surface: #0f1826;
+            --surface2: #141f35;
+            --border: #1d2d4f;
+            --text: #dce8f5;
+            --text-muted: #7a9ab5;
+            --accent: #22c55e;
+            --accent2: #38bdf8;
+            --accent3: #f59e0b;
+            --code-bg: #060a13;
+            --shadow: 0 2px 16px rgba(0,0,0,0.3);
+            --radius: 12px;
+        }
+
+        [data-theme="light"] {
+            --bg: #f2f6fc;
+            --surface: #ffffff;
+            --surface2: #eaeff8;
+            --border: #c8d6e5;
+            --text: #1a2332;
+            --text-muted: #5a6a7a;
+            --accent: #16a34a;
+            --accent2: #0284c7;
+            --accent3: #d97706;
+            --code-bg: #e8edf5;
+            --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 32px;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 16px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 24px;
+            z-index: 1000;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s;
+            box-shadow: var(--shadow);
+        }
+        .theme-toggle:hover {
+            border-color: var(--accent2);
+            transform: scale(1.1);
+        }
+
+        /* Layout */
+        .layout {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            gap: 0;
+        }
+
+        /* Sidebar TOC */
+        .toc {
+            position: sticky;
+            top: 0;
+            left: 0;
+            width: 280px;
+            min-width: 280px;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 32px 20px;
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .toc-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent2);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .toc a {
+            display: block;
+            padding: 8px 12px;
+            margin: 2px 0;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13.5px;
+            font-weight: 400;
+            border-radius: 6px;
+            border-left: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .toc a:hover {
+            color: var(--text);
+            background: var(--surface2);
+        }
+        .toc a.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+            background: rgba(34, 197, 94, 0.06);
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .content {
+            flex: 1;
+            min-width: 0;
+            padding: 0 48px 80px;
+        }
+
+        /* Hero Header */
+        .hero {
+            padding: 56px 0 40px;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero-badges {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .badge-green {
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
+        .badge-blue {
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--accent2);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+        .badge-amber {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--accent3);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+        .hero h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            line-height: 1.5;
+            max-width: 640px;
+        }
+        .hero-meta {
+            display: flex;
+            gap: 24px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .hero-meta span {
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .hero-meta .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: inline-block;
+        }
+
+        /* Section Headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 52px 0 24px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-num {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            flex-shrink: 0;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+        .section-header h2 {
+            font-size: 1.55rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Paragraphs */
+        p {
+            margin-bottom: 16px;
+            color: var(--text);
+            line-height: 1.8;
+        }
+
+        /* Blockquotes / Info Boxes */
+        .info-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent2);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+        .info-box p {
+            margin-bottom: 12px;
+        }
+        .info-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .warn-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent3);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+
+        /* Bold */
+        strong {
+            color: var(--accent2);
+            font-weight: 600;
+        }
+
+        /* Inline Code */
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.88em;
+            background: var(--code-bg);
+            color: var(--accent2);
+            padding: 2px 7px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+        }
+
+        /* Code Blocks */
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin: 20px 0;
+            overflow-x: auto;
+            position: relative;
+        }
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 13.5px;
+            line-height: 1.7;
+            color: var(--text);
+        }
+        .code-label {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'Fira Code', monospace;
+            opacity: 0.6;
+        }
+
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 20px 0;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14.5px;
+        }
+        thead {
+            background: var(--surface2);
+        }
+        th {
+            text-align: left;
+            padding: 14px 18px;
+            font-weight: 600;
+            color: var(--accent);
+            font-size: 12.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+        tr:last-child td { border-bottom: none; }
+        tbody tr {
+            transition: background 0.15s;
+        }
+        tbody tr:hover {
+            background: var(--surface2);
+        }
+
+        /* Steps */
+        .steps {
+            margin: 20px 0;
+            padding: 0;
+            list-style: none;
+        }
+        .step {
+            display: flex;
+            gap: 16px;
+            padding: 14px 0;
+            align-items: flex-start;
+        }
+        .step-num {
+            width: 30px;
+            height: 30px;
+            min-width: 30px;
+            border-radius: 50%;
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            margin-top: 2px;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-content strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* Component Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px 24px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .card:hover {
+            border-color: var(--accent2);
+            transform: translateY(-2px);
+        }
+        .card-title {
+            font-weight: 600;
+            color: var(--accent2);
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        .card-desc {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Key highlight */
+        .key-highlight {
+            color: var(--accent3);
+            font-weight: 600;
+        }
+
+        /* Navigation */
+        .nav-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 64px;
+            padding: 24px 0;
+            border-top: 1px solid var(--border);
+            gap: 16px;
+        }
+        .nav-footer a {
+            color: var(--accent2);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14.5px;
+            padding: 10px 18px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-footer a:hover {
+            border-color: var(--accent2);
+            background: var(--surface);
+        }
+        .nav-footer .disabled {
+            color: var(--text-muted);
+            opacity: 0.4;
+            pointer-events: none;
+            border-color: var(--border);
+        }
+        .nav-footer .nav-index {
+            color: var(--text-muted);
+            border-color: transparent;
+        }
+        .nav-footer .nav-index:hover {
+            color: var(--accent2);
+            border-color: var(--border);
+        }
+
+        /* Responsive */
+        @media (max-width: 860px) {
+            .toc { display: none; }
+            .content { padding: 0 20px 60px; }
+            .hero h1 { font-size: 1.8rem; }
+            .theme-toggle { top: 12px; right: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <span id="theme-icon">&#9789;</span>
+    </button>
+
+    <div class="layout">
+        <!-- Sidebar TOC -->
+        <nav class="toc">
+            <div class="toc-title">On This Page</div>
+            <a href="#platform-context" class="active">The Platform Context</a>
+            <a href="#my-story">My Story</a>
+            <a href="#key-areas">Key Areas Covered</a>
+            <a href="#tech-stack">Technology Stack</a>
+            <a href="#delivery-tips">Tips for Delivery</a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content">
+            <!-- Hero -->
+            <div class="hero">
+                <div class="hero-badges">
+                    <span class="badge badge-green">Interview Prep</span>
+                    <span class="badge badge-blue">Senior DevOps Engineer</span>
+                </div>
+                <h1>Section 1: Tell Me About Yourself</h1>
+                <p class="subtitle">2-minute interview story &mdash; Confirmation Platform @ Thomson Reuters</p>
+                <div class="hero-meta">
+                    <span><span class="dot"></span> Section 1 of 14</span>
+                    <span><span class="dot"></span> ~2 min delivery</span>
+                    <span><span class="dot"></span> Opening Narrative</span>
+                </div>
+            </div>
+
+            <!-- Section 1: The Platform Context -->
+            <div class="section-header" id="platform-context">
+                <span class="section-num">1</span>
+                <h2>The Platform Context</h2>
+            </div>
+
+            <div class="info-box">
+                <p>Thomson Reuters Confirmation is an audit confirmation platform used by auditors and financial institutions worldwide. Think of it this way &mdash; when a Big Four audit firm needs to independently verify a bank balance or a loan, they send a confirmation request through our platform. The bank receives it, responds, and the auditor gets a verified response. It's a critical part of the financial audit process &mdash; regulatory compliance depends on it.</p>
+                <p>Under the hood, it's <strong>40+ .NET microservices</strong> &mdash; Orleans for distributed computing, GraphQL APIs, RabbitMQ for async messaging, PostgreSQL databases &mdash; all running on <strong>AWS EKS Outposts</strong> across 8 environments from CI through Production and DR.</p>
+            </div>
+
+            <!-- Section 2: My Story -->
+            <div class="section-header" id="my-story">
+                <span class="section-num">2</span>
+                <h2>My Story</h2>
+            </div>
+
+            <div class="info-box">
+                <p>I'm <strong>Ratna Kumar</strong>, a Senior DevOps Engineer at Thomson Reuters. I joined the Audit &amp; Confirmation platform team in January 2025, and from day one I've been deeply hands-on with the infrastructure.</p>
+            </div>
+
+            <div class="section-header" id="key-areas" style="margin-top: 36px;">
+                <span class="section-num">3</span>
+                <h2>Key Areas Covered</h2>
+            </div>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">EKS Cloud to Outposts Migration</div>
+                    <div class="card-desc">Migrated 30+ microservices from standard AWS Cloud EKS to Outposts for data residency compliance. Managed Helm charts across 8 environments, set up ArgoCD GitOps, configured Istio mTLS, and implemented Argo Rollouts for canary deployments with traffic splitting.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">CI/CD & GitHub Actions</div>
+                    <div class="card-desc">Maintained a central template library for GitHub Actions &mdash; reusable workflows that all 40+ services call. Contributed to Python microservice CI pipeline and Docker build workflows. Authored AWS CDK stacks for ECR, KMS, and IAM.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">FastAPI Microservices</div>
+                    <div class="card-desc">Built two services from scratch for the internal DevOps Portal: <code>service-ops</code> for self-service pod restarts, K8s status, and secrets management; and <code>k8s-ops-assistant</code> &mdash; an AI-powered operations assistant using Claude AI with multi-agent architecture.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Operational Excellence</div>
+                    <div class="card-desc">Onboarded RabbitMQ Operator with CA bundle TLS injection via ArgoCD PreSync hooks. Managed PostgreSQL HA with pgBackRest backups. Rolled out Radware WAF for OWASP protection. Handled 3 RabbitMQ production incidents end-to-end.</div>
+                </div>
+            </div>
+
+            <!-- Full narrative as info boxes -->
+            <h3 style="margin: 32px 0 16px; color: var(--accent2); font-size: 1.1rem;">The Full 2-Minute Narrative</h3>
+
+            <div class="info-box">
+                <p><strong>The first big thing I worked on was the migration from AWS Cloud EKS to EKS Outposts.</strong> Our platform had data residency requirements &mdash; customer audit data needed to stay within specific boundaries. So we migrated 30+ microservices from standard AWS Cloud to Outposts. This wasn't just moving pods &mdash; I managed the Helm charts for all these services across 8 environments, set up ArgoCD GitOps for deployment automation, configured Istio service mesh with strict mTLS for zero-trust networking, and implemented Argo Rollouts for canary deployments so we could safely roll out changes with traffic splitting.</p>
+            </div>
+
+            <div class="info-box">
+                <p><strong>On the CI/CD side</strong>, we had a central template library for GitHub Actions &mdash; reusable workflows that all 40+ services call. I contributed to and maintained several of these templates, including the Python microservice CI pipeline and Docker build workflows. I also authored a few AWS CDK stacks in Python for infrastructure &mdash; ECR repositories, KMS keys, IAM roles &mdash; the foundational pieces services need before they can even deploy.</p>
+            </div>
+
+            <div class="info-box">
+                <p><strong>I also built two FastAPI microservices from scratch</strong> that power our internal DevOps Portal. The first is <code>service-ops</code> &mdash; it gives our team self-service capabilities for pod restarts, Kubernetes status checks, and secrets management through a web UI instead of everyone needing kubectl access. The second is <code>k8s-ops-assistant</code> &mdash; an AI-powered operations assistant I pioneered using Claude AI. It uses a multi-agent architecture where natural language queries get routed to specialized Kubernetes or Datadog agents. So instead of writing complex Datadog queries or kubectl commands, the team can just ask "why is pricing-be restarting?" and get answers.</p>
+            </div>
+
+            <div class="info-box">
+                <p><strong>On the operational side</strong>, I onboarded RabbitMQ Operator with CA bundle TLS injection via ArgoCD PreSync hooks, managed PostgreSQL HA with pgBackRest backups, rolled out Radware WAF for OWASP protection, and handled 3 RabbitMQ production incidents end-to-end &mdash; from initial alert to root cause to resolution.</p>
+            </div>
+
+            <div class="info-box">
+                <p>Before TR, I worked at Arrise on ELK stack observability and ElastAlert automation for a gaming platform, at Turvo on Dynatrace APM for logistics SaaS, and started at TCS on GCP infrastructure with Cloud Deployment Manager and BigQuery.</p>
+            </div>
+
+            <div class="info-box" style="border-left-color: var(--accent);">
+                <p>What excites me about this <strong>Westpac opportunity</strong> is the scale and reliability demands of banking infrastructure &mdash; it's exactly the discipline I practice daily managing production Kubernetes across multiple environments.</p>
+            </div>
+
+            <!-- Section: Technology Stack -->
+            <div class="section-header" id="tech-stack">
+                <span class="section-num">4</span>
+                <h2>Technology Stack</h2>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Technologies</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Container Orchestration</td>
+                            <td>AWS EKS, EKS Outposts, Helm, ArgoCD, Argo Rollouts</td>
+                        </tr>
+                        <tr>
+                            <td>Service Mesh & Networking</td>
+                            <td>Istio (strict mTLS), Radware WAF</td>
+                        </tr>
+                        <tr>
+                            <td>CI/CD</td>
+                            <td>GitHub Actions (60+ reusable workflows), CodeBuild</td>
+                        </tr>
+                        <tr>
+                            <td>Infrastructure as Code</td>
+                            <td>AWS CDK (Python), Helm charts</td>
+                        </tr>
+                        <tr>
+                            <td>Backend Services</td>
+                            <td>.NET 8, Orleans, GraphQL, FastAPI (Python)</td>
+                        </tr>
+                        <tr>
+                            <td>Data & Messaging</td>
+                            <td>PostgreSQL (HA + pgBackRest), RabbitMQ, DynamoDB</td>
+                        </tr>
+                        <tr>
+                            <td>Observability</td>
+                            <td>Datadog, OpenTelemetry, ELK, Dynatrace (prev.)</td>
+                        </tr>
+                        <tr>
+                            <td>AI / ML</td>
+                            <td>Claude AI (multi-agent assistant), NLP routing</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Section: Tips for Delivery -->
+            <div class="section-header" id="delivery-tips">
+                <span class="section-num">5</span>
+                <h2>Tips for Delivery</h2>
+            </div>
+
+            <div class="steps">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div class="step-content">
+                        <strong>Don't memorize word-for-word</strong> &mdash; know the story beats, fill naturally
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div class="step-content">
+                        <strong>Start with the platform context</strong> &mdash; sets the stage so the interviewer understands WHY your work matters
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div class="step-content">
+                        <strong>"Migration from Cloud to Outposts"</strong> is your anchor story &mdash; it touches K8s, Helm, ArgoCD, Istio, everything
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">4</span>
+                    <div class="step-content">
+                        <strong>Two APIs, not five</strong> &mdash; be precise. <code>service-ops</code> and <code>k8s-ops-assistant</code> are impressive enough
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">5</span>
+                    <div class="step-content">
+                        <strong>Pause between sections</strong> &mdash; let the interviewer absorb before you move on
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">6</span>
+                    <div class="step-content">
+                        <strong>Watch the clock</strong> &mdash; aim for 2 minutes max. If they want more, they'll ask
+                    </div>
+                </div>
+            </div>
+
+            <div class="warn-box">
+                <p><strong style="color: var(--accent3);">Remember:</strong> This is your opening &mdash; it sets the tone for the entire interview. Be confident but conversational. The goal is not to list every technology, but to tell a compelling story about the <em>impact</em> of your work.</p>
+            </div>
+
+            <!-- Navigation Footer -->
+            <nav class="nav-footer">
+                <a class="disabled">&larr; Previous</a>
+                <a href="index.html" class="nav-index">Index</a>
+                <a href="02-kubernetes-deep-dive.html">Next &rarr;</a>
+            </nav>
+        </main>
+    </div>
+
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-icon').innerHTML = next === 'dark' ? '&#9789;' : '&#9788;';
+        }
+
+        // Load saved theme
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+                document.getElementById('theme-icon').innerHTML = saved === 'dark' ? '&#9789;' : '&#9788;';
+            }
+        })();
+
+        // IntersectionObserver for active TOC highlighting
+        (function() {
+            const sections = document.querySelectorAll('.section-header[id]');
+            const tocLinks = document.querySelectorAll('.toc a');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        tocLinks.forEach(link => link.classList.remove('active'));
+                        const id = entry.target.getAttribute('id');
+                        const active = document.querySelector(`.toc a[href="#${id}"]`);
+                        if (active) active.classList.add('active');
+                    }
+                });
+            }, {
+                rootMargin: '-20% 0px -60% 0px',
+                threshold: 0
+            });
+
+            sections.forEach(section => observer.observe(section));
+        })();
+    </script>
+</body>
+</html>

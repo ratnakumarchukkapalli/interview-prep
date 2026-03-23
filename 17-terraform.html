@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Section 17: Terraform | Interview Prep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #090d1a; --surface: #0f1826; --surface2: #141f35;
+            --border: #1d2d4f; --text: #dce8f5; --text-muted: #7a9ab5;
+            --accent: #22c55e; --accent2: #38bdf8; --accent3: #f59e0b;
+            --code-bg: #060a13; --shadow: 0 2px 16px rgba(0,0,0,0.3); --radius: 12px;
+        }
+        [data-theme="light"] {
+            --bg: #f2f6fc; --surface: #ffffff; --surface2: #eaeff8;
+            --border: #c8d6e5; --text: #1a2332; --text-muted: #5a6a7a;
+            --accent: #16a34a; --accent2: #0284c7; --accent3: #d97706;
+            --code-bg: #e8edf5; --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; scroll-padding-top: 32px; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; transition: background 0.3s, color 0.3s; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+        .theme-toggle { position: fixed; top: 20px; right: 24px; z-index: 1000; background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.3s; box-shadow: var(--shadow); }
+        .theme-toggle:hover { border-color: var(--accent2); transform: scale(1.1); }
+        .layout { display: flex; max-width: 1400px; margin: 0 auto; }
+        .toc { position: sticky; top: 0; left: 0; width: 280px; min-width: 280px; height: 100vh; overflow-y: auto; padding: 32px 20px; border-right: 1px solid var(--border); background: var(--surface); }
+        .toc-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+        .toc a { display: block; padding: 8px 12px; margin: 2px 0; color: var(--text-muted); text-decoration: none; font-size: 13.5px; border-radius: 6px; border-left: 2px solid transparent; transition: all 0.2s; }
+        .toc a:hover { color: var(--text); background: var(--surface2); }
+        .toc a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(34,197,94,0.06); font-weight: 500; }
+        .content { flex: 1; min-width: 0; padding: 0 48px 80px; }
+        .hero { padding: 56px 0 40px; margin-bottom: 40px; border-bottom: 1px solid var(--border); }
+        .hero-badges { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .badge { display: inline-flex; align-items: center; padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
+        .badge-green { background: rgba(34,197,94,0.12); color: var(--accent); border: 1px solid rgba(34,197,94,0.25); }
+        .badge-blue { background: rgba(56,189,248,0.12); color: var(--accent2); border: 1px solid rgba(56,189,248,0.25); }
+        .badge-amber { background: rgba(245,158,11,0.12); color: var(--accent3); border: 1px solid rgba(245,158,11,0.25); }
+        .hero h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+        .hero .subtitle { font-size: 1.1rem; color: var(--text-muted); max-width: 640px; }
+        .hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+        .hero-meta span { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); display: inline-block; }
+        .section-header { display: flex; align-items: center; gap: 14px; margin: 52px 0 24px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+        .section-num { width: 36px; height: 36px; border-radius: 10px; background: rgba(34,197,94,0.12); color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(34,197,94,0.2); }
+        .section-header h2 { font-size: 1.55rem; font-weight: 600; }
+        p { margin-bottom: 16px; line-height: 1.8; }
+        .info-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent2); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; line-height: 1.8; }
+        .warn-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent3); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; line-height: 1.8; }
+        .success-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; line-height: 1.8; }
+        strong { color: var(--accent2); font-weight: 600; }
+        code { font-family: 'Fira Code', monospace; font-size: 0.88em; background: var(--code-bg); color: var(--accent2); padding: 2px 7px; border-radius: 5px; border: 1px solid var(--border); }
+        pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; overflow-x: auto; margin: 20px 0; font-family: 'Fira Code', monospace; font-size: 0.88em; line-height: 1.7; color: #a8c4d8; }
+        pre code { background: none; border: none; padding: 0; font-size: inherit; color: inherit; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin: 24px 0; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; transition: border-color 0.2s; }
+        .card:hover { border-color: var(--accent2); }
+        .card-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 8px; color: var(--accent2); }
+        .card-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+        .qa-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 20px 0; overflow: hidden; }
+        .qa-q { background: rgba(56,189,248,0.06); padding: 16px 20px; font-weight: 600; font-size: 0.95rem; border-bottom: 1px solid var(--border); color: var(--accent2); }
+        .qa-a { padding: 16px 20px; font-size: 0.93rem; line-height: 1.8; }
+        .mermaid-wrapper { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin: 24px 0; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9rem; }
+        th { background: var(--surface2); color: var(--accent2); padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); }
+        td { padding: 11px 16px; border-bottom: 1px solid var(--border); }
+        tr:hover td { background: var(--surface); }
+        ul, ol { padding-left: 24px; margin-bottom: 16px; }
+        li { margin-bottom: 8px; line-height: 1.7; }
+        @media (max-width: 860px) { .toc { display: none; } .content { padding: 0 20px 60px; } .hero h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme"><span id="theme-icon">&#9789;</span></button>
+
+    <div class="layout">
+        <nav class="toc">
+            <div class="toc-title">On This Page</div>
+            <a href="#fundamentals" class="active">17.1 HCL Fundamentals</a>
+            <a href="#state">17.2 State Management</a>
+            <a href="#modules">17.3 Module Architecture</a>
+            <a href="#environments">17.4 Workspaces &amp; Environments</a>
+            <a href="#cicd">17.5 Terraform in CI/CD</a>
+            <a href="#cdk-vs-tf">17.6 CDK vs Terraform</a>
+            <a href="#advanced-hcl">17.7 Advanced HCL</a>
+            <a href="#eks">17.8 Terraform for EKS</a>
+            <a href="#banking">17.9 Banking-Specific Patterns</a>
+            <a href="#scenarios">17.10 Interview Scenarios</a>
+        </nav>
+
+        <main class="content">
+            <div class="hero">
+                <div class="hero-badges">
+                    <span class="badge badge-green">Interview Prep</span>
+                    <span class="badge badge-blue">Terraform</span>
+                    <span class="badge badge-amber">IaC / Banking</span>
+                </div>
+                <h1>Section 17: Terraform</h1>
+                <p class="subtitle">HCL, State Management, Modules, CI/CD, CDK vs Terraform, and Banking-Grade IaC Patterns</p>
+                <div class="hero-meta">
+                    <span><span class="dot"></span> Section 17 of 17</span>
+                    <span><span class="dot"></span> ~25 min read</span>
+                    <span><span class="dot"></span> Bridges Your CDK Experience</span>
+                </div>
+            </div>
+
+            <!-- 17.1 -->
+            <div class="section-header" id="fundamentals">
+                <span class="section-num">1</span>
+                <h2>HCL Fundamentals</h2>
+            </div>
+
+            <p>Terraform uses HCL (HashiCorp Configuration Language) — a declarative language where you describe the desired state of infrastructure. Unlike CDK where you write Python/TypeScript imperatively, HCL is <strong>declarative</strong>: you say what you want, Terraform figures out how to get there.</p>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">terraform block</div>
+                    <div class="card-desc">Specifies required providers, Terraform version constraints, and backend configuration. Always the first block in main.tf</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">provider block</div>
+                    <div class="card-desc">Configures the AWS provider — region, assume_role for cross-account, default tags. One per AWS account/region combination</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">resource block</div>
+                    <div class="card-desc">Declares infrastructure. <code>resource "aws_vpc" "main"</code> — type then local name. Referenced as <code>aws_vpc.main.id</code></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">data block</div>
+                    <div class="card-desc">Read-only. Fetches existing resources or values. <code>data "aws_ami" "latest_eks"</code> — doesn't create, just queries</div>
+                </div>
+            </div>
+
+            <pre><code># main.tf — complete minimal example
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"   # allows 5.x, blocks 6.x
+    }
+  }
+  backend "s3" {
+    bucket         = "westpac-terraform-state"
+    key            = "prod/eks/terraform.tfstate"
+    region         = "ap-southeast-2"
+    dynamodb_table = "terraform-state-lock"
+    encrypt        = true
+    kms_key_id     = "arn:aws:kms:ap-southeast-2:ACCOUNT:key/KEY-ID"
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+  assume_role {
+    role_arn = "arn:aws:iam::${var.account_id}:role/TerraformDeployRole"
+  }
+  default_tags {
+    tags = {
+      Environment = var.environment
+      ManagedBy   = "terraform"
+      CostCentre  = var.cost_centre
+      Owner       = var.team
+    }
+  }
+}
+
+# Variable declaration
+variable "aws_region" {
+  type    = string
+  default = "ap-southeast-2"
+}
+
+# Resource
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+  tags = { Name = "${var.environment}-vpc" }
+}
+
+# Output
+output "vpc_id" {
+  description = "The VPC ID"
+  value       = aws_vpc.main.id
+}</code></pre>
+
+            <h3 style="margin: 28px 0 12px; font-size: 1.1rem; color: var(--accent2);">Core Workflow</h3>
+            <pre><code>terraform init      # download providers, initialise backend
+terraform fmt       # auto-format HCL (always run before commit)
+terraform validate  # syntax + schema check (no AWS API calls)
+terraform plan      # show what WILL change — review carefully
+terraform apply     # make it so (prompts for confirmation)
+terraform destroy   # tear everything down — never run in prod without review</code></pre>
+
+            <!-- 17.2 -->
+            <div class="section-header" id="state">
+                <span class="section-num">2</span>
+                <h2>State Management</h2>
+            </div>
+
+            <p>Terraform state is the source of truth that maps your HCL configuration to real infrastructure. Without state, Terraform cannot know what already exists. State is what makes <code>plan</code> work — it compares desired (HCL) vs actual (state) vs real (AWS API).</p>
+
+            <div class="warn-box">
+                <strong>Never store state locally in a team or production environment.</strong> Local state means only your machine knows what Terraform manages. Another engineer running <code>apply</code> will try to create duplicate resources, causing conflicts or failures.
+            </div>
+
+            <pre><code># Remote state backend — S3 + DynamoDB locking (banking standard)
+# S3 bucket for state storage
+resource "aws_s3_bucket" "terraform_state" {
+  bucket = "westpac-terraform-state-${var.account_id}"
+}
+
+resource "aws_s3_bucket_versioning" "state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.terraform_state.arn
+    }
+  }
+}
+
+# DynamoDB table for state locking
+resource "aws_dynamodb_table" "terraform_lock" {
+  name         = "terraform-state-lock"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+}</code></pre>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">State Locking</div>
+                    <div class="card-desc">DynamoDB prevents two engineers from running <code>apply</code> simultaneously. One gets the lock, the other waits. Critical in team environments</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">terraform state mv</div>
+                    <div class="card-desc">Rename a resource in state without destroying it. Essential when refactoring module structure without downtime</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">terraform import</div>
+                    <div class="card-desc">Bring an existing AWS resource under Terraform management. Must write the HCL first, then import the real resource ID into state</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">terraform state rm</div>
+                    <div class="card-desc">Remove a resource from state without destroying it. Use when handing off a resource to another team's Terraform workspace</div>
+                </div>
+            </div>
+
+            <pre><code># Common state operations
+terraform state list                        # list all resources in state
+terraform state show aws_vpc.main           # show details of one resource
+terraform state mv aws_subnet.old aws_subnet.new   # rename in state
+terraform state rm aws_instance.legacy      # remove from state (keeps real resource)
+terraform import aws_vpc.main vpc-abc123    # import existing VPC into state
+
+# Force-unlock a stuck lock (use with caution — verify no one else is running apply)
+terraform force-unlock LOCK-ID</code></pre>
+
+            <!-- 17.3 -->
+            <div class="section-header" id="modules">
+                <span class="section-num">3</span>
+                <h2>Module Architecture</h2>
+            </div>
+
+            <p>Modules are the primary way to organise and reuse Terraform code. Think of them like CDK Constructs — reusable building blocks with inputs (variables) and outputs.</p>
+
+            <pre><code># Standard module file structure
+modules/
+  eks-cluster/
+    main.tf        # resources
+    variables.tf   # input variables (the module's "API")
+    outputs.tf     # what the module exposes to callers
+    versions.tf    # provider requirements
+
+# Root module calls child modules
+module "eks" {
+  source  = "./modules/eks-cluster"
+  # or from Terraform Registry:
+  # source  = "terraform-aws-modules/eks/aws"
+  # version = "~> 20.0"
+
+  cluster_name    = "westpac-prod-eks"
+  cluster_version = "1.29"
+  vpc_id          = module.vpc.vpc_id
+  subnet_ids      = module.vpc.private_subnet_ids
+}
+
+# Reference module output
+resource "aws_route53_record" "eks_api" {
+  zone_id = data.aws_route53_zone.internal.id
+  name    = "eks-api.prod.westpac.internal"
+  type    = "CNAME"
+  records = [module.eks.cluster_endpoint]
+}</code></pre>
+
+            <div class="info-box">
+                <strong>CDK analogy:</strong> A Terraform module is like a CDK Construct. The root module (where you call all child modules) is like your CDK Stack. <code>variables.tf</code> is like the props interface. <code>outputs.tf</code> is like expose properties on a Construct. The key difference: modules don't have inheritance — you compose by passing outputs as inputs.
+            </div>
+
+            <!-- 17.4 -->
+            <div class="section-header" id="environments">
+                <span class="section-num">4</span>
+                <h2>Workspaces &amp; Environments</h2>
+            </div>
+
+            <table>
+                <thead>
+                    <tr><th>Strategy</th><th>How</th><th>Best For</th><th>Risks</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Terraform Workspaces</td><td><code>terraform workspace new prod</code></td><td>Simple differences between envs (just var values)</td><td>Shared state backend, easy to apply to wrong workspace</td></tr>
+                    <tr><td>Directory-per-env</td><td><code>environments/prod/</code>, <code>environments/staging/</code></td><td>Completely separate state files per env</td><td>Code duplication unless modules are well-structured</td></tr>
+                    <tr><td>Account-per-env</td><td>Separate AWS accounts, separate state</td><td>Banking — hard isolation, separate IAM, blast radius</td><td>More accounts to manage, cross-account complexity</td></tr>
+                </tbody>
+            </table>
+
+            <div class="warn-box">
+                <strong>For banking (Westpac):</strong> Do NOT use workspaces for prod vs non-prod separation. A mistake like <code>terraform workspace select prod</code> followed by <code>terraform destroy</code> is catastrophic. Use <strong>separate AWS accounts with separate state files</strong>. The extra complexity is worth the safety.
+            </div>
+
+            <pre><code># Recommended structure for banking
+terraform/
+  modules/
+    eks/
+    vpc/
+    rds/
+  environments/
+    prod/
+      main.tf      # calls modules with prod values
+      variables.tf
+      terraform.tfvars
+      backend.tf   # points to prod state bucket
+    staging/
+      main.tf
+      backend.tf   # points to staging state bucket
+    dev/
+      main.tf
+      backend.tf</code></pre>
+
+            <!-- 17.5 -->
+            <div class="section-header" id="cicd">
+                <span class="section-num">5</span>
+                <h2>Terraform in CI/CD</h2>
+            </div>
+
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+graph LR
+    PR["Pull Request\nOpened"] --> FMT["terraform fmt\n--check"]
+    FMT --> VAL["terraform validate"]
+    VAL --> PLAN["terraform plan\n(save to file)"]
+    PLAN --> COMMENT["Post plan output\nto PR comment"]
+    COMMENT --> REVIEW["Human Review\n+ Approval"]
+    REVIEW --> APPLY["terraform apply\n(on merge to main)"]
+    APPLY --> NOTIFY["Notify Slack\n+ CloudTrail log"]
+                </div>
+            </div>
+
+            <pre><code># .github/workflows/terraform.yml — OIDC (no static AWS credentials)
+name: Terraform
+
+on:
+  pull_request:
+    paths: ['terraform/**']
+  push:
+    branches: [main]
+    paths: ['terraform/**']
+
+permissions:
+  id-token: write    # required for OIDC
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/environments/prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC — no static keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT:role/GitHubActionsRole
+          aws-region: ap-southeast-2
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.6"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan -no-color
+        continue-on-error: true
+
+      - name: Post plan to PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const output = `#### Terraform Plan 📋
+            \`\`\`\n${{ steps.plan.outputs.stdout }}\n\`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply tfplan</code></pre>
+
+            <div class="info-box">
+                <strong>OIDC instead of static AWS keys:</strong> GitHub Actions can assume an IAM role using OIDC — no AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY stored in GitHub Secrets. The IAM role trust policy restricts which repo and branch can assume it. This is the secure, modern approach for CI/CD.
+            </div>
+
+            <!-- 17.6 -->
+            <div class="section-header" id="cdk-vs-tf">
+                <span class="section-num">6</span>
+                <h2>CDK vs Terraform — Bridging Your Experience</h2>
+            </div>
+
+            <p>You have deep CDK (Python) experience from Thomson Reuters. Here's how to map that to Terraform and articulate both clearly in an interview.</p>
+
+            <table>
+                <thead>
+                    <tr><th>Concept</th><th>AWS CDK (Python)</th><th>Terraform</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Language</td><td>Python, TypeScript, Java (imperative)</td><td>HCL (declarative)</td></tr>
+                    <tr><td>State</td><td>CloudFormation manages state</td><td>Terraform manages its own .tfstate</td></tr>
+                    <tr><td>Output</td><td>Generates CloudFormation templates</td><td>Calls AWS APIs directly via provider</td></tr>
+                    <tr><td>Reuse unit</td><td>Construct (L1/L2/L3)</td><td>Module</td></tr>
+                    <tr><td>Stack = ?</td><td>CDK Stack → CloudFormation Stack</td><td>Root module + backend config</td></tr>
+                    <tr><td>Logic/loops</td><td>Full Python — for loops, classes, inheritance</td><td>HCL for_each, count, dynamic blocks</td></tr>
+                    <tr><td>Multi-cloud</td><td>AWS only</td><td>AWS, Azure, GCP, Kubernetes, anything</td></tr>
+                    <tr><td>Testing</td><td>cdk-assertions, pytest</td><td>Terratest (Go), checkov, OPA/Conftest</td></tr>
+                    <tr><td>Drift detection</td><td>CloudFormation drift detection</td><td><code>terraform plan</code> shows drift</td></tr>
+                    <tr><td>Destroy protection</td><td>RemovalPolicy.RETAIN</td><td>lifecycle { prevent_destroy = true }</td></tr>
+                </tbody>
+            </table>
+
+            <div class="success-box">
+                <strong>Interview framing:</strong> "I've built 11 CDK stacks at Thomson Reuters covering EKS, RDS, networking, and observability. CDK gives me the power of Python for complex logic. Terraform's strength is its ecosystem, multi-cloud support, and the fact that most enterprises — including most Australian banks — standardise on it. I'm comfortable in both and choose based on the requirement: CDK for AWS-native greenfield, Terraform when the organisation already has Terraform patterns or needs multi-cloud."
+            </div>
+
+            <!-- 17.7 -->
+            <div class="section-header" id="advanced-hcl">
+                <span class="section-num">7</span>
+                <h2>Advanced HCL</h2>
+            </div>
+
+            <pre><code># for_each — create multiple resources from a map
+variable "subnets" {
+  default = {
+    "app-a"  = { cidr = "10.0.10.0/24", az = "ap-southeast-2a" }
+    "app-b"  = { cidr = "10.0.11.0/24", az = "ap-southeast-2b" }
+    "data-a" = { cidr = "10.0.20.0/24", az = "ap-southeast-2a" }
+  }
+}
+
+resource "aws_subnet" "this" {
+  for_each          = var.subnets
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value.cidr
+  availability_zone = each.value.az
+  tags = { Name = each.key }
+}
+
+# Reference: aws_subnet.this["app-a"].id
+
+# dynamic block — conditionally create nested blocks
+resource "aws_security_group" "eks_nodes" {
+  name   = "eks-nodes"
+  vpc_id = aws_vpc.main.id
+
+  dynamic "ingress" {
+    for_each = var.extra_ingress_rules
+    content {
+      from_port   = ingress.value.port
+      to_port     = ingress.value.port
+      protocol    = "tcp"
+      cidr_blocks = ingress.value.cidrs
+    }
+  }
+}
+
+# lifecycle — protect critical resources
+resource "aws_rds_cluster" "postgresql" {
+  # ...
+  lifecycle {
+    prevent_destroy       = true   # block terraform destroy
+    ignore_changes        = [master_password]  # don't revert manual rotation
+    create_before_destroy = true   # zero-downtime replacement
+  }
+}
+
+# locals — computed values, avoid repetition
+locals {
+  cluster_name = "${var.environment}-${var.project}-eks"
+  common_tags = merge(var.default_tags, {
+    ClusterName = local.cluster_name
+  })
+}</code></pre>
+
+            <!-- 17.8 -->
+            <div class="section-header" id="eks">
+                <span class="section-num">8</span>
+                <h2>Terraform for EKS</h2>
+            </div>
+
+            <pre><code># Using the official terraform-aws-modules/eks module
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 20.0"
+
+  cluster_name    = local.cluster_name
+  cluster_version = "1.29"
+
+  cluster_endpoint_public_access  = false   # private cluster for banking
+  cluster_endpoint_private_access = true
+
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  # IRSA — enable OIDC provider for service accounts
+  enable_irsa = true
+
+  # Managed node groups
+  eks_managed_node_groups = {
+    general = {
+      instance_types = ["m5.2xlarge"]
+      min_size       = 3
+      max_size       = 10
+      desired_size   = 3
+
+      labels = {
+        role = "general"
+      }
+
+      taints = []
+    }
+  }
+
+  # aws-auth ConfigMap — who can access the cluster
+  manage_aws_auth_configmap = true
+  aws_auth_roles = [
+    {
+      rolearn  = "arn:aws:iam::ACCOUNT:role/AdminRole"
+      username = "admin"
+      groups   = ["system:masters"]
+    },
+    {
+      rolearn  = "arn:aws:iam::ACCOUNT:role/DevRole"
+      username = "developer"
+      groups   = ["developers"]
+    }
+  ]
+}
+
+# IRSA for a service — give a pod Secrets Manager access
+module "confirmation_app_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name = "confirmation-app"
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["confirmation:confirmation-app"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "confirmation_secrets" {
+  name = "secrets-access"
+  role = module.confirmation_app_irsa.iam_role_name
+
+  policy = jsonencode({
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = "arn:aws:secretsmanager:ap-southeast-2:ACCOUNT:secret:prod/confirmation/*"
+    }]
+  })
+}</code></pre>
+
+            <!-- 17.9 -->
+            <div class="section-header" id="banking">
+                <span class="section-num">9</span>
+                <h2>Banking-Specific Patterns</h2>
+            </div>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">Mandatory Tagging</div>
+                    <div class="card-desc">APRA requires cost attribution. Use provider <code>default_tags</code> + policy-as-code (Sentinel/OPA) to block deploys missing required tags</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Naming Convention</div>
+                    <div class="card-desc"><code>{env}-{team}-{service}-{resource}</code> e.g. <code>prod-platform-confirmation-eks</code>. Enforced via naming module or variable validation</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Drift Detection</div>
+                    <div class="card-desc">Run <code>terraform plan</code> in CI on a schedule (not just on PRs). Alert if plan shows unexpected changes — someone made a manual change</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">prevent_destroy</div>
+                    <div class="card-desc">Set on all stateful resources: RDS, ElastiCache, S3, DynamoDB. Blocks <code>terraform destroy</code> from taking out production databases</div>
+                </div>
+            </div>
+
+            <pre><code># variable validation — enforce naming convention
+variable "environment" {
+  type = string
+  validation {
+    condition     = contains(["prod", "staging", "dev", "sandbox"], var.environment)
+    error_message = "environment must be one of: prod, staging, dev, sandbox"
+  }
+}
+
+# Mandatory tags via provider default_tags (apply to all resources)
+provider "aws" {
+  region = var.aws_region
+  default_tags {
+    tags = {
+      Environment  = var.environment
+      CostCentre   = var.cost_centre
+      Owner        = var.team_email
+      ManagedBy    = "terraform"
+      DataClass    = var.data_classification   # "Public", "Internal", "Confidential"
+      APRAScope    = var.apra_scope            # "in-scope" or "out-of-scope"
+    }
+  }
+}
+
+# OPA/Conftest policy — block resources without required tags
+# (Run in CI via: conftest test plan.json --policy policies/)
+package terraform.analysis
+
+deny[msg] {
+  resource := input.resource_changes[_]
+  resource.type == "aws_instance"
+  not resource.change.after.tags.CostCentre
+  msg := sprintf("Resource %v missing required tag: CostCentre", [resource.address])
+}</code></pre>
+
+            <!-- 17.10 -->
+            <div class="section-header" id="scenarios">
+                <span class="section-num">10</span>
+                <h2>Interview Scenarios</h2>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">Q: You have CDK experience but we use Terraform. How quickly can you be productive?</div>
+                <div class="qa-a">
+                    <p>Very quickly — the concepts transfer directly. I understand infrastructure as code deeply: resource graphs, dependency management, state, modules, and how IaC interacts with CI/CD pipelines. Those mental models are language-agnostic.</p>
+                    <p>Specifically, CDK Constructs map to Terraform modules, CDK Stacks map to root modules with backend config, CDK outputs map to Terraform outputs, and the imperative vs declarative difference is something I've already worked with since CDK generates CloudFormation and I've debugged both layers.</p>
+                    <p>I'd be writing meaningful Terraform within days, not weeks. I'd start with the terraform-aws-modules registry for common patterns (EKS, VPC, IAM), focus on understanding your team's module structure, and run a few plans against non-prod before touching anything production-critical.</p>
+                </div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">Q: How do you manage Terraform state across 10 AWS accounts for different environments?</div>
+                <div class="qa-a">
+                    <p>Each account gets its own state file, stored in S3 in a centralised "Terraform state" account. The bucket key structure encodes account and workload: <code>accounts/{account-id}/{workload}/terraform.tfstate</code>.</p>
+                    <p>The CI/CD pipeline authenticates to the target account via OIDC (GitHub Actions assumes an account-specific IAM role). The backend is configured with partial config — the key is provided at runtime so the same code can target different accounts: <code>terraform init -backend-config="key=prod/eks/terraform.tfstate"</code>.</p>
+                    <p>State access is locked down with S3 bucket policies: only the Terraform execution role for that account can read/write that account's state. Cross-account state reading is allowed for shared outputs (e.g., the VPC ID from the networking account) using a separate read-only role.</p>
+                </div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">Q: A developer ran terraform apply manually on production without going through CI/CD. How do you prevent this and what do you do now?</div>
+                <div class="qa-a">
+                    <p><strong>Prevention:</strong> The Terraform IAM role in production should only be assumable by the CI/CD service account (GitHub Actions OIDC), not by individual developer IAM users. Use the role's trust policy condition to restrict to the specific GitHub repository and branch: <code>"token.actions.githubusercontent.com:ref": "refs/heads/main"</code>. Developers get read-only access — they can plan but not apply.</p>
+                    <p><strong>Right now:</strong> Run <code>terraform plan</code> to see what changed vs what state shows. Check CloudTrail for the full API call log — what resources were created/modified/destroyed, and when. If production is in an unexpected state, the priority is to get it back to the known-good state from the last successful CI/CD apply, not to manually fix it further.</p>
+                    <p><strong>Process:</strong> Raise it in the team. Not to blame, but to understand why they bypassed CI/CD — maybe there was a legitimate emergency. Document the incident, update the runbook, and tighten the IAM trust policy so it cannot happen again.</p>
+                </div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">Q: What is terraform state drift and how do you detect and handle it?</div>
+                <div class="qa-a">
+                    <p>Drift is when the real infrastructure diverges from what Terraform's state believes it to be. This happens when someone makes a manual change in the AWS console, or an AWS service itself changes a resource attribute (e.g., auto-scaling adjusts instance count).</p>
+                    <p><strong>Detection:</strong> Run <code>terraform plan</code> — it calls AWS APIs to get the current real state and compares against the .tfstate file. Any difference is shown as a change. For proactive detection, run plan on a schedule in CI and alert on any non-empty plan output.</p>
+                    <p><strong>Handling:</strong> Depends on the drift. If someone manually added a security group rule that is legitimate, add it to the HCL and run apply. If it's an unwanted change, apply restores to the desired state. For attributes that legitimately drift (e.g., managed passwords), use <code>lifecycle { ignore_changes = [password] }</code>.</p>
+                    <p>In banking, any drift should trigger an investigation — who made the manual change and why? It's a process failure, not just a technical one.</p>
+                </div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">Q: How do you import existing AWS infrastructure that wasn't created with Terraform?</div>
+                <div class="qa-a">
+                    <p>This is a common scenario when joining a team that managed infra manually or with CloudFormation. The process:</p>
+                    <p><strong>1. Write the HCL first.</strong> Write the resource block in Terraform that matches the existing resource's configuration. Get it as close as possible to the real resource.</p>
+                    <p><strong>2. Import.</strong> <code>terraform import aws_vpc.main vpc-abc123</code>. This creates a state entry linking the HCL resource to the real AWS resource ID.</p>
+                    <p><strong>3. Plan.</strong> Run <code>terraform plan</code> immediately. It will show differences between your HCL and the real resource. These must be zeroed out — either update your HCL to match reality, or use <code>ignore_changes</code> for attributes you don't want to manage.</p>
+                    <p><strong>4. Apply.</strong> Only apply when plan shows "No changes". Otherwise you might accidentally modify the production resource.</p>
+                    <p>Terraform 1.5+ introduced <code>terraform import</code> blocks in HCL, and <code>terraform plan -generate-config-out</code> which auto-generates HCL from the real resource — a massive time saver for bulk imports.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'dark', themeVariables: { background: '#0f1826', primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#1d2d4f', lineColor: '#38bdf8', secondaryColor: '#141f35', tertiaryColor: '#090d1a' } });
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+            html.dataset.theme = next;
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-icon').innerHTML = next === 'light' ? '&#9788;' : '&#9789;';
+        }
+        const saved = localStorage.getItem('theme');
+        if (saved) { document.documentElement.dataset.theme = saved; document.getElementById('theme-icon').innerHTML = saved === 'light' ? '&#9788;' : '&#9789;'; }
+
+        const sections = document.querySelectorAll('[id]');
+        const tocLinks = document.querySelectorAll('.toc a');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    tocLinks.forEach(l => l.classList.remove('active'));
+                    const active = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+                    if (active) active.classList.add('active');
+                }
+            });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+        sections.forEach(s => observer.observe(s));
+    </script>
+</body>
+</html>
