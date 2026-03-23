@@ -314,8 +314,10 @@
       transition: border-color 0.15s, color 0.15s;
     }
     .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .diagram-content { display: flex; justify-content: center; overflow: auto; }
-    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+    .diagram-content { display: flex; justify-content: center; overflow-x: auto; width: 100%; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; width: 100%; }
+    .mermaid { width: 100%; }
+    .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
 
     /* INFO / WARN BOXES */
     .info-box {
@@ -1349,8 +1351,24 @@ CMD ["ddtrace-run", "uvicorn", "audit_devops_assistant.api.main:app", ...]</code
       titleColor: '#dce8f5',
       edgeLabelBackground: '#0f1826',
       fontFamily: 'DM Sans, sans-serif',
-      fontSize: '13px'
-    }
+      fontSize: '15px'
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true }
+  });
+
+  // Force SVGs to fill container after Mermaid renders
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   });
 
   // Zoom controls

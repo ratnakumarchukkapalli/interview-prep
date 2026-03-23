@@ -484,11 +484,14 @@
             padding: 24px;
             margin: 20px 0;
             overflow-x: auto;
+            width: 100%;
         }
         .mermaid {
             display: flex;
             justify-content: center;
+            width: 100%;
         }
+        .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
 
         /* Subsection h3 */
         h3 {
@@ -1799,17 +1802,33 @@ graph TD
                 secondaryColor: '#0f1826',
                 tertiaryColor: '#141f35',
                 fontFamily: 'DM Sans, sans-serif',
-                fontSize: '13px'
+                fontSize: '15px'
             },
             flowchart: {
+                useMaxWidth: true,
                 htmlLabels: true,
                 curve: 'basis'
             },
             sequence: {
+                useMaxWidth: true,
                 actorMargin: 60,
                 messageMargin: 40,
                 mirrorActors: false
-            }
+            },
+            gantt: { useMaxWidth: true }
+        });
+
+        // Force SVGs to fill container after Mermaid renders
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new MutationObserver(() => {
+                document.querySelectorAll('.mermaid svg').forEach(svg => {
+                    svg.style.width = '100%';
+                    svg.style.height = 'auto';
+                    svg.removeAttribute('width');
+                    svg.removeAttribute('height');
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
         });
 
         // Theme Toggle
@@ -1834,7 +1853,7 @@ graph TD
                     secondaryColor: '#0f1826',
                     tertiaryColor: '#141f35',
                     fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '13px'
+                    fontSize: '15px'
                 } : {
                     primaryColor: '#eaeff8',
                     primaryTextColor: '#1a2332',
@@ -1843,10 +1862,11 @@ graph TD
                     secondaryColor: '#ffffff',
                     tertiaryColor: '#eaeff8',
                     fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '13px'
+                    fontSize: '15px'
                 },
-                flowchart: { htmlLabels: true, curve: 'basis' },
-                sequence: { actorMargin: 60, messageMargin: 40, mirrorActors: false }
+                flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+                sequence: { useMaxWidth: true, actorMargin: 60, messageMargin: 40, mirrorActors: false },
+                gantt: { useMaxWidth: true }
             });
             document.querySelectorAll('.mermaid').forEach(el => {
                 const code = el.getAttribute('data-mermaid-src');

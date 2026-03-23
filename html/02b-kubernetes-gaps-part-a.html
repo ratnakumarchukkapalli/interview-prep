@@ -80,8 +80,10 @@
     .zoom-controls { display: flex; gap: 0.25rem; }
     .zoom-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s, color 0.15s; }
     .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .diagram-content { display: flex; justify-content: center; overflow: auto; }
-    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; }
+    .diagram-content { display: flex; justify-content: center; overflow-x: auto; width: 100%; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; width: 100%; }
+    .mermaid { width: 100%; }
+    .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
 
     .info-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
     .info-box strong { color: var(--accent2); }
@@ -809,7 +811,22 @@ flowchart TD
 <script>
   mermaid.initialize({
     startOnLoad: true, theme: 'base',
-    themeVariables: { primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#22c55e', lineColor: '#7a9ab5', secondaryColor: '#0f1826', tertiaryColor: '#090d1a', background: '#090d1a', mainBkg: '#141f35', nodeBorder: '#1d2d4f', clusterBkg: '#0f1826', titleColor: '#dce8f5', edgeLabelBackground: '#0f1826', fontFamily: 'DM Sans, sans-serif', fontSize: '13px' }
+    themeVariables: { primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#22c55e', lineColor: '#7a9ab5', secondaryColor: '#0f1826', tertiaryColor: '#090d1a', background: '#090d1a', mainBkg: '#141f35', nodeBorder: '#1d2d4f', clusterBkg: '#0f1826', titleColor: '#dce8f5', edgeLabelBackground: '#0f1826', fontFamily: 'DM Sans, sans-serif', fontSize: '15px' },
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true }
+  });
+  // Force SVGs to fill container after Mermaid renders
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   });
   const scales = {};
   function zoom(id, f) { scales[id] = (scales[id] || 1) * f; document.getElementById(id).style.transform = `scale(${scales[id]})`; }

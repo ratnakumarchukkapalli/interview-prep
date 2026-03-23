@@ -215,8 +215,8 @@
   }
 
   /* Mermaid */
-  .mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; }
-  .mermaid svg { max-width: 100%; }
+  .mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1rem 0; width: 100%; }
+  .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
 
   /* Platform Flow Diagram */
   .platform-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
@@ -3661,7 +3661,18 @@ sequenceDiagram
 <script>
   // ── Mermaid: initialize without auto-rendering ───────────────────────────────
   // startOnLoad: false prevents all 24 diagrams rendering at once on page open.
-  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', themeVariables: { fontFamily: 'system-ui, sans-serif', fontSize: '15px' }, flowchart: { useMaxWidth: true, htmlLabels: true }, sequence: { useMaxWidth: true }, gantt: { useMaxWidth: true } });
+
+  // Force SVGs to fill container after Mermaid renders
+  const svgObserver = new MutationObserver(() => {
+    document.querySelectorAll('.mermaid svg').forEach(svg => {
+      svg.style.width = '100%';
+      svg.style.height = 'auto';
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+    });
+  });
+  svgObserver.observe(document.body, { childList: true, subtree: true });
 
   // Render a single .mermaid element using the correct Mermaid v10 API.
   function renderDiagram(el) {

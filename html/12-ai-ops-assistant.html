@@ -442,11 +442,14 @@
             padding: 24px;
             margin: 20px 0;
             overflow-x: auto;
+            width: 100%;
         }
         .mermaid-wrapper .mermaid {
             display: flex;
             justify-content: center;
+            width: 100%;
         }
+        .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
 
         /* Q&A styling */
         .qa-block {
@@ -1225,7 +1228,7 @@ SERVICES=their-svc-1,their-svc-2</code></pre>
                 secondaryColor: '#0f1826',
                 tertiaryColor: '#060a13',
                 fontFamily: 'DM Sans, sans-serif',
-                fontSize: '14px',
+                fontSize: '15px',
                 noteBkgColor: '#141f35',
                 noteTextColor: '#dce8f5',
                 noteBorderColor: '#1d2d4f',
@@ -1237,20 +1240,36 @@ SERVICES=their-svc-1,their-svc-2</code></pre>
                 sequenceNumberColor: '#22c55e'
             },
             flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
                 curve: 'basis',
                 padding: 20,
                 nodeSpacing: 50,
                 rankSpacing: 60
             },
             sequence: {
+                useMaxWidth: true,
                 diagramMarginX: 20,
                 diagramMarginY: 10,
                 actorMargin: 60,
                 noteMargin: 10,
                 messageMargin: 40,
-                boxMargin: 10,
-                useMaxWidth: true
-            }
+                boxMargin: 10
+            },
+            gantt: { useMaxWidth: true }
+        });
+
+        // Force SVGs to fill container after Mermaid renders
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new MutationObserver(() => {
+                document.querySelectorAll('.mermaid svg').forEach(svg => {
+                    svg.style.width = '100%';
+                    svg.style.height = 'auto';
+                    svg.removeAttribute('width');
+                    svg.removeAttribute('height');
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
         });
 
         // Theme Toggle
@@ -1275,7 +1294,7 @@ SERVICES=their-svc-1,their-svc-2</code></pre>
                     secondaryColor: '#0f1826',
                     tertiaryColor: '#060a13',
                     fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '14px',
+                    fontSize: '15px',
                     noteBkgColor: '#141f35',
                     noteTextColor: '#dce8f5',
                     noteBorderColor: '#1d2d4f',
@@ -1292,7 +1311,7 @@ SERVICES=their-svc-1,their-svc-2</code></pre>
                     secondaryColor: '#ffffff',
                     tertiaryColor: '#f2f6fc',
                     fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '14px',
+                    fontSize: '15px',
                     noteBkgColor: '#eaeff8',
                     noteTextColor: '#1a2332',
                     noteBorderColor: '#c8d6e5',
