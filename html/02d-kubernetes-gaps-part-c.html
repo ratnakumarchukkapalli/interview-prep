@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 2D: Kubernetes Gaps — Part C | Probes · PSA · PDB · Jobs · Quotas · Topology Spread · Finalizers · Debug · Gateway API · Outposts Deep Dive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #090d1a; --surface: #0f1826; --surface2: #141f35; --border: #1d2d4f;
+      --text: #dce8f5; --text-muted: #7a9ab5;
+      --accent: #22c55e; --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8; --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b; --accent3-dim: rgba(245,158,11,0.12);
+      --accent4: #a78bfa; --accent4-dim: rgba(167,139,250,0.12);
+      --code-bg: #060a13; --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif; --font-mono: 'Fira Code', monospace; --radius: 8px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+    .hero { background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%); border-bottom: 1px solid var(--border); padding: 3rem 2rem 2.5rem; }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge { font-family: var(--font-mono); font-size: 0.68rem; padding: 0.2rem 0.55rem; border-radius: 4px; letter-spacing: 0.05em; }
+    .badge-green  { background: var(--accent-dim);  color: var(--accent);  border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue   { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber  { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-purple { background: var(--accent4-dim); color: var(--accent4); border: 1px solid rgba(167,139,250,0.3); }
+    .hero h1 { font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; letter-spacing: -0.025em; }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); font-family: var(--font-mono); }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: var(--radius); padding: 0.35rem 0.7rem; cursor: pointer; font-family: var(--font-mono); font-size: 0.72rem; z-index: 100; transition: border-color 0.15s, color 0.15s; }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    .layout { display: flex; max-width: 1240px; margin: 0 auto; padding: 2rem; gap: 2.5rem; }
+    .toc { width: 220px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title { font-family: var(--font-mono); font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 0.65rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a { display: block; padding: 0.28rem 0.6rem; color: var(--text-muted); text-decoration: none; font-size: 0.78rem; border-radius: 4px; border-left: 2px solid transparent; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+    .toc-list a:hover, .toc-list a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    .main-content { flex: 1; min-width: 0; }
+    .section { margin-bottom: 3.5rem; }
+    .section-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.25rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border); }
+    .section-num { font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent); background: var(--accent-dim); padding: 0.15rem 0.4rem; border-radius: 3px; flex-shrink: 0; }
+    .section h2 { font-size: 1.3rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+    .section h3 { font-size: 0.93rem; font-weight: 600; color: var(--accent2); margin: 1.5rem 0 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--font-mono); }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th { background: var(--surface2); color: var(--accent); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); font-family: var(--font-mono); }
+    tbody td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+    .td-green  { color: var(--accent)  !important; font-weight: 500; }
+    .td-blue   { color: var(--accent2) !important; }
+    .td-amber  { color: var(--accent3) !important; }
+    .td-purple { color: var(--accent4) !important; }
+
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; overflow-x: auto; margin-bottom: 1.25rem; white-space: pre-wrap; word-break: break-all; }
+    pre code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); background: none; padding: 0; }
+    .code-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.4rem; display: block; }
+
+    .diagram-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; margin-bottom: 1.5rem; }
+    .diagram-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .diagram-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s, color 0.15s; }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow-x: auto; width: 100%; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; width: 100%; }
+    .mermaid { width: 100%; }
+    .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+
+    .info-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .info-box strong { color: var(--accent2); }
+    .warn-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent3); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .warn-box strong { color: var(--accent3); }
+    .success-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .success-box strong { color: var(--accent); }
+
+    .qa-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1.25rem; }
+    .qa-question { font-weight: 600; color: var(--accent); font-size: 0.88rem; margin-bottom: 0.6rem; font-family: var(--font-mono); }
+    .qa-answer { color: var(--text-muted); font-size: 0.85rem; line-height: 1.65; }
+    .qa-answer strong { color: var(--text); }
+    .qa-answer ol, .qa-answer ul { padding-left: 1.2rem; margin: 0.4rem 0; }
+    .qa-answer li { margin-bottom: 0.25rem; }
+    .qa-answer code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+    .analogy-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent4); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .analogy-box strong { color: var(--accent4); }
+    .analogy-label { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent4); margin-bottom: 0.35rem; display: block; }
+
+    .component-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .component-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; transition: border-color 0.15s; }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.3rem; }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num { flex-shrink: 0; width: 26px; height: 26px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; margin-top: 0.15rem; }
+    .step-body {}
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    .gap-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.15rem 0.45rem; border-radius: 3px; margin-left: 0.5rem; vertical-align: middle; }
+    .gap-high     { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .gap-medium   { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .gap-senior   { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+    .gap-outpost  { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+
+    .bottom-nav { max-width: 1240px; margin: 0 auto; padding: 1.5rem 2rem 3rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); gap: 1rem; flex-wrap: wrap; }
+    .bottom-nav a { color: var(--accent2); text-decoration: none; font-size: 0.82rem; font-family: var(--font-mono); padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); transition: border-color 0.15s, color 0.15s; }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--accent); }
+    .bottom-nav .nav-index { color: var(--text-muted); font-size: 0.75rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    @media (max-width: 860px) { .toc { display: none; } .layout { padding: 1rem; } .hero h1 { font-size: 1.5rem; } .bottom-nav { flex-direction: column; text-align: center; } }
+    body.light { --bg: #f2f6fc; --surface: #ffffff; --surface2: #eaeff8; --border: #c8d6e8; --text: #1a2535; --text-muted: #4f6880; --code-bg: #e2eaf5; --code-text: #1d5fa0; }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">Kubernetes Gaps</span>
+      <span class="badge badge-amber">Part C of 3</span>
+      <span class="badge badge-purple">Operational Depth + Outposts</span>
+    </div>
+    <h1>Section 2D: Kubernetes Gaps — Part C</h1>
+    <p class="hero-sub">Probes &middot; Pod Security Standards &middot; PodDisruptionBudget &middot; Jobs &amp; CronJobs &middot; Quotas &middot; Topology Spread &middot; Finalizers &middot; kubectl debug &middot; Gateway API &middot; AWS Outposts Deep Dive</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Sections</span>
+        <span class="hero-meta-value">10 gaps covered</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Priority</span>
+        <span class="hero-meta-value">🔴 High + 🟡 Medium + 🔵 Outposts</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Part A · Part B</span>
+        <span class="hero-meta-value">02b / 02c</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Grounded in</span>
+        <span class="hero-meta-value">pricing-be &middot; outpost-storage &middot; opensearch</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Part C Contents</div>
+      <ul class="toc-list">
+        <li><a href="#s-probes">G11 · Probes</a></li>
+        <li><a href="#s-probes" class="toc-sub">liveness vs readiness vs startup</a></li>
+        <li><a href="#s-psa">G12 · Pod Security Standards</a></li>
+        <li><a href="#s-psa" class="toc-sub">securityContext full</a></li>
+        <li><a href="#s-pdb">G13 · PodDisruptionBudget</a></li>
+        <li><a href="#s-jobs">G14 · Jobs &amp; CronJobs</a></li>
+        <li><a href="#s-jobs" class="toc-sub">Liquibase PreSync</a></li>
+        <li><a href="#s-jobs" class="toc-sub">Fivetran slot manager</a></li>
+        <li><a href="#s-quotas">G15 · ResourceQuota · LimitRange</a></li>
+        <li><a href="#s-topology">G16 · Topology Spread</a></li>
+        <li><a href="#s-finalizers">G17 · Finalizers</a></li>
+        <li><a href="#s-debug">G18 · kubectl debug</a></li>
+        <li><a href="#s-gateway">G19 · Gateway API</a></li>
+        <li><a href="#s-outposts">G20 · Outposts Deep Dive</a></li>
+        <li><a href="#s-outposts" class="toc-sub">Service Link</a></li>
+        <li><a href="#s-outposts" class="toc-sub">Local Gateway (LGW)</a></li>
+        <li><a href="#s-outposts" class="toc-sub">Capacity planning</a></li>
+        <li><a href="#s-outposts" class="toc-sub">Failure modes</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- ============================================================ -->
+    <!-- GAP 11: PROBES                                                -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-probes">
+      <div class="section-header">
+        <span class="section-num">G11</span>
+        <h2>Probes — Liveness, Readiness, Startup <span class="gap-badge gap-high">High Priority</span></h2>
+      </div>
+
+      <p>Every interviewer asks this. You configure probes on every service in your platform — you need to be able to recite the <strong>three probe types, what each one controls, and when they fire</strong> from memory.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">🏥 Analogy</span>
+        <strong>Three different health checks at a hospital:</strong> <em>Startup probe</em> = "is the patient checked in and stable?" (runs once after admission). <em>Readiness probe</em> = "are they ready to see visitors?" (runs continuously, blocks visitors when sick). <em>Liveness probe</em> = "are they still alive?" (runs continuously, triggers resuscitation if flatline). Getting these confused is the single most common mistake in pod stability.
+      </div>
+
+      <h3>The Three Probe Types</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Probe</th><th>Question it answers</th><th>Failure action</th><th>When it runs</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>startupProbe</strong></td>
+              <td>Has the app finished booting?</td>
+              <td>Kill container, restart pod</td>
+              <td>From container start until first success. Once it succeeds, it stops running forever. Liveness/Readiness are suspended until startup succeeds.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>readinessProbe</strong></td>
+              <td>Can the app take traffic right now?</td>
+              <td>Remove pod from Service endpoints (no restart)</td>
+              <td>Continuously after startup. If it starts failing, kube-proxy removes the pod from Service rotation. Pod keeps running.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>livenessProbe</strong></td>
+              <td>Is the app still alive (not deadlocked)?</td>
+              <td>Kill container, kubelet restarts it</td>
+              <td>Continuously after startup. If it fails <code>failureThreshold</code> times, kubelet kills the container and restarts it.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Your Actual Probe Config — pricing-be (CI)</h3>
+      <p>This is the real pattern used across your 35+ .NET services. Grounded in <code>environments/ci/pricing-be/values.yaml</code>:</p>
+
+      <span class="code-label">Real Probe Values From Your Helm Chart</span>
+      <pre><code>livenessProbe:
+  httpGet:
+    path: /api/confirmation/pricing/health/live    # shallow check — is the process responsive?
+    port: 8080
+    scheme: HTTP
+  initialDelaySeconds: 0                           # startupProbe already gated this
+  periodSeconds: 10                                # check every 10s
+  timeoutSeconds: 1                                # fail if no response in 1s
+  failureThreshold: 3                              # 3 consecutive fails → restart (30s total)
+
+readinessProbe:
+  httpGet:
+    path: /api/confirmation/pricing/health/ready   # deep check — can I serve traffic? (DB, RabbitMQ up?)
+    port: 8080
+    scheme: HTTP
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  successThreshold: 3                              # need 3 in a row to be Ready (avoids flapping)
+
+startupProbe:
+  httpGet:
+    path: /api/confirmation/pricing/health/ready
+    port: 8080
+    scheme: HTTP
+  initialDelaySeconds: 60                          # give .NET 60s to boot before even starting to check
+  periodSeconds: 10
+  failureThreshold: 30                             # 60 + 10*30 = 360s max boot window</code></pre>
+
+      <div class="info-box">
+        <strong>Key detail from your config:</strong> The startup probe gives a slow-starting .NET service up to <strong>6 minutes</strong> to boot (<code>initialDelay 60s + period 10s × threshold 30 = 360s</code>). During that window, liveness and readiness probes don't run. This is why startupProbe exists — without it, a slow-booting app would be killed by liveness before it ever finished starting.
+      </div>
+
+      <h3>Two Endpoints — Why /live ≠ /ready</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Checks</th><th>Why separate?</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-amber"><code>/health/live</code></td>
+              <td>Process is running, HTTP server responds, no deadlock</td>
+              <td>If this fails → restart the container. Shallow check, no dependency calls.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><code>/health/ready</code></td>
+              <td>Process + DB reachable + RabbitMQ reachable + cache populated</td>
+              <td>If this fails → stop sending traffic, but <strong>do not restart</strong>. The pod is healthy; its dependency is down. Restarting won't help.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="warn-box">
+        <strong>Critical anti-pattern — never do this:</strong> Pointing <code>livenessProbe</code> at <code>/health/ready</code>. If PostgreSQL has a brief hiccup, readiness fails (fine), but liveness also fails → kubelet restarts every pod → restart storm → now you have an incident. Readiness should check dependencies. Liveness should only check "am I deadlocked?" (always return 200 unless the process itself is broken).
+      </div>
+
+      <h3>Probe Types — httpGet vs tcpSocket vs exec vs grpc</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">httpGet</div>
+          <div class="card-title">HTTP endpoint</div>
+          <div class="card-desc">Most common. Any 200-399 response = success. Your .NET services use this via ASP.NET Core health checks middleware.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">tcpSocket</div>
+          <div class="card-title">TCP port open</div>
+          <div class="card-desc">Just checks if the port accepts a TCP connection. Useful for services without HTTP endpoints (PostgreSQL, RabbitMQ). Doesn't verify the app actually works — just that it's listening.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">exec</div>
+          <div class="card-title">Run a command in container</div>
+          <div class="card-desc">Runs a shell command; exit 0 = success. Used for custom scripts, like <code>pg_isready</code> for Postgres or <code>rabbitmq-diagnostics ping</code> for RabbitMQ.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">grpc</div>
+          <div class="card-title">gRPC health check (1.24+)</div>
+          <div class="card-desc">Native gRPC health protocol. No need to expose HTTP on gRPC-only services. Requires the app to implement <code>grpc.health.v1.Health</code>.</div>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "A pod keeps restarting — CrashLoopBackOff. How do probes fit in the diagnosis?"</div>
+        <div class="qa-answer">
+          "Probes are usually step 3 or 4 in my checklist:
+          <ol>
+            <li><code>kubectl describe pod</code> → look at <strong>Events</strong> and <strong>Last State</strong>. If <code>Reason: OOMKilled</code> → memory limit issue, not a probe issue.</li>
+            <li>If <code>Reason: Error</code> with exit code 137 → killed by kubelet. Could be liveness probe failing OR OOM. Check events for <code>Liveness probe failed</code>.</li>
+            <li><strong>Liveness probe failing</strong>: app might be deadlocked, OR the probe threshold is too aggressive, OR startup is too slow (should have <code>startupProbe</code> instead).</li>
+            <li><strong>Readiness failing but liveness passing</strong>: pod runs but never Ready. Usually a dependency issue — DB/RabbitMQ not reachable, or secret not mounted yet. Check <code>kubectl logs</code> for connection errors.</li>
+            <li><strong>Classic trap</strong>: same endpoint for liveness and readiness. A dependency hiccup cascades into pod restarts. Fix is to split them: liveness = shallow, readiness = deep.</li>
+          </ol>
+          In our platform, we had an incident where a service's liveness probe pointed at <code>/health/ready</code>. When PostgreSQL connection pool exhausted during peak, readiness failed → also liveness failed → kubelet restarted every replica → thundering herd on DB → made it worse. Fix was separating live/ready endpoints."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 12: POD SECURITY STANDARDS                                -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-psa">
+      <div class="section-header">
+        <span class="section-num">G12</span>
+        <h2>Pod Security Standards &amp; securityContext <span class="gap-badge gap-high">High Priority</span> <span class="gap-badge gap-senior">Banking Sector</span></h2>
+      </div>
+
+      <p>Banking and financial interviewers probe this hard. You already implement all of it — you just need the vocabulary. Pod Security Policy (PSP) was <strong>removed in Kubernetes 1.25</strong>; the replacement is <strong>Pod Security Admission (PSA)</strong> with three predefined levels.</p>
+
+      <h3>The Three Pod Security Standards (PSS)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Level</th><th>What it enforces</th><th>Typical use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>privileged</strong></td>
+              <td>No restrictions. Anything goes — hostNetwork, hostPID, privileged containers, root user.</td>
+              <td>System-level workloads (CNI pods, kube-proxy, node agents like Datadog). Your DaemonSets run here.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>baseline</strong></td>
+              <td>Prevents the most obvious escalations: no privileged containers, no hostNetwork, no hostPID, no hostPath (mostly).</td>
+              <td>Middle ground. Most apps can run here without code changes.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>restricted</strong></td>
+              <td>Hardened: must runAsNonRoot, drop ALL capabilities, no privilege escalation, readOnlyRootFilesystem strongly recommended, seccompProfile required.</td>
+              <td><strong>Where your Confirmation services run.</strong> Banking/finance default.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>PSA Enforcement — Label the Namespace</h3>
+      <p>PSA is configured at the <strong>namespace level</strong> via labels. Three modes per level:</p>
+
+      <span class="code-label">PSA Namespace Labels</span>
+      <pre><code>apiVersion: v1
+kind: Namespace
+metadata:
+  name: 207804-confirmation-ci
+  labels:
+    # Enforce (reject pods that violate):
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.29
+
+    # Audit (log violations to audit log, don't block):
+    pod-security.kubernetes.io/audit: restricted
+
+    # Warn (warn to kubectl output, don't block):
+    pod-security.kubernetes.io/warn: restricted</code></pre>
+
+      <div class="info-box">
+        <strong>Rollout strategy:</strong> Start with <code>warn</code> and <code>audit</code> on the new level before <code>enforce</code>. This lets you see violations without breaking workloads. Flip to <code>enforce</code> after the audit log is clean.
+      </div>
+
+      <h3>Your Actual securityContext — From rollout.yaml</h3>
+      <p>This is the exact pattern in every one of your 35+ service charts. Straight from <code>charts/pricing-be/templates/rollout.yaml</code>:</p>
+
+      <span class="code-label">Container-Level securityContext (Your Platform)</span>
+      <pre><code>securityContext:
+  allowPrivilegeEscalation: false         # setuid/sudo blocked
+  readOnlyRootFilesystem: true            # / is read-only; writes go to emptyDir mounts
+  privileged: false                       # no --privileged flag
+  capabilities:
+    drop: [ALL]                           # drop every Linux capability
+  runAsNonRoot: true                      # refuse to start if image user = root
+  runAsUser: 14000                        # TR standard UID
+  runAsGroup: 14001
+  seccompProfile:
+    type: RuntimeDefault                  # kernel syscall filter</code></pre>
+
+      <span class="code-label">Pod-Level securityContext</span>
+      <pre><code>spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 14000
+    runAsGroup: 14001
+    fsGroup: 14000                        # files in volumes owned by GID 14000 (app can read them)</code></pre>
+
+      <h3>The 7 Controls You Already Enforce</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">#1</div>
+          <div class="card-title">runAsNonRoot: true</div>
+          <div class="card-desc">Container refuses to start if the image USER is root (UID 0). First line of defense against container escapes.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">#2</div>
+          <div class="card-title">runAsUser: 14000</div>
+          <div class="card-desc">Force a specific non-root UID. TR standard. Must be set in the image or here — doesn't magically make root processes non-root.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">#3</div>
+          <div class="card-title">allowPrivilegeEscalation: false</div>
+          <div class="card-desc">Blocks setuid binaries and sudo. No process in the container can gain more privileges than its parent.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">#4</div>
+          <div class="card-title">readOnlyRootFilesystem: true</div>
+          <div class="card-desc">Root FS is read-only. Any write must go through an emptyDir/volume mount. Stops malware from modifying binaries.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">#5</div>
+          <div class="card-title">capabilities.drop: [ALL]</div>
+          <div class="card-desc">Strips every Linux capability (CAP_NET_RAW, CAP_SYS_ADMIN, etc.). Add back only what's needed via <code>add:</code>. Most apps need none.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">#6</div>
+          <div class="card-title">seccompProfile: RuntimeDefault</div>
+          <div class="card-desc">Enables kernel syscall filtering. RuntimeDefault = the runtime's default filter (containerd's blocks ~70 dangerous syscalls).</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">#7</div>
+          <div class="card-title">privileged: false</div>
+          <div class="card-desc">No <code>--privileged</code> mode. Privileged containers effectively have root on the host — only for system agents, never apps.</div>
+        </div>
+      </div>
+
+      <div class="warn-box">
+        <strong>readOnlyRootFilesystem gotcha:</strong> Many apps write temp files to <code>/tmp</code> or caches to <code>/var/cache</code>. With readOnlyRootFilesystem, these fail. Solution: mount an <code>emptyDir</code> volume at those paths (e.g., Datadog agent needs <code>/var/run/datadog</code> as emptyDir). Your rollout has <code>datadogTemp</code> emptyDir for exactly this reason.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Walk me through how you harden a pod at Thomson Reuters."</div>
+        <div class="qa-answer">
+          "Seven controls, all at the container and pod level, enforced by Pod Security Admission at the namespace level set to <code>restricted</code>:
+          <ol>
+            <li><strong>runAsNonRoot: true</strong> + <strong>runAsUser: 14000</strong> — no root. UID 14000 is our TR standard.</li>
+            <li><strong>allowPrivilegeEscalation: false</strong> — block setuid/sudo escalation.</li>
+            <li><strong>readOnlyRootFilesystem: true</strong> — root FS is immutable. Writable paths go through emptyDir mounts.</li>
+            <li><strong>capabilities: drop [ALL]</strong> — no Linux capabilities unless explicitly required.</li>
+            <li><strong>privileged: false</strong> — not privileged. Only node agents get privileged.</li>
+            <li><strong>seccompProfile: RuntimeDefault</strong> — kernel syscall filter active.</li>
+            <li><strong>fsGroup: 14000</strong> — volume files owned by GID 14000 so the app can read them.</li>
+          </ol>
+          On top of pod-level hardening we have Istio mTLS STRICT (only mTLS traffic allowed), AuthorizationPolicy (service-identity-based allowlists), and ExternalSecrets Operator (no secrets in Helm or Git). The base Docker image is our own <code>a207804-ue1-op-python:3.11-slim</code> from ECR, so we control the supply chain — never Docker Hub in CI."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 13: POD DISRUPTION BUDGET                                 -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-pdb">
+      <div class="section-header">
+        <span class="section-num">G13</span>
+        <h2>PodDisruptionBudget — Protecting Availability <span class="gap-badge gap-high">High Priority</span></h2>
+      </div>
+
+      <p>PDB controls how many pods of a service can be <strong>voluntarily</strong> disrupted at once. Guards against node drains, cluster upgrades, and eviction storms taking your service below a safe replica count.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">🚑 Analogy</span>
+        <strong>Minimum ER doctors on duty.</strong> The hospital can send doctors home for training (voluntary disruption) but only if at least 2 remain at any time (<code>minAvailable: 2</code>). If someone tries to drain the last doctor, the drain <em>waits</em>. PDB is the contract that prevents K8s admin actions from accidentally taking your service to zero.
+      </div>
+
+      <h3>Voluntary vs Involuntary Disruption</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>Example</th><th>PDB respected?</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Voluntary</strong></td>
+              <td><code>kubectl drain</code>, node upgrade, cluster autoscaler scale-down, manual pod deletion via Eviction API</td>
+              <td class="td-green"><strong>Yes</strong> — the Eviction API blocks if PDB would be violated.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Involuntary</strong></td>
+              <td>Node crash, kernel panic, hardware failure, OOM kill, network partition</td>
+              <td class="td-amber"><strong>No</strong> — PDB cannot save you from a dead node. This is why you still need multiple replicas across nodes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Your Actual PDB — audit-devops-outpost-storage</h3>
+      <p>Straight from <code>charts/audit-devops-outpost-storage/templates/pdb.yaml</code> in your helm repo:</p>
+
+      <span class="code-label">Your Platform PDB Template</span>
+      <pre><code>apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: outpost-storage-pdb
+  namespace: 207804-confirmation-ci
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"     # after DestinationRule, before Rollout
+spec:
+  minAvailable: 1                          # at least 1 pod must stay Ready during drain
+  selector:
+    matchLabels:
+      app: outpost-storage-rollout
+      environment: ci</code></pre>
+
+      <h3>minAvailable vs maxUnavailable</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Meaning</th><th>Example with 3 replicas</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>minAvailable: 1</strong></td>
+              <td>Absolute number — at least this many must stay Ready</td>
+              <td>Up to 2 can be disrupted at once</td>
+            </tr>
+            <tr>
+              <td><strong>minAvailable: 50%</strong></td>
+              <td>Percentage — rounded UP</td>
+              <td>ceil(50% of 3) = 2 must stay Ready → only 1 can be disrupted</td>
+            </tr>
+            <tr>
+              <td><strong>maxUnavailable: 1</strong></td>
+              <td>Absolute number — at most this many can be disrupted</td>
+              <td>Equivalent to minAvailable: 2 for a 3-replica service</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="warn-box">
+        <strong>PDB deadlock trap:</strong> If you set <code>minAvailable: 100%</code> (or equal to replicas) and then try to drain a node, the drain <strong>hangs forever</strong> — PDB says "zero pods can be disrupted" and Kubernetes respects that. Common in single-replica services where someone sets <code>minAvailable: 1</code> on a 1-replica Deployment — now the node can never be drained. Fix: either scale up to 2 replicas, or use <code>maxUnavailable: 1</code> which is a safer default.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "We're about to drain a node for upgrade. How do PDBs affect that?"</div>
+        <div class="qa-answer">
+          "Drain uses the Eviction API, which enforces PDBs. Here's what happens:
+          <ol>
+            <li><code>kubectl drain node-X</code> iterates through pods on the node.</li>
+            <li>For each pod, Kubernetes calls the Eviction API. If evicting this pod would violate a PDB (drop below <code>minAvailable</code>), the eviction is refused.</li>
+            <li>Drain retries — it waits for another pod of the same PDB group to come back up on a different node before evicting the next one.</li>
+            <li>Services without a PDB get evicted with no guardrails — could go to zero momentarily during drain.</li>
+          </ol>
+          So on a platform without PDBs, a cluster upgrade can cause transient downtime as all replicas of a 2-replica service evict simultaneously. With <code>minAvailable: 1</code>, drain throttles itself to one-at-a-time.
+          <br><br>
+          <strong>Operational note:</strong> A drain can hang indefinitely if the evicted pods can't reschedule elsewhere (no capacity, PVC zone mismatch). Watch for <code>Cannot evict pod as it would violate the pod's disruption budget</code> in drain output — that's your signal to investigate why replacements aren't coming up."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 14: JOBS & CRONJOBS                                       -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-jobs">
+      <div class="section-header">
+        <span class="section-num">G14</span>
+        <h2>Jobs &amp; CronJobs <span class="gap-badge gap-medium">Medium Priority</span></h2>
+      </div>
+
+      <p>Deployments run forever. Jobs run <strong>to completion</strong>. Your platform uses both Jobs (Liquibase migrations) and CronJobs (OpenSearch snapshots, Fivetran slot manager). Interviewers ask about failure semantics, concurrency, and cleanup.</p>
+
+      <h3>Job vs CronJob</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Resource</th><th>Runs</th><th>Completion semantics</th><th>Your use case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Job</strong></td>
+              <td>Once (or N times) to completion</td>
+              <td>Pod exits 0 → Job complete. Exit non-zero → restart until <code>backoffLimit</code> exceeded.</td>
+              <td>Liquibase DB migration (PreSync hook, wave -1). Dynamodb-version-updater.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>CronJob</strong></td>
+              <td>On a schedule (cron syntax)</td>
+              <td>Creates a new Job per schedule tick. Tracks history of completed/failed Jobs.</td>
+              <td>OpenSearch snapshot (daily), Fivetran replication slot manager, Outpost storage daily report.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Your Actual Liquibase Job — PreSync Hook</h3>
+      <p>Every service chart has a <code>liquibase.yaml</code> that runs as an ArgoCD PreSync hook (wave -1) before pods start. This is the schema-migration-before-rollout pattern:</p>
+
+      <span class="code-label">Liquibase Job Skeleton (Your Pattern)</span>
+      <pre><code>apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pricing-be-liquibase-{{ .Values.image.tag }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"             # BEFORE anything else
+    argocd.argoproj.io/hook: PreSync               # ArgoCD sync hook
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2                                   # retry twice on failure
+  ttlSecondsAfterFinished: 3600                     # auto-delete after 1h
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"            # no Istio sidecar in Jobs!
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: liquibase
+          image: .../liquibase:latest
+          command: ["liquibase", "update"]</code></pre>
+
+      <div class="warn-box">
+        <strong>Why <code>sidecar.istio.io/inject: "false"</code> on Jobs:</strong> Istio's Envoy sidecar runs forever. A Job's main container exits (migration done), but the sidecar keeps running → Job is stuck "Running" forever. Always disable Istio injection on Jobs and CronJobs. This is <strong>a classic interview trap</strong> for anyone running Istio + Jobs.
+      </div>
+
+      <h3>Your Actual CronJob — OpenSearch Snapshot</h3>
+      <span class="code-label">Real CronJob From charts/opensearch/templates/</span>
+      <pre><code>apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: opensearch-snapshot-ci
+spec:
+  schedule: "0 2 * * *"                    # daily at 02:00 UTC
+  concurrencyPolicy: Forbid                # never run two at once
+  successfulJobsHistoryLimit: 3            # keep last 3 successful
+  failedJobsHistoryLimit: 3                # keep last 3 failed (for debugging)
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 3600        # clean up the Job 1h after completion
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: create-snapshot
+              image: .../bitnami-os-shell:12-debian-12-r45</code></pre>
+
+      <h3>concurrencyPolicy — Critical to Understand</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Policy</th><th>Behavior</th><th>When to use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Allow</strong> (default)</td>
+              <td>New job starts even if previous still running</td>
+              <td>Independent tasks that won't collide. Rarely appropriate.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>Forbid</strong></td>
+              <td>Skip the new job if previous still running</td>
+              <td><strong>Your default.</strong> Snapshots, backups, replication slot management — don't want two running at once.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Replace</strong></td>
+              <td>Kill the old one, start the new one</td>
+              <td>When the latest data matters more than finishing the in-flight run.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Fivetran Slot Manager — Real Incident Context (INC-012)</h3>
+      <div class="info-box">
+        <strong>Why a CronJob for slot management?</strong> Per incident INC-012, Patroni failover creates new PostgreSQL replication slots on the new primary, but Fivetran still tries to read from the old slot (which no longer exists). The slot manager CronJob runs periodically, detects missing slots, and recreates them. It's an infrastructure <em>reconciliation loop</em> implemented as a CronJob — the Kubernetes-native operator pattern for work that doesn't warrant building a full CRD/controller.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Your Liquibase migration hangs — pods never start. What's happening?"</div>
+        <div class="qa-answer">
+          "PreSync hook failure is the most common cause of a stuck sync. My debug order:
+          <ol>
+            <li><code>kubectl get jobs -n 207804-confirmation-ci | grep liquibase</code> — is the Job in Failed or still Active state?</li>
+            <li><code>kubectl logs job/pricing-be-liquibase-X</code> — actual liquibase output. Lock conflict? Schema error? Missing DB credential?</li>
+            <li><strong>Classic Liquibase issue</strong>: lock held in <code>databasechangeloglock</code> from a previous killed run. Manually release: <code>UPDATE databasechangeloglock SET LOCKED=FALSE;</code></li>
+            <li><strong>Istio sidecar trap</strong>: if someone forgot <code>sidecar.istio.io/inject: false</code>, the liquibase container exits but Envoy keeps running → Job stuck Active → ArgoCD stuck waiting for PreSync.</li>
+            <li><strong>ArgoCD hook</strong>: if hook-delete-policy is <code>HookSucceeded</code>, a failed Job stays around blocking the next sync. Pattern we use is <code>BeforeHookCreation</code> — deletes the previous hook Job before creating a new one.</li>
+          </ol>
+          I'd use the db-ops portal or <code>kubectl exec</code> into a postgres pod to check the lock table directly. If the migration fails legitimately (bad SQL), the dev team has to fix the changelog — ArgoCD won't proceed without the migration succeeding."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 15: RESOURCE QUOTA & LIMIT RANGE                          -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-quotas">
+      <div class="section-header">
+        <span class="section-num">G15</span>
+        <h2>ResourceQuota &amp; LimitRange <span class="gap-badge gap-medium">Medium Priority</span></h2>
+      </div>
+
+      <p>Two namespace-level objects that enforce resource fairness and prevent one workload from hogging the cluster. Especially relevant on Outposts where capacity is <strong>finite</strong>.</p>
+
+      <h3>ResourceQuota — The Namespace Budget</h3>
+      <div class="analogy-box">
+        <span class="analogy-label">💰 Analogy</span>
+        <strong>Monthly credit limit on a corporate card.</strong> The namespace gets a budget for total CPU, memory, and object counts. Once spent, new pods/PVCs/services in that namespace are rejected by the API server. Prevents a runaway HPA from consuming the entire cluster.
+      </div>
+
+      <span class="code-label">ResourceQuota Example — Non-Prod Namespace</span>
+      <pre><code>apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: confirmation-ci-quota
+  namespace: 207804-confirmation-ci
+spec:
+  hard:
+    requests.cpu: "80"                     # total requested CPU across all pods
+    requests.memory: 160Gi
+    limits.cpu: "160"
+    limits.memory: 320Gi
+    persistentvolumeclaims: "50"
+    services.loadbalancers: "2"            # cap LB services (cost control)
+    count/deployments.apps: "100"
+    count/rollouts.argoproj.io: "100"</code></pre>
+
+      <div class="warn-box">
+        <strong>Hard rule when ResourceQuota is set:</strong> Every pod in the namespace <strong>must</strong> specify resource requests and limits — otherwise API server rejects with <code>must specify cpu/memory for Limits</code>. This is why your Helm chart standard always includes resource requests/limits.
+      </div>
+
+      <h3>LimitRange — Default + Cap per Pod</h3>
+      <p>LimitRange sets <strong>per-object defaults and min/max ranges</strong>. Complements ResourceQuota.</p>
+
+      <span class="code-label">LimitRange — Defaults for Containers Missing Them</span>
+      <pre><code>apiVersion: v1
+kind: LimitRange
+metadata:
+  name: confirmation-ci-defaults
+  namespace: 207804-confirmation-ci
+spec:
+  limits:
+    - type: Container
+      default:                             # if limits NOT set, use these
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:                      # if requests NOT set, use these
+        cpu: 100m
+        memory: 128Mi
+      max:                                 # refuse pods exceeding this
+        cpu: "4"
+        memory: 8Gi
+      min:                                 # refuse pods below this
+        cpu: 50m
+        memory: 64Mi</code></pre>
+
+      <h3>ResourceQuota vs LimitRange</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Object</th><th>Scope</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>ResourceQuota</strong></td><td>Namespace total</td><td>Cap aggregate resources across ALL pods in the namespace</td></tr>
+            <tr><td class="td-blue"><strong>LimitRange</strong></td><td>Per pod/container</td><td>Set defaults + enforce min/max on individual pods</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Outposts relevance:</strong> Outpost capacity is fixed by rack hardware. ResourceQuota per namespace prevents one app team from consuming the entire rack. In your 8 environments on 4 clusters, quotas would be how you reserve capacity for each namespace deterministically rather than hoping HPAs behave.
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 16: TOPOLOGY SPREAD CONSTRAINTS                           -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-topology">
+      <div class="section-header">
+        <span class="section-num">G16</span>
+        <h2>Topology Spread Constraints <span class="gap-badge gap-medium">Medium Priority</span> <span class="gap-badge gap-senior">Modern Alt</span></h2>
+      </div>
+
+      <p>Modern replacement for <code>podAntiAffinity</code>. Introduced GA in 1.19. More expressive, better at enforcing <strong>even spread</strong> across failure domains. Interviewers increasingly ask about this over antiAffinity.</p>
+
+      <h3>Why Topology Spread Beats Pod Anti-Affinity</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Feature</th><th>podAntiAffinity</th><th>topologySpreadConstraints</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Expressive</td>
+              <td class="td-amber">Binary — same node or not</td>
+              <td class="td-green">Fine-grained — enforce "at most 1 pod skew across zones"</td>
+            </tr>
+            <tr>
+              <td>Scheduler performance</td>
+              <td class="td-amber">O(pods × pods) — slow on large clusters</td>
+              <td class="td-green">O(pods) — scales better</td>
+            </tr>
+            <tr>
+              <td>Even distribution</td>
+              <td class="td-amber">Best-effort, can clump</td>
+              <td class="td-green">Guarantees ≤ maxSkew imbalance</td>
+            </tr>
+            <tr>
+              <td>Intent</td>
+              <td class="td-amber">"Don't be here"</td>
+              <td class="td-blue">"Spread evenly"</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span class="code-label">Topology Spread — Spread Across Nodes Evenly</span>
+      <pre><code>spec:
+  topologySpreadConstraints:
+    - maxSkew: 1                                          # max imbalance between nodes
+      topologyKey: kubernetes.io/hostname                 # spread across nodes
+      whenUnsatisfiable: DoNotSchedule                    # enforce (hard)
+      labelSelector:
+        matchLabels:
+          app: pricing-be
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone            # also spread across AZs
+      whenUnsatisfiable: ScheduleAnyway                   # prefer (soft)
+      labelSelector:
+        matchLabels:
+          app: pricing-be</code></pre>
+
+      <div class="info-box">
+        <strong>whenUnsatisfiable:</strong>
+        <ul>
+          <li><code>DoNotSchedule</code> — hard constraint. Pod stays Pending if spread would be violated.</li>
+          <li><code>ScheduleAnyway</code> — soft. Prefer balanced spread but schedule somewhere if no ideal node.</li>
+        </ul>
+        Common pattern: hard constraint on hostname (must spread across nodes), soft on zone (prefer but don't block).
+      </div>
+
+      <h3>Outposts-Specific Usage</h3>
+      <div class="warn-box">
+        <strong>Outposts have a single logical AZ</strong> (e.g. <code>us-east-1-op1</code>). Zone-level topology spread won't help you there — there's only one Outpost zone. Spread across <strong>nodes</strong> (<code>kubernetes.io/hostname</code>) is what matters. If your Outpost rack has 6 worker nodes and you run 3 replicas, topology spread ensures each replica lands on a different node — so a single node reboot can't take out your service.
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 17: FINALIZERS                                            -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-finalizers">
+      <div class="section-header">
+        <span class="section-num">G17</span>
+        <h2>Finalizers — Why Things Get Stuck Terminating <span class="gap-badge gap-medium">Medium Priority</span></h2>
+      </div>
+
+      <p>A <strong>finalizer</strong> is a pre-delete hook. Controllers register finalizers on resources they manage. When you delete the resource, Kubernetes waits for every finalizer to be removed before the object actually disappears. This is why namespaces, PVCs, and CRDs can get stuck in <code>Terminating</code> for hours.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">📄 Analogy</span>
+        <strong>Moving out of an apartment — you can't leave until the utilities are cancelled, keys returned, and final inspection done.</strong> Each item is a "finalizer." Only after every item is checked off does the landlord mark your lease as terminated. If a finalizer controller is dead or stuck, your object sits in Terminating forever.
+      </div>
+
+      <h3>How Finalizers Work</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Deletion Flow With Finalizers</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-fin1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-fin1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-fin1')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-fin1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    DEL["kubectl delete ns my-ns"] --> STAMP["API sets\ndeletionTimestamp"]
+    STAMP --> LIST{"finalizers\nlist empty?"}
+    LIST -- "No" --> WAIT["Object sits in\nTerminating state"]
+    WAIT --> CTRL["Controllers each\nremove their finalizer\nafter cleanup"]
+    CTRL --> LIST
+    LIST -- "Yes" --> GONE["Object actually\ndeleted from etcd"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Common Stuck-Terminating Scenarios</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Scenario</th><th>Stuck finalizer</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Namespace stuck Terminating</strong></td>
+              <td>Usually a CRD whose controller is gone, or a resource in the NS that can't be cleaned up</td>
+              <td><code>kubectl get ns X -o json</code> → find <code>.spec.finalizers</code>. If controller is truly gone, patch them out (last-resort, destructive).</td>
+            </tr>
+            <tr>
+              <td><strong>PVC stuck Terminating</strong></td>
+              <td><code>kubernetes.io/pvc-protection</code> — prevents deletion while a pod still uses it</td>
+              <td>Delete pods referencing the PVC first. Finalizer auto-removes.</td>
+            </tr>
+            <tr>
+              <td><strong>CRD stuck Terminating</strong></td>
+              <td>Instances of the CR still exist and their controller is down</td>
+              <td>Restart the operator pod. If operator is gone permanently, remove the finalizer from remaining CRs first.</td>
+            </tr>
+            <tr>
+              <td><strong>Pod stuck Terminating</strong></td>
+              <td>Usually NOT a finalizer — it's the <code>terminationGracePeriodSeconds</code> waiting for preStop or SIGTERM handling</td>
+              <td><code>kubectl delete pod X --force --grace-period=0</code> (but understand this skips graceful shutdown)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span class="code-label">The Nuclear Option — Manually Remove a Finalizer</span>
+      <pre><code># Check current finalizers:
+kubectl get ns stuck-ns -o jsonpath='{.spec.finalizers}'
+
+# Remove all finalizers (DANGEROUS — skips real cleanup):
+kubectl patch ns stuck-ns -p '{"metadata":{"finalizers":[]}}' --type=merge
+
+# OR for CRs:
+kubectl patch crontab/my-cron --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'</code></pre>
+
+      <div class="warn-box">
+        <strong>Don't force-remove finalizers as your first move.</strong> They exist because a controller needs to clean up external resources (an AWS LB, an EBS volume, a database record). Skipping them leaves orphaned cloud resources costing you money. Only force-remove when you've confirmed the controller is permanently dead.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "A namespace has been stuck Terminating for 2 hours. Walk me through how you'd investigate."</div>
+        <div class="qa-answer">
+          "Always investigate before force-patching.
+          <ol>
+            <li><code>kubectl get ns stuck-ns -o yaml</code> — look at <code>.status.conditions</code>. It often has <strong>NamespaceDeletionContentFailure</strong> with the exact resource that's blocking.</li>
+            <li><code>kubectl api-resources --verbs=list --namespaced -o name | xargs -n1 kubectl get -n stuck-ns 2&gt;/dev/null</code> — find any lingering resources.</li>
+            <li>For each lingering resource, inspect <code>.metadata.finalizers</code> — identify which controller is supposed to remove it.</li>
+            <li>Check the controller pod is running (<code>kubectl get pods -n operator-ns</code>) and its logs.</li>
+            <li>If the controller is fine but the cleanup is failing (maybe AWS API throttling), wait or fix the external dependency.</li>
+            <li>If the controller is dead and can't be brought back, patch the finalizer out as a last resort — and manually clean the external resource it was supposed to clean.</li>
+          </ol>
+          I had a case with a stuck <code>ExternalSecret</code> namespace — ESO pod had crashed, finalizer never removed. Restarted ESO, finalizer cleared automatically in 10 seconds."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 18: EPHEMERAL CONTAINERS / KUBECTL DEBUG                  -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-debug">
+      <div class="section-header">
+        <span class="section-num">G18</span>
+        <h2>Ephemeral Containers &amp; kubectl debug <span class="gap-badge gap-medium">Medium Priority</span> <span class="gap-badge gap-senior">Readonly Root FS</span></h2>
+      </div>
+
+      <p>Debugging your own platform is harder than generic K8s because every pod has <code>readOnlyRootFilesystem: true</code>, no shell in distroless-ish images, and dropped ALL capabilities. <code>kubectl exec</code> is often useless. <code>kubectl debug</code> with ephemeral containers is the answer.</p>
+
+      <div class="analogy-box">
+        <span class="analogy-label">🧰 Analogy</span>
+        <strong>Attaching a diagnostic computer to a running car engine without shutting it off.</strong> An ephemeral container is a temporary container injected into a running pod's namespace — it shares the network and (optionally) process namespace of the target container, but brings its own tools (curl, nslookup, strace). Target pod keeps running the whole time.
+      </div>
+
+      <h3>The Debug Patterns</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Command</th><th>What it does</th><th>When to use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>kubectl debug pod/X -it --image=busybox</code></td>
+              <td>Adds an ephemeral busybox container to pod X. Shares network namespace.</td>
+              <td>Network debugging — <code>nslookup</code>, <code>curl</code>, <code>netstat</code> from the pod's perspective.</td>
+            </tr>
+            <tr>
+              <td><code>kubectl debug pod/X --target=app --image=nicolaka/netshoot</code></td>
+              <td>Attaches to the PID namespace of container <code>app</code> — can <code>ps</code>, <code>strace</code> that container's processes.</td>
+              <td>Deep debugging — see actual processes, strace system calls on a running container that has no shell.</td>
+            </tr>
+            <tr>
+              <td><code>kubectl debug node/my-node -it --image=ubuntu</code></td>
+              <td>Starts a privileged pod on a specific node with root FS mounted at <code>/host</code>.</td>
+              <td>Node-level debugging — check kubelet logs, disk usage, containerd state without SSH.</td>
+            </tr>
+            <tr>
+              <td><code>kubectl debug pod/X --copy-to=X-debug --set-image=app=busybox</code></td>
+              <td>Makes a copy of the pod with a different image for the target container.</td>
+              <td>When the real image has a crash bug and you need a shell to inspect the environment/volumes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Your Specific Pain Point — readOnlyRootFilesystem + distroless-style images</h3>
+      <div class="warn-box">
+        <strong>Why <code>kubectl exec</code> often fails on your pods:</strong>
+        <ul>
+          <li><code>readOnlyRootFilesystem: true</code> — can't install tools temporarily.</li>
+          <li>Minimal base images (slim/alpine) often lack <code>curl</code>, <code>dig</code>, <code>tcpdump</code>.</li>
+          <li>Dropped ALL capabilities — even if you had tcpdump, it couldn't raw-socket.</li>
+          <li>UID 14000 non-root — can't install packages anyway.</li>
+        </ul>
+        <code>kubectl debug --target=&lt;container&gt; --image=nicolaka/netshoot</code> solves all four — the ephemeral container is a separate container with its own rootfs, its own capabilities (within PSA limits), but shares the network/PID namespace of your target.
+      </div>
+
+      <span class="code-label">Real Debug Session — Pod Can't Reach Postgres</span>
+      <pre><code># Step 1: Add a netshoot container sharing network namespace of pricing-be pod
+kubectl debug -n 207804-confirmation-ci \
+  pod/pricing-be-rollout-7f8b9c-xyz \
+  --image=nicolaka/netshoot \
+  --target=pricing-be \
+  -it -- bash
+
+# Step 2: From inside the ephemeral container — DNS?
+nslookup postgres-cluster-primary.207804-postgres-ci.svc.cluster.local
+
+# Step 3: Can we actually reach the port?
+nc -vz postgres-cluster-primary.207804-postgres-ci.svc.cluster.local 5432
+
+# Step 4: If Istio is suspected — what does Envoy see?
+curl -s localhost:15000/clusters | grep postgres
+
+# Step 5: Check mTLS config
+curl -s localhost:15000/config_dump | jq '.configs[].dynamic_active_clusters'</code></pre>
+
+      <h3>Node-Level Debug — No SSH on Outposts</h3>
+      <div class="info-box">
+        <strong>Outposts context:</strong> You typically don't SSH into Outpost worker nodes directly (no jump host, restricted networking). <code>kubectl debug node/NODE_NAME</code> spins up a privileged pod on that node with <code>/host</code> mounted — you can check kubelet logs, containerd, disk without needing SSH access.
+      </div>
+
+      <span class="code-label">Node Debug From Kubectl</span>
+      <pre><code>kubectl debug node/ip-10-0-0-15.us-east-1.compute.internal \
+  -it --image=ubuntu -- bash
+
+# Inside the debug pod, root FS of node is at /host:
+chroot /host /bin/bash
+journalctl -u kubelet -n 200
+df -h
+ctr -n k8s.io containers list</code></pre>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 19: GATEWAY API                                           -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-gateway">
+      <div class="section-header">
+        <span class="section-num">G19</span>
+        <h2>Gateway API — The Successor to Ingress <span class="gap-badge gap-senior">Modern</span></h2>
+      </div>
+
+      <p>Ingress is frozen (no new features since ~2020). Gateway API is the official successor, GA in 1.29. You use Istio VirtualService today, which is spiritually similar — mention Gateway API as the emerging standard and you'll impress interviewers.</p>
+
+      <h3>Why Gateway API</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Problem with Ingress</th><th>How Gateway API fixes it</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>No header-based routing in vanilla Ingress</td>
+              <td class="td-green">HTTPRoute supports match-by-header, method, query</td>
+            </tr>
+            <tr>
+              <td>Annotations become a mess of controller-specific flags</td>
+              <td class="td-green">Typed fields, CRD-based, controller-neutral</td>
+            </tr>
+            <tr>
+              <td>Single persona (admin owns everything)</td>
+              <td class="td-green">Split across roles: Infra admin → Gateway, App team → HTTPRoute</td>
+            </tr>
+            <tr>
+              <td>Ingress can't do TCP/UDP/TLS passthrough well</td>
+              <td class="td-green">TCPRoute, UDPRoute, TLSRoute as first-class</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The Three Core Resources</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">cluster-level</div>
+          <div class="card-title">GatewayClass</div>
+          <div class="card-desc">Defines a controller implementation (<code>istio</code>, <code>nginx</code>, <code>contour</code>). Like StorageClass but for ingress.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">namespace</div>
+          <div class="card-title">Gateway</div>
+          <div class="card-desc">An actual load-balancer instance (IP, port, TLS). Owned by infra team. Analogue: your Istio ingressgateway Service.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">namespace</div>
+          <div class="card-title">HTTPRoute</div>
+          <div class="card-desc">Routing rules attached to a Gateway. Owned by app team. Analogue: your Istio VirtualService.</div>
+        </div>
+      </div>
+
+      <h3>Mapping to Your Istio Setup</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Your current Istio resource</th><th>Gateway API equivalent</th></tr></thead>
+          <tbody>
+            <tr><td><code>Gateway</code> (Istio CRD)</td><td><code>Gateway</code> (Gateway API)</td></tr>
+            <tr><td><code>VirtualService</code> (host/path routing)</td><td><code>HTTPRoute</code></td></tr>
+            <tr><td><code>DestinationRule</code> (subsets, traffic policy)</td><td>No direct equivalent — handled via extension refs or implementation-specific</td></tr>
+            <tr><td><code>AuthorizationPolicy</code> (mTLS AuthZ)</td><td>No direct equivalent — still uses Istio's AuthorizationPolicy in Istio Ambient + Gateway API</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Istio roadmap note:</strong> Istio now supports Gateway API natively — you can use HTTPRoute instead of VirtualService. Istio Ambient mode (sidecarless) leans heavily on Gateway API. Worth mentioning you're aware of this direction even if your platform still runs classic sidecar mode today.
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- GAP 20: AWS OUTPOSTS DEEP DIVE                                -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-outposts">
+      <div class="section-header">
+        <span class="section-num">G20</span>
+        <h2>AWS Outposts — Deep Dive <span class="gap-badge gap-outpost">Your Platform</span> <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>You've been running on Outposts for 1+ year. Interviewers will dig in. The base 02.13 covers the high-level "what is Outposts" — this goes deeper: architecture, service link, LGW, failure modes, capacity planning, and what actually breaks.</p>
+
+      <h3>Outposts Architecture — The Physical Picture</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Outposts Deployment — Control Plane in Region, Data Plane On-Prem</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-op1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-op1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-op1')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-op1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    subgraph REGION["AWS Region (us-east-1)"]
+        EKS["EKS Control Plane\nAPI server · etcd\nmanaged by AWS"]
+        ECR["ECR 833618288067"]
+        SM["Secrets Manager"]
+        DDB["DynamoDB"]
+    end
+
+    subgraph TRDC["TR Data Center"]
+        subgraph RACK["AWS Outpost Rack"]
+            NODES["Worker Nodes\n(EC2 on-prem)\nyour pods"]
+            EBSLOC["EBS Local"]
+            S3OP["S3 on Outposts\n(separate service)"]
+        end
+        ONPREM["On-Prem DBs\nLegacy Systems"]
+        PROXY["Corporate Proxy"]
+    end
+
+    REGION -- "Service Link\n(private VPN\nover DX/internet)" --> RACK
+    NODES -- "LGW\n(Local Gateway)" --> ONPREM
+    NODES -- "via proxy" --> PROXY
+    PROXY -- "to internet / SM / ECR" --> REGION
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>The Two Networks — This Is The Whole Game</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Path</th><th>What uses it</th><th>Bandwidth</th><th>Failure effect</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-blue"><strong>Service Link</strong> (Outpost ↔ Region)</td>
+              <td>EKS API server, ECR pulls, Secrets Manager, DynamoDB (regional), S3 regional, CloudWatch</td>
+              <td>Sized per Outpost config (1/10/100 Gbps). Usually 10 Gbps.</td>
+              <td>Existing pods run. No new scheduling. No S3 regional. No Secrets Manager sync.</td>
+            </tr>
+            <tr>
+              <td class="td-green"><strong>Local Gateway (LGW)</strong> (Outpost ↔ Customer LAN)</td>
+              <td>Pod-to-on-prem-DB, pod-to-legacy-systems, traffic to TR corporate network</td>
+              <td>Customer-owned connectivity (BGP-routed to ToR switches)</td>
+              <td>On-prem DB unreachable. Internal traffic to TR systems dies. Intra-cluster still works.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>What Runs In Region vs On the Outpost</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">region</div>
+          <div class="card-title">EKS control plane</div>
+          <div class="card-desc">API server, etcd, scheduler, controller manager — all in AWS us-east-1. Worker nodes connect back over the Service Link.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">region</div>
+          <div class="card-title">ECR (container registry)</div>
+          <div class="card-desc">Image 833618288067 is regional. Node pulls cross the Service Link. ImagePullBackOff during link degradation.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">region</div>
+          <div class="card-title">Secrets Manager</div>
+          <div class="card-desc">ExternalSecrets Operator pulls from regional SM via VPC endpoint (if configured) or through proxy. Every 5 min default refresh.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">outpost</div>
+          <div class="card-title">EC2 worker nodes</div>
+          <div class="card-desc">Physical servers in the rack. Limited to Outposts-supported instance types (r5/m5/c5 + m6i/r6i family on newer racks).</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">outpost</div>
+          <div class="card-title">EBS gp2 local</div>
+          <div class="card-desc">Local SSD in the rack. gp2 only (no gp3 on many Outposts). Capacity is <strong>finite and pre-provisioned</strong> — your 200Gi → 600Gi PVC expansion was against this fixed pool.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">outpost</div>
+          <div class="card-title">S3 on Outposts</div>
+          <div class="card-desc">Completely separate service from regional S3. Different endpoint, different pricing, eventual consistency. Used when data must stay local.</div>
+        </div>
+      </div>
+
+      <h3>The Proxy Problem — Why NO_PROXY Is A Nightmare</h3>
+      <div class="warn-box">
+        <strong>Per-service proxy config:</strong> On Outposts, pods are on-prem. To reach AWS regional services, traffic must traverse the corporate proxy → out TR's internet egress → back into AWS. But internal K8s traffic (service mesh, CoreDNS, pod-to-pod) must <em>not</em> go through the proxy. Every service's Helm values has:
+      </div>
+
+      <span class="code-label">Per-Service NO_PROXY Pattern</span>
+      <pre><code>env:
+  HTTP_PROXY: "http://proxy.int.thomsonreuters.com:8080"
+  HTTPS_PROXY: "http://proxy.int.thomsonreuters.com:8080"
+  NO_PROXY: "10.0.0.0/8,.svc,.cluster.local,\
+    dynamodb.us-east-1.amazonaws.com,\
+    dynamodb.us-east-1.vpce.amazonaws.com,\
+    secretsmanager.us-east-1.amazonaws.com,\
+    *.s3.us-east-1.amazonaws.com,\
+    localhost,127.0.0.1"</code></pre>
+
+      <div class="info-box">
+        <strong>Each service needs a slightly different NO_PROXY</strong> because each one talks to different AWS services. Reports-be talks to Commercial Gateway hostnames — those must be in NO_PROXY or requests try to go via the proxy and fail. This was the root cause of <strong>INC-004</strong> (Reports timing out 53-57 seconds). Getting the NO_PROXY wrong is one of the most common Outposts operational bugs.
+      </div>
+
+      <h3>Failure Modes — What Actually Happens</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Failure</th><th>Observable behavior</th><th>What still works</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Service Link fully down</strong></td>
+              <td>EKS shows nodes as NotReady after <code>node-monitor-grace-period</code> (40s default). No new pods scheduled. ECR pulls fail.</td>
+              <td class="td-green">Existing pods keep running. CoreDNS cache serves intra-cluster DNS. Istio sidecars keep routing. Local traffic (via LGW) still works.</td>
+            </tr>
+            <tr>
+              <td><strong>Service Link degraded (high latency)</strong></td>
+              <td>kubelet heartbeat intermittent. Node flips Ready/NotReady. HPA metrics stale. Image pulls slow.</td>
+              <td class="td-amber">Running workloads mostly fine. Deployments slow or time out.</td>
+            </tr>
+            <tr>
+              <td><strong>LGW down (customer-side)</strong></td>
+              <td>Pods can't reach on-prem PostgreSQL/RabbitMQ/legacy systems. Readiness probes fail. Services removed from Istio routing.</td>
+              <td class="td-green">Cluster control plane OK. ECR OK. Intra-cluster services still work. Just can't reach on-prem deps.</td>
+            </tr>
+            <tr>
+              <td><strong>Outpost rack power/cooling</strong></td>
+              <td>Nodes go NotReady simultaneously. Involuntary pod termination.</td>
+              <td class="td-amber">Only if you have a DR cluster, failover kicks in. Otherwise total platform outage.</td>
+            </tr>
+            <tr>
+              <td><strong>Outpost capacity exhausted</strong></td>
+              <td>New pods stuck Pending with <code>0/N nodes have enough CPU/memory</code>. PVCs stuck Pending if local EBS full.</td>
+              <td class="td-blue">Existing workloads unaffected. Need AWS support to physically add capacity.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Capacity Planning — Different From Cloud</h3>
+      <div class="warn-box">
+        <strong>In the cloud, you don't plan capacity — AWS does.</strong> On Outposts, capacity is fixed by the rack hardware. If you need more, you file a capacity increase ticket with AWS and wait weeks for a physical rack upgrade. Planning matters:
+        <ul>
+          <li><strong>CPU/memory headroom:</strong> Size your cluster for peak + 20% headroom. HPAs can't magically scale past the rack limit.</li>
+          <li><strong>EBS local capacity:</strong> Pre-allocated at rack provision time. Enabling PVC expansion (<code>allowVolumeExpansion: true</code>) lets you grow individual PVCs up to the pool limit.</li>
+          <li><strong>IP addresses:</strong> VPC CNI uses real IPs. Outposts CIDRs are TR-allocated on-prem ranges — much smaller than cloud VPCs. Enable <strong>prefix delegation</strong> (/28 prefixes per ENI) for ~16x more IPs per node.</li>
+          <li><strong>Instance type diversity:</strong> Outposts only stocks specific EC2 types. No m7i/r7i. No Graviton/ARM. Plan for what the rack actually has.</li>
+        </ul>
+      </div>
+
+      <h3>IAM + IRSA on Outposts</h3>
+      <div class="info-box">
+        <strong>IRSA still works.</strong> The EKS control plane is in the Region; IAM is a global service; the OIDC federation flow completes over the Service Link. Your pods get AWS credentials just like cloud EKS. The one caveat: if the Service Link is down, pods may not be able to refresh credentials when they expire (~1 hour) — eventual AWS API call failures even on pods that were running fine.
+      </div>
+
+      <h3>Why TR Chose Outposts — The Interview Answer</h3>
+      <div class="success-box">
+        <strong>Three reasons:</strong>
+        <ol>
+          <li><strong>Data residency.</strong> TR audit/confirmation data must stay within TR's physical boundary for regulatory reasons. Regional EKS puts data in AWS us-east-1 data centers; Outposts keeps it in TR's own data center.</li>
+          <li><strong>Sub-millisecond latency to on-prem systems.</strong> Confirmation platform talks to on-prem legacy systems and some databases. Cloud EKS + DirectConnect adds 5-10ms per round trip, which compounds across microservice chains. Outposts + LGW is LAN-local.</li>
+          <li><strong>API compatibility.</strong> Same Kubernetes APIs, same Helm charts, same ArgoCD pipeline as cloud EKS. Migration from cloud → Outposts was mostly values.yaml changes (nodeAffinity, storage classes, proxy config) — no fundamental rearchitecture.</li>
+        </ol>
+      </div>
+
+      <h3>Outposts Gotchas — What Bit Us</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Gotcha</th><th>Why</th><th>Fix / Workaround</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>PVC expansion limit</td>
+              <td>Local EBS pool is fixed; can only grow PVCs up to free pool capacity</td>
+              <td>Monitor pool utilization in CloudWatch; file capacity increase ticket early</td>
+            </tr>
+            <tr>
+              <td>gp2-only on older racks</td>
+              <td>gp3 requires newer Outpost generation</td>
+              <td>Explicitly set <code>storageClassName: gp2-local</code> in PVCs; know your rack's support matrix</td>
+            </tr>
+            <tr>
+              <td>IP exhaustion faster than cloud</td>
+              <td>Outpost CIDR is on-prem allocation, smaller than cloud VPC</td>
+              <td>Enable VPC CNI prefix delegation (/28 prefixes → 16x IPs per ENI)</td>
+            </tr>
+            <tr>
+              <td>ECR pull rate limits during deploys</td>
+              <td>All nodes pull over single Service Link</td>
+              <td>Image pull secrets + stagger deploys; consider pulling to an internal registry mirror</td>
+            </tr>
+            <tr>
+              <td>CloudWatch metric lag during link congestion</td>
+              <td>Metrics flow over Service Link; congestion delays them</td>
+              <td>Use Datadog Agent (DaemonSet) for local-first metric collection; CloudWatch as secondary</td>
+            </tr>
+            <tr>
+              <td>AWS Service Catalog limitations</td>
+              <td>Not every AWS service has an Outposts variant (Lambda, Fargate limited)</td>
+              <td>Check the <a style="color: var(--accent2);" href="https://docs.aws.amazon.com/outposts/latest/userguide/outposts-supported-services.html">supported services matrix</a> before architecture decisions</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Walk me through what would happen if your Outpost's Service Link went down at 3 AM."</div>
+        <div class="qa-answer">
+          "I've thought about this scenario — it's a real operational risk.
+          <ol>
+            <li><strong>t+0</strong>: Link severs. No immediate symptom — worker nodes have cached kubelet auth tokens, pods are running.</li>
+            <li><strong>t+40s</strong>: kubelet can't reach API server. <code>node-monitor-grace-period</code> expires → nodes marked NotReady from controller's perspective.</li>
+            <li><strong>t+5min</strong>: <code>tolerationSeconds</code> on default pod tolerations expires → controller starts <em>trying</em> to evict pods from NotReady nodes. But the API request itself has to traverse the link, so evictions don't actually happen.</li>
+            <li><strong>Ongoing</strong>: Existing pods keep running — kubelet still manages them locally from cached specs. On-prem DB traffic via LGW still works. Istio sidecars keep routing. Requests from TR users to the platform still succeed if they hit the Outpost via LGW.</li>
+            <li><strong>What breaks:</strong> ImagePullBackOff on any new pod (ECR unreachable). ExternalSecrets refresh fails (pods with rotated secrets eventually get stale values). No scaling, no config changes, no deploys.</li>
+            <li><strong>Recovery:</strong> Link restores → heartbeats resume → nodes flip back to Ready → any in-flight ArgoCD syncs complete. Usually self-healing within minutes once connectivity restores.</li>
+          </ol>
+          <strong>What we monitor:</strong> We have a Datadog monitor on the Service Link latency metric (via CloudWatch). Alert fires at &gt;100ms p95 sustained, pages at &gt;500ms. For the actual mitigation on prolonged outage, we'd failover traffic to the DR cluster in a separate Outpost — but that's CHG-ticket-gated and not automatic."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why not just run in the cloud? What justifies Outposts' cost and complexity?"</div>
+        <div class="qa-answer">
+          "Honest answer — for a pure greenfield app with no data locality constraints, cloud is simpler and cheaper. Outposts adds rack cost (6-figure monthly), capacity planning overhead, and operational complexity (proxy, LGW, Service Link, limited instance types).
+          <br><br>
+          The justification for us is specifically: <strong>(1) regulatory data residency</strong> (audit data must stay in TR's physical footprint), <strong>(2) sub-ms latency to legacy on-prem systems</strong> that can't move to cloud, and <strong>(3) a hybrid consistency story</strong> — we run the same EKS/Helm/ArgoCD pipeline that cloud EKS does, so our engineers develop against cloud and deploy to Outposts with mostly config-level changes.
+          <br><br>
+          If you removed any one of those three drivers, I'd probably recommend cloud EKS + DirectConnect instead. Outposts is the right tool for a specific compliance + latency combination — not a default."
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<nav class="bottom-nav">
+  <a href="02c-kubernetes-gaps-part-b.html">&larr; Previous: Gaps Part B (VPA · Init · ConfigMap · CRD)</a>
+  <span class="nav-index">Gaps Part C of 3 — Complete</span>
+  <a href="03-istio-service-mesh.html">Next: Istio Service Mesh &rarr;</a>
+</nav>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true, theme: 'base',
+    themeVariables: { primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#22c55e', lineColor: '#7a9ab5', secondaryColor: '#0f1826', tertiaryColor: '#090d1a', background: '#090d1a', mainBkg: '#141f35', nodeBorder: '#1d2d4f', clusterBkg: '#0f1826', titleColor: '#dce8f5', edgeLabelBackground: '#0f1826', fontFamily: 'DM Sans, sans-serif', fontSize: '15px' },
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true }
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  const scales = {};
+  function zoom(id, f) { scales[id] = (scales[id] || 1) * f; document.getElementById(id).style.transform = `scale(${scales[id]})`; }
+  function reset(id) { scales[id] = 1; document.getElementById(id).style.transform = 'scale(1)'; }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#${id}`));
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
