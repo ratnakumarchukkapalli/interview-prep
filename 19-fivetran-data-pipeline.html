@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 19: Fivetran + dbt Data Pipeline | Schema Remapping · Replication Slots · Apr-26 Incident · Citus DWH · Medallion · K8s Migration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #090d1a; --surface: #0f1826; --surface2: #141f35; --border: #1d2d4f;
+      --text: #dce8f5; --text-muted: #7a9ab5;
+      --accent: #22c55e; --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8; --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b; --accent3-dim: rgba(245,158,11,0.12);
+      --accent4: #a78bfa; --accent4-dim: rgba(167,139,250,0.12);
+      --code-bg: #060a13; --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif; --font-mono: 'Fira Code', monospace; --radius: 8px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+    .hero { background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%); border-bottom: 1px solid var(--border); padding: 3rem 2rem 2.5rem; }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge { font-family: var(--font-mono); font-size: 0.68rem; padding: 0.2rem 0.55rem; border-radius: 4px; letter-spacing: 0.05em; }
+    .badge-green  { background: var(--accent-dim);  color: var(--accent);  border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue   { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber  { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-purple { background: var(--accent4-dim); color: var(--accent4); border: 1px solid rgba(167,139,250,0.3); }
+    .hero h1 { font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; letter-spacing: -0.025em; }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); font-family: var(--font-mono); }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: var(--radius); padding: 0.35rem 0.7rem; cursor: pointer; font-family: var(--font-mono); font-size: 0.72rem; z-index: 100; transition: border-color 0.15s, color 0.15s; }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    .layout { display: flex; max-width: 1240px; margin: 0 auto; padding: 2rem; gap: 2.5rem; }
+    .toc { width: 220px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title { font-family: var(--font-mono); font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 0.65rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a { display: block; padding: 0.28rem 0.6rem; color: var(--text-muted); text-decoration: none; font-size: 0.78rem; border-radius: 4px; border-left: 2px solid transparent; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+    .toc-list a:hover, .toc-list a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    .main-content { flex: 1; min-width: 0; }
+    .section { margin-bottom: 3.5rem; }
+    .section-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.25rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border); }
+    .section-num { font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent); background: var(--accent-dim); padding: 0.15rem 0.4rem; border-radius: 3px; flex-shrink: 0; }
+    .section h2 { font-size: 1.3rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+    .section h3 { font-size: 0.93rem; font-weight: 600; color: var(--accent2); margin: 1.5rem 0 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--font-mono); }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th { background: var(--surface2); color: var(--accent); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); font-family: var(--font-mono); }
+    tbody td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+    .td-green  { color: var(--accent)  !important; font-weight: 500; }
+    .td-blue   { color: var(--accent2) !important; }
+    .td-amber  { color: var(--accent3) !important; }
+    .td-purple { color: var(--accent4) !important; }
+
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; overflow-x: auto; margin-bottom: 1.25rem; white-space: pre-wrap; word-break: break-all; }
+    pre code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); background: none; padding: 0; }
+    .code-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.4rem; display: block; }
+
+    .diagram-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; margin-bottom: 1.5rem; }
+    .diagram-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .diagram-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s, color 0.15s; }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow-x: auto; width: 100%; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; width: 100%; }
+    .mermaid { width: 100%; }
+    .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+
+    .info-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .info-box strong { color: var(--accent2); }
+    .warn-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent3); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .warn-box strong { color: var(--accent3); }
+    .success-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .success-box strong { color: var(--accent); }
+
+    .qa-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1.25rem; }
+    .qa-question { font-weight: 600; color: var(--accent); font-size: 0.88rem; margin-bottom: 0.6rem; font-family: var(--font-mono); }
+    .qa-answer { color: var(--text-muted); font-size: 0.85rem; line-height: 1.65; }
+    .qa-answer strong { color: var(--text); }
+    .qa-answer ol, .qa-answer ul { padding-left: 1.2rem; margin: 0.4rem 0; }
+    .qa-answer li { margin-bottom: 0.25rem; }
+    .qa-answer code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+    .analogy-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent4); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .analogy-box strong { color: var(--accent4); }
+    .analogy-label { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent4); margin-bottom: 0.35rem; display: block; }
+
+    .component-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .component-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; transition: border-color 0.15s; }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.3rem; }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num { flex-shrink: 0; width: 26px; height: 26px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; margin-top: 0.15rem; }
+    .step-body {}
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    .gap-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.15rem 0.45rem; border-radius: 3px; margin-left: 0.5rem; vertical-align: middle; }
+    .gap-high     { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .gap-medium   { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .gap-senior   { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+    .gap-outpost  { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+
+    .bottom-nav { max-width: 1240px; margin: 0 auto; padding: 1.5rem 2rem 3rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); gap: 1rem; flex-wrap: wrap; }
+    .bottom-nav a { color: var(--accent2); text-decoration: none; font-size: 0.82rem; font-family: var(--font-mono); padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); transition: border-color 0.15s, color 0.15s; }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--accent); }
+    .bottom-nav .nav-index { color: var(--text-muted); font-size: 0.75rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    @media (max-width: 860px) { .toc { display: none; } .layout { padding: 1rem; } .hero h1 { font-size: 1.5rem; } .bottom-nav { flex-direction: column; text-align: center; } }
+    body.light { --bg: #f2f6fc; --surface: #ffffff; --surface2: #eaeff8; --border: #c8d6e8; --text: #1a2535; --text-muted: #4f6880; --code-bg: #e2eaf5; --code-text: #1d5fa0; }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">Fivetran + dbt</span>
+      <span class="badge badge-amber">ELT Pipeline</span>
+      <span class="badge badge-purple">New Section</span>
+    </div>
+    <h1>Section 19: Fivetran + dbt Data Pipeline</h1>
+    <p class="hero-sub">Schema remapping &middot; WAL replication slots &middot; 3-layer slot protection &middot; Apr-26 21h outage (STAR) &middot; Citus DWH &middot; Medallion architecture &middot; EC2 to K8s migration plan</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Sections</span>
+        <span class="hero-meta-value">10 topics</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Pipeline Scope</span>
+        <span class="hero-meta-value">15 connectors &middot; 5 DBs &times; 3 envs</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">War Story</span>
+        <span class="hero-meta-value">Apr 26-27 2026 &middot; 21h outage</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Grounded in</span>
+        <span class="hero-meta-value">postgres-cluster &middot; postgres-dwh &middot; Fivetran agent</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Section 19 Contents</div>
+      <ul class="toc-list">
+        <li><a href="#s-overview">19.1 &middot; Why Fivetran?</a></li>
+        <li><a href="#s-overview" class="toc-sub">Schema remapping problem</a></li>
+        <li><a href="#s-arch">19.2 &middot; 6-Component Architecture</a></li>
+        <li><a href="#s-slots">19.3 &middot; Replication Slots</a></li>
+        <li><a href="#s-slots" class="toc-sub">3-layer protection</a></li>
+        <li><a href="#s-connectivity">19.4 &middot; Port Multiplexing</a></li>
+        <li><a href="#s-agent-incident">19.5 &middot; Apr-26 Incident (STAR)</a></li>
+        <li><a href="#s-dwh-citus">19.6 &middot; postgres-dwh + Citus</a></li>
+        <li><a href="#s-dbt">19.7 &middot; dbt + Medallion</a></li>
+        <li><a href="#s-bi">19.8 &middot; Power BI Gateway</a></li>
+        <li><a href="#s-migration">19.9 &middot; EC2 &rarr; K8s Migration</a></li>
+        <li><a href="#s-interview">19.10 &middot; Mock Interview Bank</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- ============================================================ -->
+    <!-- 19.1 OVERVIEW: WHY FIVETRAN                                   -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-overview">
+      <div class="section-header">
+        <span class="section-num">19.1</span>
+        <h2>Why Fivetran? The Schema Remapping Problem <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>The first question any data architect will ask is "why pay for Fivetran when PostgreSQL has native logical replication built in?" The answer is a single, hard PostgreSQL limitation: <strong>native logical replication cannot remap schema names from publisher to subscriber.</strong> That one line is why Fivetran exists in our architecture.</p>
+
+      <h3>The Goal</h3>
+      <p>Replicate data from <strong>5 source databases</strong> (<code>cfm_core_{env}</code>, <code>cfm_core_rel_{env}</code>, <code>cfm_forms_{env}</code>, <code>cfm_pricing_{env}</code>, <code>cfm_record_{env}</code>) into <strong>1 destination database</strong> (<code>cfm_datalake_{env}</code>) on the data warehouse. dbt then transforms this raw data into analytics tables that Power BI reads.</p>
+
+      <h3>The PostgreSQL Restriction (verbatim from the docs)</h3>
+      <div class="warn-box">
+        <strong>From <code>postgresql.org/docs/current/logical-replication-restrictions.html</code>:</strong> &ldquo;The tables are matched between the publisher and the subscriber using the <em>fully qualified table name</em>. Replication to differently-named tables on the subscriber is not supported.&rdquo; Unchanged from PG 10 through PG 18. There is no <code>MAP SCHEMA</code> parameter, no configuration option, no extension hook in core PG.
+      </div>
+
+      <h3>The Collision</h3>
+      <p>Multiple source databases share the same table names under the <code>public</code> schema. With native PG replication into one destination:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Source DB</th><th>Source table</th><th>Destination (forced by PG)</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td><code>cfm_core_ci</code></td><td><code>public.orleansstorage</code></td><td><code>public.orleansstorage</code></td><td class="td-green">First write OK</td></tr>
+            <tr><td><code>cfm_record_ci</code></td><td><code>public.orleansstorage</code></td><td><code>public.orleansstorage</code></td><td class="td-amber">PK collision</td></tr>
+            <tr><td><code>cfm_forms_ci</code></td><td><code>public.orleansstorage</code></td><td><code>public.orleansstorage</code></td><td class="td-amber">PK collision</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Even if you pre-create schemas like <code>_raw_cfm_core_ci</code> on the destination, native replication won't use them. When a WAL record arrives tagged <code>public.orleansstorage</code>, PG looks for exactly that — not your custom schema.</p>
+
+      <h3>How Fivetran Solves It</h3>
+      <p>Fivetran does <strong>not</strong> use PG's native subscriber. Instead it:</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Reads the WAL independently via <code>pgoutput</code></div>
+            <div class="step-desc">Same protocol PG uses, but Fivetran is the consumer, not another PG instance. It owns the replication slot, holds the LSN bookmark, and decodes row-level changes itself.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Adds a configurable schema prefix per connector</div>
+            <div class="step-desc">Each connector has a <code>destination schema prefix</code> setting in the Fivetran UI. Source <code>public.X</code> from <code>cfm_core_ci</code> gets rewritten to <code>_raw_cfm_core_public.X</code> before write.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Writes with its own INSERT/UPDATE statements</div>
+            <div class="step-desc">Not WAL replay — regular SQL DML against the destination. Fivetran chooses the schema name. No collision. Auto-creates schema and tables if they don't exist.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>The 5 Connector Schema Mapping</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Connector</th><th>Source DB</th><th>Prefix</th><th>Destination schema</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>cfm_core_{env}</code></td><td><code>_raw_cfm_core</code></td><td class="td-blue"><code>_raw_cfm_core_public</code></td></tr>
+            <tr><td>2</td><td><code>cfm_core_rel_{env}</code></td><td><code>_raw_cfm_core_rel</code></td><td class="td-blue"><code>_raw_cfm_core_rel_public</code></td></tr>
+            <tr><td>3</td><td><code>cfm_forms_{env}</code></td><td><code>_raw_cfm_forms</code></td><td class="td-blue"><code>_raw_cfm_forms_public</code></td></tr>
+            <tr><td>4</td><td><code>cfm_pricing_{env}</code></td><td><code>_raw_cfm_pricing</code></td><td class="td-blue"><code>_raw_cfm_pricing_public</code></td></tr>
+            <tr><td>5</td><td><code>cfm_record_{env}</code></td><td><code>_raw_cfm_record</code></td><td class="td-blue"><code>_raw_cfm_record_public</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Naming formula:</strong> <code>{prefix}_{source_schema}</code>. Fivetran appends <code>_public</code> because the source schema is <code>public</code>. Result: 5 collision-free Bronze schemas in <code>cfm_datalake_{env}</code>, dbt knows exactly which source produced which row.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Can't you just use native PostgreSQL logical replication and skip the Fivetran cost?"</div>
+        <div class="qa-answer">
+          "No, and the reason is specific. Native PG replication matches publisher tables to subscriber tables by fully qualified name — <code>schema.table</code>. The PG docs spell it out: <em>replication to differently-named tables on the subscriber is not supported</em>, unchanged from PG 10 through PG 18. We have 5 source databases, each with a <code>public.orleansstorage</code> table. They all need to land in <strong>one</strong> destination database for dbt to do cross-source joins. Without remapping, three of those five writes collide on the same <code>public.orleansstorage</code> primary key.<br><br>
+          We considered alternatives: separate destination DB per source breaks cross-DB joins in PG, trigger-based forwarding doubles write load and is fragile, <code>pglogical</code> isn't supported by our PGO/Crunchy operator, and Debezium+Kafka is an entire CDC platform to maintain for 5 connectors. Fivetran's schema prefix feature solves the only blocker for ~$1,500/mo plus an EC2 agent. Cheap relative to what we'd build otherwise.<br><br>
+          The honest framing: we're not paying Fivetran for its 600+ connector ecosystem — we use exactly one connector type (PostgreSQL). We're paying it to do <code>{prefix}_{source_schema}</code> remapping that core PG cannot do."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.2 ARCHITECTURE                                             -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-arch">
+      <div class="section-header">
+        <span class="section-num">19.2</span>
+        <h2>6-Component ELT Architecture</h2>
+      </div>
+
+      <p>The full pipeline is <strong>15 connectors</strong> (5 source DBs &times; 3 environments — CI / Demo / QA) running through one Fivetran EC2 agent into a Citus-extended postgres-dwh, transformed by dbt, and exposed to Power BI via an on-prem gateway.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">End-to-End Pipeline &mdash; postgres-cluster &rarr; Fivetran &rarr; postgres-dwh &rarr; dbt &rarr; Power BI</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-pipeline', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-pipeline', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-pipeline')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-pipeline">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TB
+    subgraph SRC["postgres-cluster (PGO + Patroni) - 5 DBs x 3 envs"]
+      CORE["cfm_core_{env}"]
+      RELS["cfm_core_rel_{env}"]
+      FORMS["cfm_forms_{env}"]
+      PRICE["cfm_pricing_{env}"]
+      REC["cfm_record_{env}"]
+      SLOTS["5 logical slots\nfivetran_*_slot"]
+    end
+
+    subgraph EC2["Fivetran EC2 Agent (Outpost)"]
+      CTRL["controller container\nldp-agent:production"]
+      DONK["donkey containers\n(spawned per sync)"]
+    end
+
+    SAAS["Fivetran Cloud SaaS\n15 connectors\nschedule + retry"]
+
+    subgraph DWH["postgres-dwh (Citus 13 - coord + 2 workers)"]
+      BRONZE["Bronze: _raw_cfm_*_public"]
+      SILVER["Silver: analytics_base, analytics"]
+      GOLD["Gold: analytics_presentation"]
+    end
+
+    HD["HookDeck\nwebhook relay"]
+    GHA["GitHub Actions\nself-hosted runner\ndbt deps/seed/run/test"]
+
+    subgraph PBI["Power BI"]
+      GW["On-prem Gateway EC2\ni-0ce3baa8cb2d41606"]
+      CLOUD["Power BI Cloud\nscheduled refresh"]
+    end
+
+    SRC -->|WAL via slots| EC2
+    EC2 -->|HTTPS via corp proxy| SAAS
+    SAAS -->|writes _raw_*| BRONZE
+    SAAS -->|sync done webhook| HD
+    HD -->|repository_dispatch| GHA
+    GHA -->|dbt run| SILVER
+    SILVER --> GOLD
+    GOLD -->|TCP 5432| GW
+    GW -->|HTTPS| CLOUD
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>The 6 Components</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Component</th><th>Where</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td class="td-green"><strong>postgres-cluster</strong></td>
+              <td>EKS (3 namespaces)</td>
+              <td>Source OLTP DBs. PGO-managed PG 16, Patroni HA. <code>wal_level=logical</code>, 5 replication slots per env hold the bookmarks Fivetran reads from.</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td class="td-amber"><strong>Fivetran EC2 agent</strong></td>
+              <td>EC2 <code>i-0fc07642a57b87826</code><br>r5.4xlarge on Outpost</td>
+              <td>Hybrid Deployment Agent. Docker controller + per-sync donkey workers. Bridges private Outpost network to Fivetran SaaS via corp proxy.</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td class="td-blue"><strong>Fivetran Cloud (SaaS)</strong></td>
+              <td><code>fivetran.com/dashboard</code></td>
+              <td>Orchestrates the 15 connectors. Stores schedule, schema mapping, retry policy. Issues sync instructions to the agent over outbound HTTPS only.</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td class="td-green"><strong>postgres-dwh</strong></td>
+              <td>EKS namespace<br><code>207804-datawarehouse-preprod</code></td>
+              <td>Citus 13.0.0 cluster (1 coordinator + 2 workers). Holds <code>cfm_datalake_{ci,demo,qa}</code>. Fivetran writes Bronze schemas; dbt writes Silver/Gold.</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td class="td-purple"><strong>dbt (transformations)</strong></td>
+              <td>GitHub Actions on self-hosted EC2 runner</td>
+              <td><code>dbt-core 1.9.2</code>. 107 SQL models. Triggered by webhook on sync complete via HookDeck. Writes <code>analytics_*</code> schemas.</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td class="td-amber"><strong>Power BI Gateway</strong></td>
+              <td>EC2 <code>i-0ce3baa8cb2d41606</code><br>Windows c5.4xlarge</td>
+              <td>On-premises data gateway. Reads only Gold (<code>analytics_presentation</code>). Fronts private DWH to Power BI Cloud via outbound HTTPS.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Data Flow Direction Summary</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hop</th><th>Direction</th><th>Protocol</th><th>Initiator</th></tr></thead>
+          <tbody>
+            <tr><td>Source PG &rarr; Agent</td><td class="td-blue">PULL</td><td>PG replication (WAL via <code>pgoutput</code>)</td><td>EC2 donkey reads from slot</td></tr>
+            <tr><td>Agent &rarr; Fivetran Cloud</td><td class="td-amber">PUSH</td><td>HTTPS (compressed, encrypted)</td><td>EC2 controller polls cloud</td></tr>
+            <tr><td>Fivetran Cloud &rarr; DWH</td><td class="td-amber">PUSH</td><td>PostgreSQL (INSERT to <code>_raw_*</code>)</td><td>donkey writes</td></tr>
+            <tr><td>DWH &rarr; dbt</td><td class="td-purple">TRIGGER</td><td>Webhook via HookDeck</td><td>Fivetran Cloud fires</td></tr>
+            <tr><td>dbt &rarr; DWH</td><td class="td-amber">PUSH</td><td>PostgreSQL DDL/DML</td><td>dbt runner</td></tr>
+            <tr><td>DWH &rarr; Power BI</td><td class="td-blue">PULL</td><td>PostgreSQL (Gateway query)</td><td>Power BI Cloud schedule</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Key insight:</strong> The EC2 agent <em>never</em> connects to postgres-dwh directly. It only reads source DBs and pushes to Fivetran SaaS. Fivetran Cloud handles the destination write. So a DWH connectivity problem from the agent's side is impossible — it has no DWH connection to break.
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.3 SLOTS                                                    -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-slots">
+      <div class="section-header">
+        <span class="section-num">19.3</span>
+        <h2>Replication Slots &mdash; 3-Layer Protection <span class="gap-badge gap-high">Critical</span></h2>
+      </div>
+
+      <p>A <strong>logical replication slot</strong> is a server-side bookmark on the WAL — PG won't recycle WAL the slot still needs. Lose a slot and Fivetran has to do a full historical re-sync, which is hours of analytics downtime per environment. We have <strong>5 slots &times; 3 envs = 15 critical bookmarks</strong>. Three independent layers protect them.</p>
+
+      <h3>Why Slot Loss Hurts So Much</h3>
+      <div class="warn-box">
+        <strong>Lost slot &rArr; full re-sync.</strong> When Fivetran's bookmark disappears, the agent has no LSN to resume from. The connector flips to <code>historical=true</code> and re-reads every row in the source table. For a busy <code>cfm_core_{env}</code> with hundreds of millions of rows, that is <strong>4-6 hours of catch-up</strong> per connector. Power BI dashboards stay stale until the connector returns to incremental mode. This is the most expensive failure mode in the pipeline.
+      </div>
+
+      <h3>The Slot States You Need to Recognise</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th><code>wal_status</code></th><th>Bound by</th><th>Meaning</th><th>Risk</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><code>reserved</code></td><td><code>max_wal_size</code></td><td>Healthy. WAL within normal recycle window.</td><td>None</td></tr>
+            <tr><td class="td-amber"><code>extended</code></td><td><code>max_slot_wal_keep_size</code></td><td>WAL grew past <code>max_wal_size</code> to keep slot alive.</td><td>Disk pressure. Consumer is lagging.</td></tr>
+            <tr><td class="td-amber"><code>unreserved</code></td><td>(about to disappear)</td><td>WAL exceeds even <code>max_slot_wal_keep_size</code>.</td><td>Critical &mdash; slot about to be dropped.</td></tr>
+            <tr><td class="td-blue" style="color:#f87171 !important"><code>lost</code></td><td>(gone)</td><td>WAL deleted, slot dead.</td><td>Fatal &mdash; full historical re-sync needed.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Three Layers of Defense</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">3-Layer Slot Protection &mdash; PG Params &rarr; Patroni useSlots &rarr; Slot Manager CronJob</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-slots', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-slots', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-slots')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-slots">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TB
+    subgraph L1["Layer 1 - PostgreSQL params (per cluster)"]
+      P1["wal_level = logical"]
+      P2["max_replication_slots = 20"]
+      P3["max_wal_senders = 20"]
+      P4["hot_standby_feedback = on\n(replicas tell primary needed LSN)"]
+      P5["max_slot_wal_keep_size = 15GB\n(safety cap before drop)"]
+    end
+
+    subgraph L2["Layer 2 - Patroni useSlots: true"]
+      PA1["Patroni copies slot LSN\nstate to ALL standbys"]
+      PA2["On failover: new primary\nalready has all slot positions"]
+      PA3["Fivetran resumes\nwithout gap"]
+    end
+
+    subgraph L3["Layer 3 - Slot Manager CronJob */5 * * * *"]
+      SM1["1. SELECT pg_replication_slots"]
+      SM2["2. If MISSING -> CREATE_REPLICATION_SLOT"]
+      SM3["3. If wal_status=lost -> drop, recreate"]
+      SM4["4. POST Fivetran API\n/v1/connectors/{id}/resync"]
+      SM5["Heals + auto-resyncs"]
+    end
+
+    L1 -->|protects WAL retention| L2
+    L2 -->|state survives failover| L3
+    L3 -->|recreates if all else fails| L1
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Layer 1 &mdash; PostgreSQL WAL Parameters</h3>
+      <span class="code-label">postgres-cluster Patroni config</span>
+      <pre><code>parameters:
+  wal_level: logical                  # enables WAL decoding (Fivetran reads row-level changes)
+  max_replication_slots: 20           # capacity (we use 5 of 20)
+  max_wal_senders: 20                 # concurrent WAL streaming connections
+  hot_standby_feedback: on            # replica reports needed LSN -> primary won't prematurely cleanup
+  max_slot_wal_keep_size: 15GB        # safety cap: if Fivetran lags >15GB, slot is dropped to protect disk</code></pre>
+
+      <p><code>hot_standby_feedback</code> is the subtle one. Without it, the primary doesn't know which LSN the standbys still need; it can vacuum tuples that the standby's slot copy still references, causing query conflicts on the standby. With it on, the standby's slot LSNs flow upstream and the primary respects them.</p>
+
+      <h3>Layer 2 &mdash; Patroni <code>useSlots: true</code></h3>
+      <span class="code-label">Patroni-managed slot copy</span>
+      <pre><code>patroni:
+  useSlots: true            # slot LSN state mirrored to standbys before promotion
+  slots:
+    fivetran_core_slot:
+      type: logical
+      database: cfm_core_ci
+      plugin: pgoutput
+    fivetran_forms_slot:
+      type: logical
+      database: cfm_forms_ci
+      plugin: pgoutput
+    # ... 3 more slots</code></pre>
+
+      <p>Without <code>useSlots</code>, a Patroni failover would promote a standby that has no slot at all — Fivetran's next call to read from <code>fivetran_core_slot</code> on the new primary would fail with <code>replication slot does not exist</code>, triggering a full re-sync. With it, the standby holds a copy of the slot's LSN at all times; on promotion, the slot is already there.</p>
+
+      <h3>Layer 3 &mdash; Slot Manager CronJob (every 5 min)</h3>
+      <p>A K8s CronJob in each <code>207804-postgres-{env}</code> namespace. Schedule: <code>*/5 * * * *</code>. Logic:</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><div class="step-title">Connect to the postgres-cluster primary</div><div class="step-desc">Reads PGO secret for <code>auditdevops</code> superuser.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><div class="step-title">Query <code>pg_replication_slots</code> for each expected slot</div><div class="step-desc">Compares against the 5-slot manifest baked into the job ConfigMap.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><div class="step-title">If missing or <code>wal_status=lost</code> &rarr; drop, recreate, re-sync</div><div class="step-desc">Calls Fivetran API <code>POST /v1/connectors/{id}/resync</code> using credentials from <code>a207804-ue1-op-fivetran-resync-api-preprod-sm</code>.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body"><div class="step-title">If healthy &rarr; log OK, no action</div><div class="step-desc">Idempotent — running it does no harm if everything is fine.</div></div>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "How do you protect against slot loss when Patroni fails over?"</div>
+        <div class="qa-answer">
+          "Three independent layers, designed so any one of them surviving keeps the connector running.<br><br>
+          <strong>Layer 1 is the PG parameters themselves</strong> — <code>wal_level=logical</code> obviously, but the load-bearing one is <code>hot_standby_feedback=on</code> so the standby's slot LSN flows back to the primary, plus <code>max_slot_wal_keep_size=15GB</code> as the disk safety cap.<br><br>
+          <strong>Layer 2 is Patroni <code>useSlots: true</code></strong>. Without that flag, only the primary holds the slot. When Patroni promotes a standby, the new primary has no slot — Fivetran's next read fails. With <code>useSlots</code>, Patroni continuously mirrors slot state to standbys, so on promotion the slot is already there at the right LSN. This is the layer most people miss.<br><br>
+          <strong>Layer 3 is a Slot Manager CronJob</strong> every 5 minutes. It runs in the <code>207804-postgres-{env}</code> namespace, queries <code>pg_replication_slots</code>, and if it sees a slot missing or <code>wal_status=lost</code>, it recreates the slot AND calls Fivetran API <code>POST /v1/connectors/{id}/resync</code>. So even if both PG params and Patroni fail us, we self-heal within 5 minutes plus the cost of a re-sync — versus indefinite downtime if nobody noticed."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What happens if all three layers fail?"</div>
+        <div class="qa-answer">
+          "The connector enters a <code>broken</code> state. The slot is gone, the WAL is gone, Fivetran has no LSN to resume from. Recovery path:<br>
+          <ol>
+            <li><strong>Drop and recreate the slot manually</strong>: <code>SELECT pg_drop_replication_slot('fivetran_core_slot'); SELECT pg_create_logical_replication_slot('fivetran_core_slot', 'pgoutput');</code></li>
+            <li><strong>Trigger a Fivetran historical re-sync</strong> via API or UI. The connector flips to <code>historical=true</code> and re-reads every row in the source tables.</li>
+            <li><strong>Wait 4-6 hours per connector</strong>. During this time the Bronze schema in the DWH is incomplete, dbt downstream is wrong, Power BI shows stale data.</li>
+            <li><strong>Confirm return to incremental mode</strong> once historical phase finishes. Slot lag should drop back to near-zero.</li>
+          </ol>
+          The mitigation is exactly what the three layers prevent. We saw layer-3 in action during the Apr 26 incident: QA hit 46 GB lag (<code>extended</code>), one more day would have been <code>unreserved &rarr; lost</code>. The CronJob caught it in time."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.4 CONNECTIVITY                                             -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-connectivity">
+      <div class="section-header">
+        <span class="section-num">19.4</span>
+        <h2>External Agent &rarr; Internal Postgres &mdash; Port Multiplexing <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>The Fivetran EC2 agent is <strong>outside</strong> the EKS cluster — it's a third-party tool, isolated by security boundary on its own EC2. But the postgres-cluster pods it needs to read from are <strong>inside</strong> the cluster on private ClusterIP services. To bridge that, we use a single <code>private-ingressgateway</code> with <strong>per-environment TCP ports</strong>, fronted by F5 load balancers.</p>
+
+      <h3>Port Mapping (F5 LB &rarr; Istio Gateway &rarr; Source Postgres)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Env</th><th>F5 LB IP</th><th>Istio port</th><th>NodePort</th><th>DMS hostname</th><th>Backing service</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>DWH</strong></td><td><code>10.230.34.7</code></td><td><code>5432</code></td><td><code>32000</code></td><td><code>dwh-dms.8067.aws-int.thomsonreuters.com</code></td><td><code>confirmation-pgdatabase-dwh-primary-service</code></td></tr>
+            <tr><td class="td-blue"><strong>Demo</strong></td><td><code>10.230.34.1</code></td><td><code>5433</code></td><td><code>32001</code></td><td><code>demo-dms.8067.aws-int.thomsonreuters.com</code></td><td><code>confirmation-pgdatabase-demo-primary-service</code></td></tr>
+            <tr><td class="td-blue"><strong>CI</strong></td><td><code>10.230.34.2</code></td><td><code>5434</code></td><td><code>32002</code></td><td><code>ci-dms.8067.aws-int.thomsonreuters.com</code></td><td><code>confirmation-pgdatabase-ci-primary-service</code></td></tr>
+            <tr><td class="td-blue"><strong>QA</strong></td><td><code>10.230.34.8</code></td><td><code>5435</code></td><td><code>32003</code></td><td><code>qa-dms.8067.aws-int.thomsonreuters.com</code></td><td><code>confirmation-pgdatabase-qa-primary-service</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Connection Path</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Fivetran EC2 (10.154.23.166) &rarr; F5 LB &rarr; Istio Gateway &rarr; PGO primary</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-conn', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-conn', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-conn')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-conn">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    AGT["Fivetran EC2\n10.154.23.166\n(outside cluster)"]
+    DNS["Corp DNS\n{env}-dms.8067...\nthomsonreuters.com"]
+    F5["F5 Load Balancer\n10.230.34.x\n(per-env IP)"]
+
+    subgraph CL["EKS cluster"]
+      NLB["Internal NLB\nk8s-privatei-...\n(NodePort 32000-32003)"]
+      GW["private-ingressgateway\n3 pod replicas\nClusterIP 172.20.133.6"]
+      VS["VirtualService\nper namespace\nTCP routing by port"]
+
+      subgraph CI_NS["207804-postgres-ci"]
+        CI_PRIM["confirmation-pgdatabase-ci\nprimary pod (Patroni leader)"]
+      end
+      subgraph DEMO_NS["207804-postgres-demo"]
+        DEMO_PRIM["primary pod"]
+      end
+      subgraph QA_NS["207804-postgres-qa"]
+        QA_PRIM["primary pod"]
+      end
+    end
+
+    AGT -->|connect ci-dms:5432| DNS
+    DNS -->|resolves to| F5
+    F5 -->|NodePort 32002| NLB
+    NLB --> GW
+    GW -->|port 5434| VS
+    VS --> CI_PRIM
+    GW -->|port 5433| DEMO_PRIM
+    GW -->|port 5435| QA_PRIM
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>How Connector Sees It</h3>
+      <p>From Fivetran's connector config in the cloud UI, it always uses <strong>port 5432</strong>. The F5 LB accepts on 5432 from the agent and internally translates to the appropriate Istio port (5433 for Demo, 5434 for CI, 5435 for QA). Connector creators don't think about the multiplexing — Fivetran just sees one PG host per env.</p>
+
+      <div class="info-box">
+        <strong>Why <code>auditdevops</code>, not <code>fivetran</code>:</strong> All connectors authenticate as the <code>auditdevops</code> superuser, with <code>REPLICATION</code> privilege. Password lives in AWS Secrets Manager (<code>a207804-ue1-op-auditdevops-{env}-db-sm</code>) and the PGO-generated K8s secret <code>confirmation-pgdatabase-{env}-pguser-auditdevops</code>. Any future identity hardening would create a dedicated <code>fivetran</code> role per env with the minimal grants — currently we accept the simpler superuser model because the agent is on a private network.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why not just use one LoadBalancer Service per environment instead of one shared Istio gateway with port multiplexing?"</div>
+        <div class="qa-answer">
+          "Two reasons.<br><br>
+          <strong>(1) F5 LB IPs are scarce.</strong> Each <code>type: LoadBalancer</code> service consumes a TR-allocated F5 frontend IP, and on Outposts those IPs come from a bounded on-prem CIDR. Provisioning a new one is a network team ticket — Balaji and Ambigi sign off, takes a week or two. Port multiplexing on the existing <code>private-ingressgateway</code> means the network team allocates one IP per env once and we can add more services behind it without new tickets.<br><br>
+          <strong>(2) Istio AuthorizationPolicy works uniformly.</strong> Because all source PG traffic flows through the Istio ingress gateway, we get one place to apply mTLS, IP allow-lists, and per-port AuthorizationPolicy. With separate LoadBalancer services per env, each one would need its own NetworkPolicy and AWS SG rules — duplicated config that drifts.<br><br>
+          The trade-off is one shared gateway = a blast radius if it breaks. Mitigated by 3 pod replicas behind an internal NLB and Istio's standard health checks. We'd revisit this if the gateway became a hot-spot."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.5 INCIDENT                                                 -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-agent-incident">
+      <div class="section-header">
+        <span class="section-num">19.5</span>
+        <h2>Apr 26-27 2026 Incident &mdash; 21h Outage (STAR) <span class="gap-badge gap-high">War Story</span></h2>
+      </div>
+
+      <p>This is the war story for behavioural rounds. Use it for "tell me about a time monitoring failed you" or "walk me through a time you hardened a fragile system." It is recent (April 2026), measurable (21 hours, 15 connectors, 46 GB slot lag), and the fix is architecturally interesting (3 layers of restart durability).</p>
+
+      <h3>Situation</h3>
+      <div class="info-box">
+        <strong>Apr 26, 06:18 UTC.</strong> AWS issued an Outpost host-level event. The Fivetran NEW agent EC2 (<code>i-0fc07642a57b87826</code>, r5.4xlarge) rebooted. All 6 Fivetran containers (controller + 5 donkeys) exited with <code>Exit(255)</code> and <strong>never auto-recovered</strong>. All 15 connectors (CI/Demo/QA) flipped to <code>broken</code> state. Slot lag started accumulating. Datadog alerting was silently broken (expired API key). Nobody noticed for 21 hours.
+      </div>
+
+      <h3>Task</h3>
+      <p>Two things needed to happen, fast:</p>
+      <ol style="margin-left:1.5rem; color: var(--text-muted); font-size: 0.9rem; line-height: 1.7; margin-bottom: 1rem;">
+        <li><strong>Restore replication before slots reach <code>lost</code> state.</strong> QA was already at 46 GB lag — one more day and the slot would be deleted, forcing a 4-6 hour full historical re-sync per connector.</li>
+        <li><strong>Eliminate the failure mode permanently.</strong> Why did a routine EC2 reboot kill replication for 21 hours? Why didn't Datadog alert? Find every gap and close it.</li>
+      </ol>
+
+      <h3>Action &mdash; What I Did</h3>
+
+      <h3>Phase 1 &mdash; Discovery (05:00 UTC, Apr 27)</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><div class="step-title">Confirm containers dead via SSM</div><div class="step-desc"><code>docker ps -a</code> &rarr; 6 containers in <code>Exited (255)</code> for 21 hours. The bare <code>docker run</code> install had <strong>no <code>--restart</code> policy</strong>, no systemd unit, no anything that would re-spawn them.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><div class="step-title">Start the controller manually</div><div class="step-desc"><code>sudo docker start controller-73b24d3a-...</code> &rarr; controller up in seconds, 15 donkey containers spawned automatically by the controller via <code>/var/run/docker.sock</code>. <code>PING(READY)</code> heartbeats appeared in logs at ~40ms RTT to Fivetran cloud. Slot lag started draining within minutes.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><div class="step-title">Verify slot lag drainage</div><div class="step-desc">Demo: 15 GB &rarr; 800 MB. QA: 46 GB &rarr; 176 MB. CI: 1.2 GB &rarr; 1.3 GB (steady-state, normal). All slots back to <code>wal_status=reserved</code>.</div></div>
+        </div>
+      </div>
+
+      <h3>Phase 2a &mdash; Belt-and-Braces Docker Restart Policy</h3>
+      <span class="code-label">Set restart policy on the running container — no restart needed</span>
+      <pre><code>sudo docker update --restart unless-stopped controller-73b24d3a-2f22-4f98-b989-b2763f4c7698</code></pre>
+      <p>This already covers Docker daemon restarts and OS reboots — but it was just a band-aid. The real fix was Phase 2b.</p>
+
+      <h3>Phase 2b &mdash; systemd + <code>hdagent.sh</code> (mirror the OLD agent)</h3>
+      <p>I discovered we had <strong>two</strong> Fivetran EC2 instances: the OLD agent (<code>i-05da72dff91d23fac</code>) which had survived the reboot fine, and the NEW agent (<code>i-0fc07642a57b87826</code>) which hadn't. The OLD one used the standard Fivetran install with a systemd unit and the official <code>hdagent.sh</code> wrapper. I copied that pattern verbatim onto the NEW agent.</p>
+
+      <span class="code-label">/etc/systemd/system/fivetran-agent.service</span>
+      <pre><code>[Unit]
+Description=Fivetran Hybrid Agent Service
+After=docker.service                # don't start until docker is up
+Requires=docker.service             # if docker stops, stop me too
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/fivetran
+RemainAfterExit=yes                 # script forks into background; stay "active"
+ExecStartPre=-/usr/bin/docker stop controller    # idempotent cleanup
+ExecStartPre=-/usr/bin/docker rm controller
+ExecStart=/home/ec2-user/fivetran/hdagent.sh start
+ExecStop=/home/ec2-user/fivetran/hdagent.sh stop
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+      <span class="code-label">drop-in /etc/systemd/system/fivetran-agent.service.d/proxy.conf</span>
+      <pre><code>[Service]
+Environment="HTTPS_PROXY=http://webproxy.df1.corp.services:80"
+Environment="NO_PROXY=169.254.169.254,localhost,127.0.0.1,10.0.0.0/8"</code></pre>
+
+      <p>Then: <code>systemctl daemon-reload && systemctl enable --now fivetran-agent.service</code>. Verified <code>is-active</code>, <code>is-enabled</code>, controller logs showing <code>PING(READY)</code> heartbeats.</p>
+
+      <h3>Result &mdash; 3 Layers of Restart Durability</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Mechanism</th><th>Catches</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Layer 1</strong></td>
+              <td>Container <code>--restart on-failure:3</code> (set by <code>hdagent.sh</code>)</td>
+              <td>Controller process crashes (exit != 0). Up to 3 retries, Docker daemon handles it.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>Layer 2</strong></td>
+              <td>systemd <code>Restart=on-failure RestartSec=10</code></td>
+              <td><code>hdagent.sh</code> script itself crashes. systemd retries the unit.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Layer 3</strong></td>
+              <td>systemd <code>enable</code> + Docker daemon enabled at boot</td>
+              <td><strong>OS reboot</strong> (the Apr 26 case). Docker comes up first, systemd starts <code>fivetran-agent.service</code>, ExecStartPre cleans stale state, ExecStart spawns fresh controller.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Compounding Failure &mdash; Why Datadog Was Silent</h3>
+      <div class="warn-box">
+        <strong>Two-fault chain.</strong> Fault 1: agent had no restart policy. Fault 2: Datadog API key on the NEW agent was expired (returning 403), and the OLD agent had its DD API key hardcoded in plaintext at <code>/etc/datadog-agent/datadog.yaml</code>. Neither agent was actually delivering metrics. We had no monitor on slot lag, no monitor on connector state, no monitor on the agent EC2 itself. The Outpost reboot was invisible until somebody noticed Power BI dashboards were stale.
+      </div>
+
+      <h3>Follow-up Work Items (Filed as ADO P1/P2)</h3>
+      <ul style="margin-left:1.5rem; color: var(--text-muted); font-size: 0.85rem; line-height: 1.65; margin-bottom: 1rem;">
+        <li><strong>P1:</strong> Bake Phase 2b artifacts (<code>hdagent.sh</code>, systemd unit, proxy drop-in) into Susham's monthly Golden AMI rotation. Future EC2 launches come up Fivetran-ready with one boot.</li>
+        <li><strong>P1:</strong> Migrate Datadog API key from plaintext <code>datadog.yaml</code> to AWS Secrets Manager injection at launch via user-data. Rotate the existing key.</li>
+        <li><strong>P1:</strong> Add 4 Datadog monitors &mdash; agent heartbeat, slot <code>wal_status</code>, connector <code>broken</code> state, EC2 host check. The slot <code>wal_status</code> monitor is the highest leverage one.</li>
+        <li><strong>P2:</strong> Move Fivetran agent token from disk (<code>conf/config.json</code>) to AWS SM. Inject at launch.</li>
+        <li><strong>P2:</strong> Decommission OLD agent EC2 once new pattern stable.</li>
+      </ul>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Tell me about a time when monitoring failed you. What did you learn?"</div>
+        <div class="qa-answer">
+          "April 26 this year. AWS Outposts host event rebooted the Fivetran agent EC2. All 15 connectors went <code>broken</code>. Datadog stayed silent for 21 hours.<br><br>
+          <strong>What failed:</strong> two faults stacked. The agent was installed with bare <code>docker run</code> and no restart policy, so containers stayed dead after the reboot. And the Datadog API key on that EC2 had expired — agent metrics weren't getting through. Either fault alone would have been recoverable. Together, we had a silent 21-hour outage where slot lag climbed to 46 GB on QA, one day from <code>lost</code> state and a 4-6 hour historical re-sync per connector.<br><br>
+          <strong>What I did the next morning:</strong> restored the agent first (<code>docker start</code> + <code>--restart unless-stopped</code> as a band-aid), drained the slots, then mirrored the OLD agent's standard install — Fivetran's <code>hdagent.sh</code> wrapper plus a <code>fivetran-agent.service</code> systemd unit with <code>Restart=on-failure</code>. Three independent restart layers now: container <code>--restart on-failure:3</code>, systemd <code>Restart=on-failure</code>, and systemd <code>enable</code> at boot. Apr 26 mode is now caught by layer 3.<br><br>
+          <strong>What I learned:</strong> two things. First, monitoring you don't verify isn't monitoring — we now have a synthetic monitor that pings the agent heartbeat from outside Datadog so an expired DD key can't hide the silence. Second, every install pattern needs to survive a reboot from day one. The OLD agent was installed correctly years ago and just kept working. The NEW agent was installed quickly during a migration and the systemd step got skipped. Now we bake the artifacts into the Golden AMI so the install can't drift again.<br><br>
+          <strong>Honest reflection:</strong> the deeper failure was process — we never ran a 'pull-the-power-cord' test on this agent before declaring it production-ready. If we had, we'd have caught both faults in five minutes."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.6 DWH + CITUS                                              -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-dwh-citus">
+      <div class="section-header">
+        <span class="section-num">19.6</span>
+        <h2>postgres-dwh &mdash; Why Citus Here, Not on OLTP</h2>
+      </div>
+
+      <p>We run two PostgreSQL clusters: <code>postgres-cluster</code> (OLTP, no Citus) and <code>postgres-dwh</code> (analytics, Citus 13.0.0). Same operator, same PG 16, but completely different shape. The decision comes down to <strong>query pattern</strong>, not data volume — and it's a great architecture question to be ready for. Cross-reference <a style="color: var(--accent2);" href="08b-postgresql-internals.html">08b-postgresql-internals</a> for the underlying PG internals.</p>
+
+      <h3>Two Clusters, Two Purposes</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Property</th><th><code>postgres-cluster</code> (OLTP)</th><th><code>postgres-dwh</code> (Analytics)</th></tr></thead>
+          <tbody>
+            <tr><td>Extension</td><td>No Citus</td><td class="td-green">Citus 13.0.0</td></tr>
+            <tr><td>Purpose</td><td>App traffic from 40+ microservices</td><td>Fivetran replicas, dbt transforms, Power BI queries</td></tr>
+            <tr><td>Databases</td><td>~5 per env (pricing, nucleus, forms, ...)</td><td>3 datalakes (<code>cfm_datalake_{ci,demo,qa}</code>)</td></tr>
+            <tr><td>Topology</td><td>1 primary + 1 replica (Patroni HA)</td><td>1 coordinator + 2 workers</td></tr>
+            <tr><td>Namespace</td><td><code>207804-postgres-{env}</code></td><td><code>207804-datawarehouse-preprod</code> (shared)</td></tr>
+            <tr><td>Query type</td><td>Single-row INSERT/UPDATE/SELECT by ID</td><td><code>SELECT SUM(...) GROUP BY ...</code> over 100M+ rows</td></tr>
+            <tr><td>Bottleneck</td><td>Latency (ms per transaction)</td><td>Throughput (scan speed over wide tables)</td></tr>
+            <tr><td>Scaling strategy</td><td>Vertical (bigger instance)</td><td>Horizontal (shard across workers)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why Citus Doesn't Help OLTP</h3>
+      <p>Citus shards a table by a distribution column across worker nodes. A query then goes to the coordinator, which parses it, picks the relevant shards, dispatches sub-queries to workers, and merges results. For a query like <code>SELECT * FROM users WHERE id = 42</code>, that coordinator round-trip <strong>adds latency</strong> — the lookup hits one row and you're paying for parallelism you don't use. OLTP queries hit 1-10 rows by primary key. Sharding makes them slower, not faster. Even at 100 GB, the OLTP cluster is best served by vertical scaling and good indexes.</p>
+
+      <h3>What Citus Does on the DWH</h3>
+      <span class="code-label">Citus query plan for an analytics aggregation</span>
+      <pre><code>Query: SELECT region, SUM(amount) FROM billing GROUP BY region;
+
+  Coordinator (confirmation-fivetran-dwh-preprod):
+    parses, creates distributed plan
+                    /                       \
+                   v                         v
+    Worker-101                            Worker-102
+    scans shards 1-16                     scans shards 17-32
+    returns partial SUM per region        returns partial SUM per region
+                    \                       /
+                     v                     v
+            Coordinator merges partial sums
+            returns final answer</code></pre>
+
+      <h3>Three Citus Features Configured</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">sharding</div>
+          <div class="card-title">Distributed tables</div>
+          <div class="card-desc">Large fact tables sharded by a distribution column across 32 shards (16 per worker). dbt <code>on-run-end</code> hook calls <code>create_distributed_table()</code> for models tagged <code>meta: {distributed: "col"}</code>.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">storage</div>
+          <div class="card-title">Columnar storage</div>
+          <div class="card-desc">Analytics tables stored column-by-column with compression. Reads only the columns the query needs from wide tables. dbt hook <code>convert_to_columnar()</code> for models tagged <code>meta: {columnar: true}</code>.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">execution</div>
+          <div class="card-title">Parallel execution</div>
+          <div class="card-desc">A single GROUP BY runs on both workers simultaneously. Coordinator merges. Automatic — Citus planner routes queries to relevant shards based on the distribution column predicate.</div>
+        </div>
+      </div>
+
+      <h3>Real Topology + Resources</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Node</th><th>Role</th><th>Mem req/limit</th><th>CPU req/limit</th><th>Storage</th></tr></thead>
+          <tbody>
+            <tr><td><code>confirmation-fivetran-dwh-preprod</code></td><td class="td-green">Coordinator</td><td>24Gi / 48Gi</td><td>3 / 6</td><td>500Gi (plexus-gp2)</td></tr>
+            <tr><td><code>fivetran-worker-101-preprod</code></td><td class="td-blue">Worker</td><td>16Gi / 32Gi</td><td>2 / 4</td><td>100Gi</td></tr>
+            <tr><td><code>fivetran-worker-102-preprod</code></td><td class="td-blue">Worker</td><td>16Gi / 32Gi</td><td>2 / 4</td><td>100Gi</td></tr>
+            <tr><td><strong>Total</strong></td><td>—</td><td><strong>56Gi / 112Gi</strong></td><td><strong>7 / 14</strong></td><td><strong>700Gi</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span class="code-label">Citus Patroni params (shared across coordinator + workers)</span>
+      <pre><code>shared_preload_libraries: citus
+citus.shard_count: 32
+citus.shard_replication_factor: 1     # no shard mirroring — each shard on one worker only
+shared_buffers: 8GB
+effective_cache_size: 24GB           # coordinator
+work_mem: 256MB
+maintenance_work_mem: 1GB</code></pre>
+
+      <div class="info-box">
+        <strong>Honest current state:</strong> The Citus extension is installed and the workers are registered, but <code>create_distributed_table()</code> has <em>not yet been run</em> on production tables — all <code>_raw_cfm_*</code> and <code>analytics_*</code> tables currently live on the coordinator as regular PG tables. The workers are running but hold no data shards. We did the architectural work to <em>enable</em> Citus; we'll run distribution when coordinator query performance becomes a bottleneck. This is a deliberate "build the simpler thing first" call.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why is Citus on the DWH but not on the OLTP cluster?"</div>
+        <div class="qa-answer">
+          "Query pattern, not data volume.<br><br>
+          <strong>OLTP queries are point lookups</strong> — <code>SELECT * FROM users WHERE id=42</code> or a single-row INSERT. Citus would route through a coordinator, parse the query, dispatch to the relevant shard, and merge — for a query that hits one row by primary key. That coordinator round-trip is pure overhead. We'd be slower than a vanilla PG instance with a good index.<br><br>
+          <strong>DWH queries are aggregations</strong> — <code>SELECT region, SUM(amount) FROM billing_facts WHERE date BETWEEN ... GROUP BY region</code> over 100M+ rows. That's exactly the workload Citus parallelises: each worker scans its shards, returns partial sums, coordinator merges. We get 2-3x speedup on the queries that actually matter, and columnar storage on top of that compresses analytics tables and reads only the columns the query touches.<br><br>
+          The other reason is <strong>scaling strategy</strong>. OLTP scales vertically (bigger instance, NVMe, more RAM for buffer cache). Analytics scales horizontally (more workers, more shards). Citus only matches the second pattern. Putting it on OLTP would be solving a problem we don't have while introducing one we do."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.7 DBT                                                      -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-dbt">
+      <div class="section-header">
+        <span class="section-num">19.7</span>
+        <h2>dbt + Medallion Architecture</h2>
+      </div>
+
+      <p>dbt is the T in ELT. After Fivetran lands raw data in <code>_raw_cfm_*</code> Bronze schemas, dbt transforms it into Silver (cleaned, joined) and Gold (presentation). 107 SQL models. Triggered on every Fivetran sync completion, not on a cron — that's the interesting design choice.</p>
+
+      <h3>Trigger Flow &mdash; Webhook, not Cron</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><div class="step-title">Fivetran fires a webhook on sync complete</div><div class="step-desc">Per-connector setting in Fivetran Cloud. Event types like <code>fivetran_sync_end_ci</code>, <code>fivetran_sync_end_demo</code>.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><div class="step-title">HookDeck receives + buffers durably</div><div class="step-desc">SaaS webhook relay. If GitHub is unreachable, HookDeck queues and retries. Provides an audit log of all deliveries.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><div class="step-title">HookDeck forwards as <code>repository_dispatch</code></div><div class="step-desc">Fans out to <code>tr/confirmation_transformations-dw</code> with the matching event type. GitHub Actions starts the workflow.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body"><div class="step-title">Self-hosted runner picks up the job</div><div class="step-desc"><code>confirmation-dbt-preprod-runner</code> on EC2 <code>a207804-dbt-server</code> (c5.xlarge, dbt-core 1.9.2).</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body"><div class="step-title">dbt deps &rarr; seed &rarr; run &rarr; test</div><div class="step-desc"><code>dbt deps</code> installs packages (<code>dbt_utils</code>, <code>dbt_expectations</code>). <code>dbt seed</code> loads CSV reference data. <code>dbt run</code> executes 107 SQL models in dependency order. <code>dbt test</code> runs data quality assertions.</div></div>
+        </div>
+      </div>
+
+      <h3>Medallion Layers &mdash; Bronze / Silver / Gold</h3>
+      <span class="code-label">cfm_datalake_{env} schema layout</span>
+      <pre><code>BRONZE — Fivetran writes (raw, unprocessed replica of source)
+  _raw_cfm_core_public           1 table  (orleansstorage)
+  _raw_cfm_core_rel_public       4 tables (inflight_firms, autoprocess_reports, ...)
+  _raw_cfm_forms_public          8 tables (form_type, form_type_translation, ...)
+  _raw_cfm_pricing_public        6 tables (billing_transaction, refund_detail, ...)
+  _raw_cfm_record_public         3 tables (orleansstorage, responder caches)
+
+SILVER — dbt transforms (cleaned, standardised, joined)
+  analytics_seeds                 8 tables  (CSV reference: countries, statuses, holidays)
+  analytics_base                 95 views   (staging: type casting, column rename)
+  analytics                       1 table   (intermediate: Orleans JSON -> event records)
+  analytics_references            1 table   (reference data enrichment)
+
+GOLD — dbt final output (Power BI reads ONLY from here)
+  analytics_presentation          5-6 tables (mart: facts + dim + report views)
+  analytics_system                1 table   (data quality: fct_invalid_orleans_grains)
+
+INTERNAL — dbt + Fivetran housekeeping
+  analytics_artifacts            34 tables  (dbt run audit trail: exec times, test results)
+  fivetran_metadata              Fivetran internal tracking</code></pre>
+
+      <h3>Why Bronze / Silver / Gold</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>What lives there</th><th>Who writes</th><th>Who reads</th></tr></thead>
+          <tbody>
+            <tr><td class="td-amber"><strong>Bronze</strong></td><td>Raw, unmodified replica of source PG (with Fivetran's added <code>_fivetran_synced</code>, <code>_fivetran_deleted</code> metadata columns)</td><td>Fivetran donkey</td><td>dbt only — never queried by apps</td></tr>
+            <tr><td class="td-blue"><strong>Silver</strong></td><td>Type-cast, renamed, joined. Business logic applied. Slowly Changing Dimension handling. Mostly views, some materialised tables.</td><td>dbt</td><td>dbt downstream models, sometimes <code>reports-dwh-be</code></td></tr>
+            <tr><td class="td-green"><strong>Gold</strong></td><td>Star schema facts + dimensions. Pre-aggregated for dashboard performance. Stable contract with Power BI.</td><td>dbt (final layer)</td><td>Power BI Gateway, <code>reports-dwh-be</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Branch &rarr; Environment Mapping</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Git branch</th><th>Environments</th><th>Runner</th><th>Trigger event</th></tr></thead>
+          <tbody>
+            <tr><td><code>master</code></td><td>CI + Demo</td><td><code>confirmation-dbt-preprod-runner</code></td><td><code>fivetran-sync-ci</code>, <code>fivetran-sync-demo</code></td></tr>
+            <tr><td><code>qa</code></td><td>QA</td><td><code>confirmation-dbt-preprod-runner</code></td><td><code>fivetran-sync-qa</code></td></tr>
+            <tr><td><code>prod</code></td><td>Prod</td><td><code>confirmation-dbt-prod-runner</code></td><td><code>fivetran-sync-prod</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Code promotion: <code>master &rarr; qa &rarr; prod</code>. Five separate workflow files, one per env.</p>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why webhook-triggered dbt instead of just cron'ing it every 30 minutes?"</div>
+        <div class="qa-answer">
+          "Three reasons.<br><br>
+          <strong>(1) Avoid wasted work.</strong> Cron'd dbt runs even when Fivetran hasn't synced anything new — that's 107 model executions and a stack of <code>dbt test</code> assertions burning compute and DWH connections for no data change. Event-driven only fires when there's actual new Bronze data to transform.<br><br>
+          <strong>(2) Avoid race conditions.</strong> If cron fires at minute 30 but Fivetran sync started at minute 28 and finishes at minute 32, dbt reads partial data. Webhook on <em>sync complete</em> guarantees Bronze is consistent before dbt reads it.<br><br>
+          <strong>(3) Per-environment fan-out.</strong> Five connectors per env, each fires its own webhook. HookDeck routes <code>fivetran_sync_end_ci</code> to the CI workflow and <code>fivetran_sync_end_qa</code> to QA. Cron would either run all envs together (waste) or need separate cron schedules per env (drift).<br><br>
+          The HookDeck layer matters too — it's a durable buffer. If GitHub is unavailable for 30 minutes, HookDeck queues the events and replays them. A simple direct webhook from Fivetran to GitHub would lose events during GitHub outages."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.8 POWER BI                                                 -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-bi">
+      <div class="section-header">
+        <span class="section-num">19.8</span>
+        <h2>Power BI Gateway</h2>
+      </div>
+
+      <p>The final hop. Power BI is a Microsoft SaaS — its rendering engine lives in Microsoft's cloud. But our DWH has a private ClusterIP service inside the EKS Outpost. Microsoft can't reach it. The bridge is an <strong>on-premises data gateway</strong> running on a Windows EC2 inside our network.</p>
+
+      <h3>Gateway EC2 Instance</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Property</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Name</td><td><code>a207804-outpost-power-bi-gateway-preprod</code></td></tr>
+            <tr><td>Instance ID</td><td><code>i-0ce3baa8cb2d41606</code></td></tr>
+            <tr><td>Private IP</td><td><code>10.154.23.234</code></td></tr>
+            <tr><td>Type</td><td><code>c5.4xlarge</code> (Windows)</td></tr>
+            <tr><td>OS</td><td>Windows Server</td></tr>
+            <tr><td>Services</td><td><code>PBIEgwService</code> (On-premises data gateway), <code>OpdgUpdaterService</code></td></tr>
+            <tr><td>Config</td><td><code>C:\Program Files\On-premises data gateway\Microsoft.PowerBI.EnterpriseGateway.exe.config</code></td></tr>
+            <tr><td>Egress proxy</td><td><code>http://webproxy.df1.corp.services:80</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>What It Does</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><div class="step-title">Power BI Cloud schedules a dataset refresh</div><div class="step-desc">Per-report schedule. Could be daily, hourly, etc.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><div class="step-title">Microsoft sends the query through the gateway tunnel</div><div class="step-desc">The gateway maintains an outbound HTTPS connection to Microsoft's gateway service via the corp proxy. Microsoft pushes queries down this tunnel.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><div class="step-title">Gateway connects to postgres-dwh on TCP 5432</div><div class="step-desc">Reads from <code>analytics_presentation</code> (Gold) only. Never touches Bronze or Silver — the contract is that Gold is the stable Power BI surface.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body"><div class="step-title">Gateway streams results back through the tunnel</div><div class="step-desc">Microsoft caches the dataset in Power BI Cloud. End-user dashboards render from the cached dataset.</div></div>
+        </div>
+      </div>
+
+      <h3>Why On-Prem Gateway, Not Direct</h3>
+      <div class="info-box">
+        <strong>The DWH has no public endpoint.</strong> It's a ClusterIP inside EKS Outposts on a private TR network. Power BI Cloud can't reach it directly — there's no inbound path. The gateway flips the connection direction: gateway calls <em>out</em> to Microsoft (allowed by corp egress rules), Microsoft pushes queries <em>down</em> the established tunnel. Same pattern as the Fivetran agent — outbound-only, no inbound holes punched in the firewall.
+      </div>
+
+      <h3>Reads Gold Only</h3>
+      <p>By convention, Power BI reports query <code>analytics_presentation.*</code> exclusively. Bronze and Silver are dbt's working layers — schemas can change between dbt releases. Gold is the stable contract: fact tables, dimension tables, and report views with frozen column names. If a Power BI dashboard breaks, it's because something changed in <code>analytics_presentation</code>, not because Fivetran's source schema drifted.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.9 MIGRATION                                                -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-migration">
+      <div class="section-header">
+        <span class="section-num">19.9</span>
+        <h2>Future: EC2 &rarr; K8s Migration Proposal <span class="gap-badge gap-senior">Solutions Architect</span></h2>
+      </div>
+
+      <p>Live proposal I'm driving. The Fivetran agent is the only EC2-managed workload on this platform — everything else is in EKS. Fivetran officially shipped a Helm chart in March 2025 (<code>hybrid-deployment-agent v0.19.0</code>). This is a great architecture-decision answer for senior interviews.</p>
+
+      <h3>Why Migrate &mdash; The Problems with EC2</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Problem</th><th>Impact</th></tr></thead>
+          <tbody>
+            <tr><td>r5.4xlarge (128 GiB) for a 1.6 GiB workload</td><td class="td-amber"><strong>~$730/month wasted</strong> — 1.3% utilisation</td></tr>
+            <tr><td>Datadog NOT installed (NEW agent)</td><td class="td-amber">Zero observability — root cause of Apr 26 silent outage</td></tr>
+            <tr><td>Managed via SSM + Lambda AMI rotation</td><td>Outside GitOps — only EC2 not managed by ArgoCD</td></tr>
+            <tr><td>Shared SG with unrestricted egress</td><td>No least-privilege; can't isolate per service</td></tr>
+            <tr><td>DWH access via F5 LB &rarr; TGW &rarr; NLB hairpin</td><td>Unnecessary network hops when pod could use ClusterIP</td></tr>
+            <tr><td>Config changes require SSM login</td><td>Not auditable, not version-controlled</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Side-by-Side &mdash; EC2 vs K8s</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Current EC2 Agent vs Proposed K8s Pod</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-mig', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-mig', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-mig')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-mig">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    subgraph CUR["CURRENT - EC2 Agent (r5.4xlarge)"]
+      direction TB
+      EC2C["EC2 controller container\nDocker run\n--restart unless-stopped"]
+      EC2D["donkey containers\nspawned by controller\nvia /var/run/docker.sock"]
+      EBS["EBS gp2 500GB"]
+      SSM["SSM access\nDocker config.json\nplaintext token"]
+      DD["Datadog NOT installed"]
+      EC2C --> EC2D
+      EC2C --> EBS
+      EC2C --> SSM
+    end
+
+    subgraph K8S["PROPOSED - Helm chart in 207804-datawarehouse-preprod"]
+      direction TB
+      DEP["Deployment\nfivetran-agent (controller)\n2Gi req / 4Gi limit\nliveness/readiness :8090"]
+      JOB["Per-sync K8s Jobs\n(no Docker-in-Docker)\nauto-cleaned by TTL"]
+      EFS["EFS PVC RWX 50Gi"]
+      ES["ExternalSecret\ntoken from AWS SM"]
+      DDDS["Datadog DaemonSet\nautomatic"]
+      ARGO["ArgoCD-managed\nvia Helm chart in Git"]
+      DEP --> JOB
+      DEP --> EFS
+      DEP --> ES
+      DEP --> DDDS
+      DEP --> ARGO
+    end
+
+    CUR -.->|cost ~$730/mo| K8S
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>How K8s Mode Differs Architecturally</h3>
+      <div class="info-box">
+        <strong>No more Docker-in-Docker.</strong> In EC2 mode, the controller runs as a Docker container on the host and uses <code>/var/run/docker.sock</code> to spawn donkey containers as siblings. In K8s mode, the controller runs as a Deployment, and when a sync is needed it uses the K8s API to create a <strong>K8s Job</strong> in the same namespace. Jobs auto-clean via TTL controller after completion. Cleaner isolation, no shared docker.sock privilege concern.
+      </div>
+
+      <h3>Benefits</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">cost</div>
+          <div class="card-title">~$765/mo savings</div>
+          <div class="card-desc">EC2 r5.4xlarge ($730) + EBS gp2 500GB ($50) eliminated. EFS PVC adds back ~$15/mo. Net &gt;$700/mo.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">observability</div>
+          <div class="card-title">Datadog automatic</div>
+          <div class="card-desc">DaemonSet covers all pods in the namespace. No installation step, no API key on disk. Apr 26 silent-outage class of failure cannot recur.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">gitops</div>
+          <div class="card-title">ArgoCD-managed</div>
+          <div class="card-desc">Helm chart in <code>charts/fivetran-agent/</code>, values per env, ApplicationSet entry. Version bump = ArgoCD sync. Rollback = git revert.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">network</div>
+          <div class="card-title">Direct ClusterIP to DWH</div>
+          <div class="card-desc">Pod is in <code>207804-datawarehouse-preprod</code> — same namespace as the DWH service. No F5 LB &rarr; TGW &rarr; NLB hairpin. Istio mTLS strict.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">security</div>
+          <div class="card-title">ExternalSecret + Istio mTLS</div>
+          <div class="card-desc">Token from AWS SM via ExternalSecret. NetworkPolicy + AuthorizationPolicy. ECR base image instead of Docker Hub.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">probes</div>
+          <div class="card-title">Liveness/Readiness on :8090</div>
+          <div class="card-desc"><code>/healthz/alive</code> and <code>/healthz/ready</code>. K8s self-heals on container crash. systemd's job done by the kubelet.</div>
+        </div>
+      </div>
+
+      <h3>Risks &mdash; The Honest Bits</h3>
+      <div class="warn-box">
+        <strong>RWX storage required.</strong> Fivetran K8s mode officially requires ReadWriteMany — controller and donkey Jobs may land on different nodes and need to share state on a PVC. Our default <code>plexus-gp2</code> StorageClass is EBS-backed = RWO only. <strong>Will not work.</strong>
+        <ul>
+          <li>Plan: use EFS via service link. AWS-managed, no NFS server to maintain. ~$15/mo.</li>
+          <li>Trade-off: EFS data goes to Region over service link, not local Outpost storage. Fivetran syncs are throughput-oriented not latency-sensitive, so acceptable.</li>
+          <li>Risk: service link outage &rarr; EFS unavailable &rarr; syncs stop. Mitigation: keep EC2 agent as fallback during a 1-2 week parallel run.</li>
+        </ul>
+      </div>
+
+      <div class="warn-box">
+        <strong>Stable egress IP for Fivetran cloud allowlist.</strong> Pod IPs are ephemeral. If Fivetran requires a stable source IP for their cloud-side allowlist, we need an egress NAT gateway with a static IP attached to the namespace. Without this, the agent could lose authentication after a pod restart. Need to verify with Fivetran admin (Suresh) before cutover.
+      </div>
+
+      <div class="warn-box">
+        <strong>State on PVC, not pod.</strong> Replication checkpoints live in <code>/data</code>. If the PVC is misconfigured (RWO, wrong size) or the pod restarts and re-mounts a stale volume, the donkey could start from the wrong LSN. Standard PVC + StatefulSet patterns handle this — but we'd test it on CI for a fortnight before touching Demo/QA.
+      </div>
+
+      <h3>Migration Plan (Three Phases)</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">0</div>
+          <div class="step-body"><div class="step-title">Phase 0: EFS prerequisite</div><div class="step-desc">Verify EFS CSI driver installed; create EFS filesystem reachable from Outpost subnet; test RWX with two pods writing concurrently.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><div class="step-title">Phase 1: Prepare (no impact)</div><div class="step-desc">Create <code>charts/fivetran-agent/</code> Helm chart; ExternalSecret for token; EFS PVC; values.yaml; ApplicationSet entry. Nothing deployed yet.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><div class="step-title">Phase 2: Test in parallel</div><div class="step-desc">Register a NEW agent in Fivetran Cloud (separate from existing EC2). Deploy to CI. Create test connectors pointing at K8s agent. Run for 1-2 weeks. Compare freshness, sync duration, error rates.</div></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><div class="step-title">Phase 3: Cutover</div><div class="step-desc">Migrate connectors EC2 &rarr; K8s in Fivetran UI. Verify all 15 syncing. Stop EC2 agent (<code>docker stop</code>). Delete Lambda AMI rotation. Terminate EC2 after 2-week observation.</div></div>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What are the operational risks of moving Fivetran from EC2 to K8s?"</div>
+        <div class="qa-answer">
+          "Three real ones, plus the wishful-thinking ones to watch out for.<br><br>
+          <strong>Risk 1: RWX storage.</strong> Fivetran K8s mode requires ReadWriteMany. Our default StorageClass is EBS gp2 — RWO only. If the controller pod and a donkey Job land on different nodes, EBS can't mount on both. Plan is EFS via service link, but that adds a service link dependency to the data pipeline. If service link degrades, Fivetran syncs stop.<br><br>
+          <strong>Risk 2: Egress IP not stable.</strong> The Fivetran cloud-side may have an IP allowlist for the agent. Pod IPs are ephemeral; on restart you get a different IP. We'd need an egress NAT gateway with a static IP attached to the namespace, or accept potential auth churn. Verify with Fivetran admin first — this is a hard blocker if true.<br><br>
+          <strong>Risk 3: Pod restart != container restart.</strong> On EC2, the controller container has restart policy <code>on-failure:3</code> and persists state on EBS. On K8s, a pod restart is more aggressive — you lose ephemeral process state, the donkey Jobs in flight may need to be re-spawned, and if the PVC re-attach is slow you're sitting in <code>ContainerCreating</code> while slot lag accumulates.<br><br>
+          <strong>The wishful-thinking risks:</strong> 'we'll just deploy it and trust the Helm chart' — Fivetran's K8s mode is ~1 year old (March 2025), so it's not battle-hardened. Mitigation is the parallel run. Run K8s agent in CI for 1-2 weeks before touching Demo/QA, keep the EC2 fallback ready. Don't decommission the EC2 until we've seen a Patroni failover, a service link blip, and a Datadog incident on the new path.<br><br>
+          Honest framing for the interviewer: $700/mo is real, but it's not life-changing. The bigger driver is Datadog observability and ArgoCD GitOps consistency — that's why I'm pushing this. The cost saving is the headline; the real value is consistency with the rest of the platform."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19.10 MOCK INTERVIEW BANK                                     -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-interview">
+      <div class="section-header">
+        <span class="section-num">19.10</span>
+        <h2>Mock Interview Bank</h2>
+      </div>
+
+      <p>Six high-probability questions for a Senior DevOps round at Cognizant/Westpac. Each answer is what you should aim to say in 90-120 seconds.</p>
+
+      <div class="qa-box">
+        <div class="qa-question">Q1: "Walk me through your data pipeline end-to-end."</div>
+        <div class="qa-answer">
+          "Six components in sequence. <strong>(1) postgres-cluster</strong> is the OLTP source — PGO-managed PG 16 with Patroni HA, <code>wal_level=logical</code>, 5 replication slots per env. <strong>(2) Fivetran EC2 agent</strong> on Outpost runs a Docker controller and per-sync donkey workers; it reads WAL via <code>pgoutput</code> and pushes data to (3) <strong>Fivetran Cloud SaaS</strong> over outbound HTTPS through the corp proxy. Cloud writes the rows to (4) <strong>postgres-dwh</strong>, a Citus 13 cluster, into Bronze schemas like <code>_raw_cfm_core_public</code>. The naming is the load-bearing trick — Fivetran prefixes the source schema so 5 source DBs don't collide on shared <code>public</code> table names.<br><br>
+          On sync complete, Fivetran fires a webhook through (5) <strong>HookDeck</strong> to a GitHub Actions <code>repository_dispatch</code>, which runs <strong>dbt</strong> on a self-hosted EC2 runner. dbt deps, seed, run, test — 107 SQL models that build Silver (<code>analytics_base</code>, <code>analytics</code>) and Gold (<code>analytics_presentation</code>) layers. Finally (6) the <strong>Power BI on-prem gateway</strong> on a Windows EC2 reads only Gold and tunnels results through to Power BI Cloud for dashboard rendering.<br><br>
+          15 connectors total — 5 source DBs &times; 3 envs (CI/Demo/QA). End-to-end latency from source commit to Power BI dashboard is roughly the Fivetran sync interval (15 min) plus dbt run time (5-10 min)."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q2: "What broke on April 26?"</div>
+        <div class="qa-answer">
+          "AWS Outposts host event rebooted the Fivetran agent EC2. All 15 connectors went <code>broken</code> for 21 hours.<br><br>
+          <strong>Two faults stacked.</strong> The agent was installed with bare <code>docker run</code> and no <code>--restart</code> policy, so containers stayed in <code>Exit(255)</code> after the reboot. Datadog was silent because the API key on that instance had expired and was returning 403. Either fault alone we'd have caught — together they made it invisible.<br><br>
+          <strong>Recovery</strong>: I started the controller manually via SSM, applied <code>--restart unless-stopped</code> as a band-aid, then mirrored the OLD agent's standard install — Fivetran's <code>hdagent.sh</code> wrapper plus a <code>fivetran-agent.service</code> systemd unit. Result: 3 layers of restart durability — container <code>--restart on-failure:3</code>, systemd <code>Restart=on-failure</code>, and systemd <code>enable</code> at boot. The Apr 26 mode is now Layer 3.<br><br>
+          <strong>Slot lag</strong>: QA hit 46 GB (<code>wal_status=extended</code>), one day from <code>lost</code>. Drained to 176 MB within an hour of the controller restart.<br><br>
+          <strong>Lesson</strong>: filed P1 ADO items for baking the systemd artifacts into the Golden AMI, moving the DD API key to AWS SM injection, and adding 4 monitors (heartbeat, slot <code>wal_status</code>, connector state, EC2 host check). The slot <code>wal_status</code> monitor would have paged me at minute 15, not hour 21."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q3: "Why Fivetran when Postgres has native replication?"</div>
+        <div class="qa-answer">
+          "One specific reason: schema remapping. Native PG logical replication matches publisher to subscriber by fully qualified name — <code>schema.table</code>. The PG docs spell it out, unchanged from PG 10 through PG 18: <em>replication to differently-named tables on the subscriber is not supported.</em><br><br>
+          We have 5 source databases each with a <code>public.orleansstorage</code> table, and they all need to land in one destination database for dbt cross-source joins. With native replication, three of those writes collide on the same <code>public.orleansstorage</code> primary key. There's no <code>MAP SCHEMA</code> param, no extension hook in core PG.<br><br>
+          Fivetran solves it by reading the WAL itself via <code>pgoutput</code> and writing with a configurable schema prefix — <code>_raw_cfm_core_public</code>, <code>_raw_cfm_record_public</code>, etc. Five collision-free Bronze schemas, dbt knows which source produced which row.<br><br>
+          We considered the alternatives — <code>pglogical</code> isn't supported by our Crunchy operator, Debezium+Kafka is an entire CDC platform for 5 connectors, separate destination DBs break dbt's cross-DB join model. Fivetran at ~$1,500/mo plus the EC2 is the cheapest path. We're not paying for the 600+ connector ecosystem; we're paying for one PG limitation it solves."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q4: "How do logical replication slots survive a Patroni failover?"</div>
+        <div class="qa-answer">
+          "Three layers, designed so any one layer keeps the connector alive.<br><br>
+          <strong>Layer 1 is PG params</strong> — <code>wal_level=logical</code>, <code>hot_standby_feedback=on</code> so the standby's slot LSN flows back to the primary, <code>max_slot_wal_keep_size=15GB</code> as a safety cap before the slot gets dropped on disk pressure.<br><br>
+          <strong>Layer 2 is Patroni <code>useSlots: true</code></strong>, the load-bearing one most people miss. Without it, the slot only exists on the primary. When Patroni promotes a standby, the new primary has no slot — Fivetran's next read fails with <code>replication slot does not exist</code>. With <code>useSlots: true</code>, Patroni continuously mirrors slot LSN state to standbys, so on promotion the slot is already there at the right LSN and Fivetran resumes without gap.<br><br>
+          <strong>Layer 3 is a Slot Manager CronJob</strong> every 5 minutes in each <code>207804-postgres-{env}</code> namespace. It connects to the primary, queries <code>pg_replication_slots</code>, and if any slot is missing or has <code>wal_status=lost</code>, it recreates the slot AND calls Fivetran API <code>POST /v1/connectors/{id}/resync</code>. So even if both Layer 1 and Layer 2 fail us, we self-heal within 5 minutes.<br><br>
+          The cost of slot loss is real — 4-6 hours of historical re-sync per connector. The 3 layers exist because that cost is high enough to justify the engineering."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q5: "Why is the Fivetran agent on EC2 not Kubernetes? What's the plan?"</div>
+        <div class="qa-answer">
+          "Historical reason — Fivetran only officially supported K8s as of March 2025 (<code>hybrid-deployment-agent</code> Helm chart v0.19.0). The agent was deployed before that, and it works, so migration was deferred.<br><br>
+          <strong>The case for migrating now</strong>: ~$730/mo wasted on r5.4xlarge for a 1.6 GiB workload (1.3% utilisation), no Datadog (Apr 26 silent outage), outside ArgoCD GitOps, and an unnecessary F5 LB &rarr; TGW &rarr; NLB hairpin to reach the DWH when a pod could use ClusterIP directly.<br><br>
+          <strong>The plan</strong>: a Helm chart in <code>charts/fivetran-agent/</code> deploying a Deployment + ExternalSecret for the token + EFS-backed PVC into <code>207804-datawarehouse-preprod</code>. K8s mode replaces Docker-in-Docker with K8s Jobs spawned by the controller — cleaner isolation. Migration is three phases: validate EFS prerequisite, deploy in parallel to existing EC2 in CI for 1-2 weeks, cut over per-env in the Fivetran cloud UI, then decommission the EC2 plus the Lambda AMI rotation.<br><br>
+          <strong>Real risks</strong>: RWX storage requirement (EBS gp2 won't work, EFS adds a service link dependency), pod IP not stable for any Fivetran cloud-side allowlist, K8s mode is only ~1 year old. Mitigation is the parallel run plus keeping the EC2 as a hot fallback during cutover.<br><br>
+          <strong>Honest framing</strong>: $700/mo savings is the headline, but the bigger value is platform consistency — every other workload is in EKS managed by ArgoCD with Datadog DaemonSet observability. Eliminating the only EC2 outlier is what really matters."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q6: "Talk me through the Medallion architecture in your dbt setup."</div>
+        <div class="qa-answer">
+          "Three layers in <code>cfm_datalake_{env}</code>, each with a different contract.<br><br>
+          <strong>Bronze</strong> is what Fivetran writes — <code>_raw_cfm_core_public</code>, <code>_raw_cfm_forms_public</code>, etc. Raw, unmodified replica of source PG with Fivetran's metadata columns added (<code>_fivetran_synced</code>, <code>_fivetran_deleted</code>). Apps never read Bronze; dbt is the only consumer. The contract is simply 'this is the source-of-truth replica.'<br><br>
+          <strong>Silver</strong> is dbt's working layer — <code>analytics_base</code> has 95 staging views (type cast, column rename, basic deduplication), <code>analytics</code> has intermediate tables that apply business logic like Orleans JSON unpacking into event records, <code>analytics_references</code> joins reference data. Mostly views with a few materialised tables where rebuilds are expensive. The contract is 'cleaned and joined data, but schema can change between dbt releases.'<br><br>
+          <strong>Gold</strong> is the stable Power BI surface — <code>analytics_presentation</code> with 5-6 mart tables (facts + dimensions + report views) and <code>analytics_system</code> for data quality (e.g., <code>fct_invalid_orleans_grains</code>). Star-schema shaped, pre-aggregated for dashboard performance. <strong>Power BI reads only Gold</strong>. The contract is 'frozen column names, breaking changes go through a release process.'<br><br>
+          <strong>Why the layering matters</strong>: Bronze is replication concern — Fivetran owns it. Silver is data engineering concern — dbt models can be refactored freely. Gold is product concern — Power BI dashboards depend on it, so changes are deliberate. Each layer has a different change cadence and a different blast radius. dbt orchestrates the whole pipeline, but the layer separation means a Silver refactor doesn't break Power BI and a Bronze re-sync doesn't break Silver business logic."
+        </div>
+      </div>
+
+      <div class="success-box">
+        <strong>Section 19 complete.</strong> You now have full coverage of the Fivetran + dbt data pipeline — schema remapping, 6-component architecture, 3-layer slot protection, port multiplexing connectivity, the April 26 21-hour outage as a STAR story, Citus DWH rationale, Medallion layering, Power BI gateway pattern, and the EC2 &rarr; K8s migration proposal. Cross-reference Section 08b for PG internals and Section 15b for Outpost specifics that thread through this section.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<nav class="bottom-nav">
+  <a href="18-mock-interview-session-1.html">&larr; Previous: Mock Interview Session 1</a>
+  <span class="nav-index">Section 19 of 19 &middot; Fivetran + dbt</span>
+  <a href="index.html">Next: Index &rarr;</a>
+</nav>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true, theme: 'base',
+    themeVariables: { primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#22c55e', lineColor: '#7a9ab5', secondaryColor: '#0f1826', tertiaryColor: '#090d1a', background: '#090d1a', mainBkg: '#141f35', nodeBorder: '#1d2d4f', clusterBkg: '#0f1826', titleColor: '#dce8f5', edgeLabelBackground: '#0f1826', fontFamily: 'DM Sans, sans-serif', fontSize: '15px' },
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true }
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  const scales = {};
+  function zoom(id, f) { scales[id] = (scales[id] || 1) * f; document.getElementById(id).style.transform = `scale(${scales[id]})`; }
+  function reset(id) { scales[id] = 1; document.getElementById(id).style.transform = 'scale(1)'; }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#${id}`));
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

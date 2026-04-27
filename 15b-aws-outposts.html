@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 15B: AWS Outposts — Networking Deep Dive | Two VPCs · Subnets · LGW · BGP · Service Link · CHG0130049</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #090d1a; --surface: #0f1826; --surface2: #141f35; --border: #1d2d4f;
+      --text: #dce8f5; --text-muted: #7a9ab5;
+      --accent: #22c55e; --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8; --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b; --accent3-dim: rgba(245,158,11,0.12);
+      --accent4: #a78bfa; --accent4-dim: rgba(167,139,250,0.12);
+      --code-bg: #060a13; --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif; --font-mono: 'Fira Code', monospace; --radius: 8px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+    .hero { background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%); border-bottom: 1px solid var(--border); padding: 3rem 2rem 2.5rem; }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge { font-family: var(--font-mono); font-size: 0.68rem; padding: 0.2rem 0.55rem; border-radius: 4px; letter-spacing: 0.05em; }
+    .badge-green  { background: var(--accent-dim);  color: var(--accent);  border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue   { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber  { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-purple { background: var(--accent4-dim); color: var(--accent4); border: 1px solid rgba(167,139,250,0.3); }
+    .hero h1 { font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; letter-spacing: -0.025em; }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); font-family: var(--font-mono); }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: var(--radius); padding: 0.35rem 0.7rem; cursor: pointer; font-family: var(--font-mono); font-size: 0.72rem; z-index: 100; transition: border-color 0.15s, color 0.15s; }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    .layout { display: flex; max-width: 1240px; margin: 0 auto; padding: 2rem; gap: 2.5rem; }
+    .toc { width: 220px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title { font-family: var(--font-mono); font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 0.65rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a { display: block; padding: 0.28rem 0.6rem; color: var(--text-muted); text-decoration: none; font-size: 0.78rem; border-radius: 4px; border-left: 2px solid transparent; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+    .toc-list a:hover, .toc-list a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    .main-content { flex: 1; min-width: 0; }
+    .section { margin-bottom: 3.5rem; }
+    .section-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.25rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border); }
+    .section-num { font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent); background: var(--accent-dim); padding: 0.15rem 0.4rem; border-radius: 3px; flex-shrink: 0; }
+    .section h2 { font-size: 1.3rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+    .section h3 { font-size: 0.93rem; font-weight: 600; color: var(--accent2); margin: 1.5rem 0 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--font-mono); }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th { background: var(--surface2); color: var(--accent); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); font-family: var(--font-mono); }
+    tbody td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+    .td-green  { color: var(--accent)  !important; font-weight: 500; }
+    .td-blue   { color: var(--accent2) !important; }
+    .td-amber  { color: var(--accent3) !important; }
+    .td-purple { color: var(--accent4) !important; }
+
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; overflow-x: auto; margin-bottom: 1.25rem; white-space: pre-wrap; word-break: break-all; }
+    pre code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); background: none; padding: 0; }
+    .code-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.4rem; display: block; }
+
+    .diagram-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; margin-bottom: 1.5rem; }
+    .diagram-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .diagram-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s, color 0.15s; }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow-x: auto; width: 100%; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; width: 100%; }
+    .mermaid { width: 100%; }
+    .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+
+    .info-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .info-box strong { color: var(--accent2); }
+    .warn-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent3); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .warn-box strong { color: var(--accent3); }
+    .success-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .success-box strong { color: var(--accent); }
+
+    .qa-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1.25rem; }
+    .qa-question { font-weight: 600; color: var(--accent); font-size: 0.88rem; margin-bottom: 0.6rem; font-family: var(--font-mono); }
+    .qa-answer { color: var(--text-muted); font-size: 0.85rem; line-height: 1.65; }
+    .qa-answer strong { color: var(--text); }
+    .qa-answer ol, .qa-answer ul { padding-left: 1.2rem; margin: 0.4rem 0; }
+    .qa-answer li { margin-bottom: 0.25rem; }
+    .qa-answer code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+    .analogy-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent4); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .analogy-box strong { color: var(--accent4); }
+    .analogy-label { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent4); margin-bottom: 0.35rem; display: block; }
+
+    .component-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .component-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; transition: border-color 0.15s; }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.3rem; }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num { flex-shrink: 0; width: 26px; height: 26px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; margin-top: 0.15rem; }
+    .step-body {}
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    .gap-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.15rem 0.45rem; border-radius: 3px; margin-left: 0.5rem; vertical-align: middle; }
+    .gap-high     { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .gap-medium   { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .gap-senior   { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+    .gap-outpost  { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+
+    .bottom-nav { max-width: 1240px; margin: 0 auto; padding: 1.5rem 2rem 3rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); gap: 1rem; flex-wrap: wrap; }
+    .bottom-nav a { color: var(--accent2); text-decoration: none; font-size: 0.82rem; font-family: var(--font-mono); padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); transition: border-color 0.15s, color 0.15s; }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--accent); }
+    .bottom-nav .nav-index { color: var(--text-muted); font-size: 0.75rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    @media (max-width: 860px) { .toc { display: none; } .layout { padding: 1rem; } .hero h1 { font-size: 1.5rem; } .bottom-nav { flex-direction: column; text-align: center; } }
+    body.light { --bg: #f2f6fc; --surface: #ffffff; --surface2: #eaeff8; --border: #c8d6e8; --text: #1a2535; --text-muted: #4f6880; --code-bg: #e2eaf5; --code-text: #1d5fa0; }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">AWS Outposts</span>
+      <span class="badge badge-amber">Networking Deep</span>
+      <span class="badge badge-purple">Companion to 15</span>
+    </div>
+    <h1>Section 15B: AWS Outposts — Networking Deep Dive</h1>
+    <p class="hero-sub">Two VPCs &middot; On-Rack vs Cloud Subnets &middot; CGNAT Pod IPs &middot; Local Gateway BGP &middot; Service Link &middot; Route Tables &middot; VPC Endpoints &middot; S3 on Outposts &middot; CHG0130049 &middot; Transit Gateway &middot; End-to-End Packet Walk</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Sections</span>
+        <span class="hero-meta-value">13 networking deep-dives</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Companion to</span>
+        <span class="hero-meta-value">15 (banking VPC) &middot; 02d (Outpost K8s)</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Account</span>
+        <span class="hero-meta-value">833618288067 / us-east-1 / op-0fa1ae7abb92c72a1</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Grounded in</span>
+        <span class="hero-meta-value">Live AWS infra (Mar 2026) &middot; CHG0130049</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">15B Contents</div>
+      <ul class="toc-list">
+        <li><a href="#s-overview">15b.1 · Why This Section</a></li>
+        <li><a href="#s-twovpcs">15b.2 · Two VPCs</a></li>
+        <li><a href="#s-subnets">15b.3 · Subnet Layout</a></li>
+        <li><a href="#s-subnets" class="toc-sub">on-rack vs cloud anchor</a></li>
+        <li><a href="#s-cgnat">15b.4 · RFC 6598 Pod IPs</a></li>
+        <li><a href="#s-lgw">15b.5 · Local Gateway BGP</a></li>
+        <li><a href="#s-lgw" class="toc-sub">VLAN 2511 / 2513</a></li>
+        <li><a href="#s-lgw" class="toc-sub">ASN 4200003112</a></li>
+        <li><a href="#s-servicelink">15b.6 · Service Link</a></li>
+        <li><a href="#s-routes">15b.7 · Route Tables</a></li>
+        <li><a href="#s-vpc-endpoints">15b.8 · VPC Endpoints</a></li>
+        <li><a href="#s-s3-outposts">15b.9 · S3 on Outposts</a></li>
+        <li><a href="#s-chg">15b.10 · CHG0130049</a></li>
+        <li><a href="#s-tgw">15b.11 · Transit Gateway</a></li>
+        <li><a href="#s-flow">15b.12 · End-to-End Walks</a></li>
+        <li><a href="#s-interview">15b.13 · Interview Q&amp;A</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- ============================================================ -->
+    <!-- 15b.1 OVERVIEW                                                -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-overview">
+      <div class="section-header">
+        <span class="section-num">15b.1</span>
+        <h2>Why This Section <span class="gap-badge gap-outpost">Your Platform</span></h2>
+      </div>
+
+      <p>Section <strong>02d</strong> covers AWS Outposts at the <strong>Kubernetes layer</strong> — Service Link as it relates to kubelet heartbeats, gp2-only storage classes, ECR pulls causing ImagePullBackOff, IRSA over the link, prefix delegation for IP exhaustion, capacity planning for the rack. Section <strong>15</strong> covers <strong>generic banking AWS networking</strong> — VPC, TGW, Direct Connect, security groups, NACLs.</p>
+
+      <p>This file (<strong>15B</strong>) is the missing middle: AWS Outposts at the <strong>networking layer</strong>. The two VPCs (on-rack and cloud anchor), the BGP peering on the Local Gateway, the encrypted Service Link tunnel, the route table decisions that determine whether a packet exits via LGW or Service Link, the VPC endpoint placement, S3-on-Outposts as a separate service, and the actual CHG ticket (CHG0130049, Feb 26 2026) that re-routed all egress through the corporate proxy. Every fact below is grounded in TR's live infrastructure capture.</p>
+
+      <div class="info-box">
+        <strong>Cross-references:</strong> For Outpost <em>capacity planning, IRSA, gp2 storage, prefix delegation, supported services</em> &rarr; see <code>02d-kubernetes-gaps-part-c.html</code>. For <em>generic banking VPC patterns, TGW/DX/multi-account topology, NACL vs SG</em> &rarr; see <code>15-aws-networking.html</code>. This section does not duplicate either — it focuses on the AWS networking primitives <em>specific to running an Outpost in a regulated banking-style on-prem footprint</em>.
+      </div>
+
+      <div class="analogy-box">
+        <span class="analogy-label">&#x1F30D; Mental Model</span>
+        <strong>Two buildings connected by a tunnel:</strong> The <em>cloud VPC</em> is your headquarters in Manhattan (lots of services, multi-AZ, internet-connected). The <em>Outpost VPC</em> is a satellite office in a regulated facility on-premises (single-AZ, fixed capacity, BGP peering with corporate routers). The <em>Service Link</em> is a private dedicated tunnel between them so HQ knows the satellite exists and can manage it. The <em>Local Gateway</em> is the satellite office's loading dock — that's where customer traffic enters and leaves through the corp network. Everything in this section is "which door does the packet take, and why?"
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.2 TWO VPCs                                                -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-twovpcs">
+      <div class="section-header">
+        <span class="section-num">15b.2</span>
+        <h2>Two VPCs — Outpost VPC vs Cloud VPC <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>An Outpost is an extension of an AWS region — but the way it actually works architecturally is that you run <strong>one logical VPC that spans both the rack and the region</strong>. In TR's preprod account (<code>833618288067</code>), this is <code>vpc-0d4351e45bfd185a1</code> ("tr-vpc-1"). It carries three CIDR blocks: <code>10.137.124.0/22</code> (cloud subnets), <code>10.154.16.0/21</code> (Outpost rack node subnet), and <code>100.81.64.0/19</code> (CGNAT pod IP subnet on the rack).</p>
+
+      <p>A second VPC — <code>vpc-0c3dc6b4bdf952c96</code> ("depr-tr-vpc-1", <code>172.28.32.0/19</code>) — is a deprecated legacy VPC for CodeBuild and pen-testing, peered to the active VPC via <code>pcx-03c96331909a36681</code>. The Outpost route table sends <code>172.28.32.0/19</code> traffic to that peering connection.</p>
+
+      <h3>The Two Logical Halves of the Active VPC</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Half</th><th>CIDRs</th><th>Physical Location</th><th>What Lives Here</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-blue"><strong>Outpost half</strong> (on-rack)</td>
+              <td><code>10.154.16.0/21</code> (nodes)<br><code>100.81.64.0/19</code> (pods)</td>
+              <td>TR datacenter — physical Outpost rack <code>op-0fa1ae7abb92c72a1</code></td>
+              <td>EKS worker nodes (EC2), pods, EBS local volumes, S3 on Outposts, Fivetran agent EC2, dbt runner</td>
+            </tr>
+            <tr>
+              <td class="td-green"><strong>Cloud anchor half</strong> (in region)</td>
+              <td><code>10.137.124.0/22</code> (5 subnets across 3 AZs + service-link)</td>
+              <td>AWS us-east-1 region, cloud data centers (1a, 1b, 1c)</td>
+              <td>VPC endpoint ENIs (ECR, Secrets Manager, STS, SSM), NAT Gateway, EKS control-plane ENIs, IGW for public traffic</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why Two Halves?</h3>
+      <p>The rack is single-AZ by definition (<strong>us-east-1a</strong>) — there's one physical Outpost in TR's datacenter. But you still want HA for managed AWS services (NAT, VPC endpoints, EKS control plane ENIs). You can't put those in the rack — they're region-only services — so the cloud anchor exists to host them across <strong>three AZs (1a, 1b, 1c)</strong>. The Outpost subnet talks to those cloud-anchor resources over the Service Link as if they were just another subnet in the same VPC.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Two Halves of One Logical VPC (tr-vpc-1)</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-vpc', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-vpc', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-vpc')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-vpc">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    subgraph CLOUD["AWS Cloud Anchor (us-east-1, 3 AZs)<br/>10.137.124.0/22"]
+        PUBA["public.1a 10.137.127.0/26<br/>+ IGW"]
+        PRIVA["private.1a 10.137.124.0/24<br/>NAT GW + Endpoint ENIs"]
+        PRIVB["private.1b 10.137.125.0/24<br/>Endpoint ENIs"]
+        PRIVC["private.1c 10.137.126.0/24<br/>Endpoint ENIs"]
+        SL["service-link.1a<br/>10.137.127.192/26<br/>(AWS-managed)"]
+    end
+
+    subgraph RACK["Outpost Rack (TR DC, single-AZ us-east-1a)<br/>op-0fa1ae7abb92c72a1"]
+        NODES["private.1a-outposts<br/>10.154.16.0/21<br/>EKS worker nodes"]
+        CGNAT["cgnat.1a-outposts<br/>100.81.64.0/19<br/>Pod IPs (RFC 6598)"]
+    end
+
+    subgraph DEPR["Deprecated VPC (peered)<br/>172.28.32.0/19"]
+        LEGACY["CodeBuild · pen-test"]
+    end
+
+    SL -. "encrypted Service Link" .- NODES
+    PRIVA -- "VPC peering pcx-03c..." --- LEGACY
+    NODES --- CGNAT
+    PRIVA --- PRIVB --- PRIVC
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>Key insight:</strong> there is <em>one VPC</em> but <em>two physical realms</em> connected by the Service Link. From a Helm chart or kubectl perspective, this is invisible — pods address each other by ClusterIP regardless of where the node lives. From a routing perspective, the difference is enormous: the Outpost subnet's route table points <code>0.0.0.0/0</code> at the LGW, while cloud subnets point it at the TGW or NAT GW.
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.3 SUBNET LAYOUT                                            -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-subnets">
+      <div class="section-header">
+        <span class="section-num">15b.3</span>
+        <h2>Subnet Layout — On-Rack vs Cloud Anchor <span class="gap-badge gap-outpost">Your Platform</span></h2>
+      </div>
+
+      <p>The active VPC has <strong>9 subnets</strong>: 2 on the Outpost rack, 3 cloud private (one per AZ), 3 cloud public (one per AZ), 1 cloud service-link. Pod traffic, node traffic, NAT egress, IGW egress, and Outpost-region management traffic each take a different subnet path.</p>
+
+      <h3>Full Subnet Map (preprod, account 833618288067)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Subnet ID</th><th>Name</th><th>CIDR</th><th>AZ</th><th>Realm</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>subnet-030286f49e9e3dbb1</code></td>
+              <td><strong>private.us-east-1a-outposts</strong></td>
+              <td><code>10.154.16.0/21</code></td>
+              <td>1a</td>
+              <td class="td-blue">Outpost rack</td>
+              <td>EKS worker nodes (primary ENI), Fivetran agent, dbt runner</td>
+            </tr>
+            <tr>
+              <td><code>subnet-034ab0d341b29f8cc</code></td>
+              <td><strong>cgnat.us-east-1a-outposts</strong></td>
+              <td><code>100.81.64.0/19</code></td>
+              <td>1a</td>
+              <td class="td-blue">Outpost rack</td>
+              <td>Pod IPs (RFC 6598 / VPC CNI custom networking)</td>
+            </tr>
+            <tr>
+              <td><code>subnet-0037cf88070109bf3</code></td>
+              <td>private.us-east-1a</td>
+              <td><code>10.137.124.0/24</code></td>
+              <td>1a</td>
+              <td class="td-green">Cloud anchor</td>
+              <td>NAT Gateway + endpoint ENIs</td>
+            </tr>
+            <tr>
+              <td><code>subnet-0702c6bbcb717a129</code></td>
+              <td>private.us-east-1b</td>
+              <td><code>10.137.125.0/24</code></td>
+              <td>1b</td>
+              <td class="td-green">Cloud anchor</td>
+              <td>Endpoint ENIs (HA replica)</td>
+            </tr>
+            <tr>
+              <td><code>subnet-00e8b0157058f1484</code></td>
+              <td>private.us-east-1c</td>
+              <td><code>10.137.126.0/24</code></td>
+              <td>1c</td>
+              <td class="td-green">Cloud anchor</td>
+              <td>Endpoint ENIs (HA replica)</td>
+            </tr>
+            <tr>
+              <td><code>subnet-0d67ec8c45888997a</code></td>
+              <td>private.us-east-1a-sl</td>
+              <td><code>10.137.127.192/26</code></td>
+              <td>1a</td>
+              <td class="td-amber">AWS-managed</td>
+              <td>Service Link ENIs — DevOps does not touch</td>
+            </tr>
+            <tr>
+              <td><code>subnet-035d335b...</code></td>
+              <td>public.us-east-1a/b/c</td>
+              <td><code>10.137.127.0/26</code> &times; 3</td>
+              <td>1a/1b/1c</td>
+              <td class="td-green">Cloud anchor</td>
+              <td>IGW egress, public ALBs (no EKS workloads)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why Single-AZ on the Rack but Multi-AZ in the Cloud</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">on-rack</div>
+          <div class="card-title">Single-AZ (us-east-1a)</div>
+          <div class="card-desc">Outpost is one physical rack. No cross-AZ failover possible at the hardware level. DR comes from a separate Outpost cluster (<code>207804-confirmation-proddr</code>), not from cross-AZ.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">cloud anchor</div>
+          <div class="card-title">3 AZs for endpoint HA</div>
+          <div class="card-desc">VPC interface endpoints (ECR, Secrets Manager) place ENIs in each subnet. With three AZs you survive a regional AZ outage. If the Outpost talks to <code>secretsmanager.us-east-1.amazonaws.com</code>, AWS resolves to the closest healthy ENI.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">naming</div>
+          <div class="card-title">"-outposts" suffix</div>
+          <div class="card-desc">Subnet names with <code>-outposts</code> suffix or <code>OutpostArn</code> attribute set live on the rack. Without that attribute, it's a plain regional subnet. Pods follow node placement, so node-affinity to outpost subnets is implicit via the ASG.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">cgnat</div>
+          <div class="card-title">Separate pod CIDR</div>
+          <div class="card-desc"><code>100.81.64.0/19</code> = 8190 usable pod IPs in a CGNAT subnet on the rack. VPC CNI custom networking pulls pod IPs from this subnet so the routable <code>10.154.x</code> space isn't drained by pod density.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.4 RFC 6598 / CGNAT                                        -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-cgnat">
+      <div class="section-header">
+        <span class="section-num">15b.4</span>
+        <h2>Why RFC 6598 (100.64.0.0/10) for Pod IPs? <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>Pod IPs in the Confirmation platform look like <code>100.81.66.91</code> or <code>100.81.86.203</code>. That's <strong>not RFC 1918</strong> (the familiar <code>10.x</code>, <code>172.16/12</code>, <code>192.168/16</code> private ranges) — it's <strong>RFC 6598</strong>, the "shared address space" allocation reserved for Carrier-Grade NAT (CGNAT) operators. The full block is <code>100.64.0.0/10</code>, which gives carriers a private-ish range that won't collide with any customer's home <code>192.168.1.x</code> network.</p>
+
+      <h3>Why Did TR Pick CGNAT for Pod IPs?</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Reason</th><th>Why It Matters</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-blue"><strong>1. Corporate IPv4 scarcity</strong></td>
+              <td>TR's enterprise <code>10.x</code> allocation is rationed across thousands of internal teams. Asking for an <code>10.x /19</code> just for pod IPs (8K+ addresses on a single Outpost rack) burns through a corp allocation that takes months to get approved. RFC 6598 sidesteps that — it's not part of the corp routable space.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>2. Avoid collisions with peered VPCs</strong></td>
+              <td>The deprecated VPC uses <code>172.28.32.0/19</code>. CurrentGen has its own <code>10.x</code> ranges. NAT mappings on the TechM extranet firewall translate legacy <code>192.168.x.x</code> &rarr; <code>10.131.x.x</code>. Pod IPs in <code>100.81.x</code> can't possibly collide with any of those.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>3. VPC CNI custom networking</strong></td>
+              <td>The AWS VPC CNI plugin supports a "custom networking" mode where node primary ENIs use one subnet (<code>10.154.x</code>) and secondary ENIs / pod IPs come from a different subnet (<code>100.81.x</code>). That decouples node count scaling from pod density scaling.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>4. Pod IPs never need to be routable on the public internet</strong></td>
+              <td>Pods reach external endpoints either via VPC endpoints (which SNAT internally), via the corp proxy (which SNATs at the proxy), or via the LGW with explicit BGP advertisement. In none of those cases does the pod IP itself need to be globally unique.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="analogy-box">
+        <span class="analogy-label">&#x1F4DE; Analogy</span>
+        <strong>Why RFC 6598 was created:</strong> when ISPs ran out of IPv4 and started double-NATing customers, they needed a private range that wouldn't collide with the customer's home network (<code>192.168.x.x</code>) OR the ISP's existing internal infrastructure (<code>10.x</code>). IETF carved out <code>100.64.0.0/10</code> for that purpose. TR is essentially using the same idea: pod IPs need to be private and large-scale, but mustn't collide with corp IPs.
+      </div>
+
+      <h3>How VPC CNI Custom Networking Splits Node IPs from Pod IPs</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">VPC CNI Custom Networking — Two-Subnet Pattern on the Rack</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-cni', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-cni', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-cni')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-cni">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TB
+    subgraph NODE["EC2 Worker Node (on rack)"]
+        PRIM["Primary ENI<br/>10.154.16.42<br/>(node IP, kubelet talks here)"]
+        SEC1["Secondary ENI #1<br/>100.81.66.x range"]
+        SEC2["Secondary ENI #2<br/>100.81.86.x range"]
+        POD1["Pod A<br/>100.81.66.91"]
+        POD2["Pod B<br/>100.81.66.143"]
+        POD3["Pod C<br/>100.81.86.203"]
+    end
+
+    SEC1 --> POD1
+    SEC1 --> POD2
+    SEC2 --> POD3
+
+    PRIM -. "BGP-advertised<br/>via LGW" .-> CORP["TR Datacenter Network"]
+    SEC1 -. "BGP-advertised<br/>via LGW (only TR's<br/>100.81.x range)" .-> CORP
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why doesn't pod traffic to the corp network conflict with someone else's 100.64 range? Plenty of carriers use that block."</div>
+        <div class="qa-answer">
+          "<strong>Because the LGW only announces TR's specific /19 — not the whole /10.</strong> The Local Gateway BGP-advertises <code>100.81.64.0/19</code> (8K addresses) to TR's datacenter top-of-rack switches. The TR network learns that <em>this specific /19</em> is reachable through the Outpost LGW. If some other team or carrier were using a different RFC 6598 slice — say <code>100.64.0.0/19</code> — that wouldn't conflict because BGP would route it to a different next-hop.
+          <br><br>
+          The conflict you'd worry about is if TR ever <em>directly peered</em> with an external network that also used <code>100.81.x</code>. But that's not the threat model here — RFC 6598 is non-routable on the public internet by design, and within TR's BGP table the network team manages allocation just like they do for <code>10.x</code> ranges.
+          <br><br>
+          The real win of RFC 6598 over <code>10.x</code> isn't 'no collisions ever' — it's 'no need to ask the corp network team for a giant <code>10.x</code> allocation that they'd refuse'."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.5 LGW BGP                                                  -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-lgw">
+      <div class="section-header">
+        <span class="section-num">15b.5</span>
+        <h2>Local Gateway (LGW) — BGP Deep Dive <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>The Local Gateway is the <strong>customer-owned door</strong> from the Outpost rack into TR's datacenter LAN. Unlike the Service Link (which AWS controls), the LGW is something you configure: VLAN IDs, BGP ASNs, peering IP addresses, route table mode. This is the layer where the Outpost touches the corp network.</p>
+
+      <h3>The Physical Setup — Two BGP Peers, Two VLANs</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Value (preprod)</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>LGW ID</td><td><code>lgw-07a5d519d3cb15dcf</code></td><td>The single Local Gateway for the rack</td></tr>
+            <tr><td>Route table</td><td><code>lgw-rtb-023f510d566d2260b</code></td><td>Active — mode <code>direct-vpc-routing</code></td></tr>
+            <tr><td>Mode</td><td><strong>direct-vpc-routing</strong></td><td>Outpost subnet IPs are directly routable on the DC LAN. No NAT, no encapsulation.</td></tr>
+            <tr><td>VPC association</td><td><code>vpc-0d4351e45bfd185a1</code></td><td>The active VPC (tr-vpc-1)</td></tr>
+            <tr><td>Owner</td><td><code>landingzone-aws-services@tr.com</code></td><td>Platform team owns LGW config; DevOps does not</td></tr>
+            <tr><td colspan="3" style="background:var(--surface2);font-family:var(--font-mono);font-size:0.7rem;">Virtual Interface 1</td></tr>
+            <tr><td>VIF ID</td><td><code>lgw-vif-0ac36f11d245d31c1</code></td><td>First BGP-peered link to ToR switch</td></tr>
+            <tr><td>VLAN</td><td><strong>2511</strong></td><td>802.1Q tag for primary path</td></tr>
+            <tr><td>Local IP</td><td><code>10.154.15.3/31</code></td><td>LGW side of the BGP peering (point-to-point /31)</td></tr>
+            <tr><td>Local ASN</td><td><strong><code>4200003112</code></strong></td><td>Private 32-bit ASN for the LGW</td></tr>
+            <tr><td>Peer IP</td><td><code>10.154.15.2/31</code></td><td>Datacenter ToR switch IP</td></tr>
+            <tr><td>Peer ASN</td><td><code>4200003133</code></td><td>Datacenter switch ASN</td></tr>
+            <tr><td colspan="3" style="background:var(--surface2);font-family:var(--font-mono);font-size:0.7rem;">Virtual Interface 2 (redundant)</td></tr>
+            <tr><td>VIF ID</td><td><code>lgw-vif-0c54553c8eafd2cc4</code></td><td>Backup BGP-peered link to second ToR switch</td></tr>
+            <tr><td>VLAN</td><td><strong>2513</strong></td><td>Different 802.1Q tag, different physical port</td></tr>
+            <tr><td>Local IP</td><td><code>10.154.15.7/31</code></td><td>LGW side</td></tr>
+            <tr><td>Peer IP</td><td><code>10.154.15.6/31</code></td><td>Second ToR switch IP</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>BGP Topology — Outpost &harr; TR Datacenter</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">LGW BGP Peering — Two VIFs for Redundancy</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-lgw', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-lgw', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-lgw')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-lgw">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    subgraph RACK["Outpost Rack — TR DC<br/>op-0fa1ae7abb92c72a1"]
+        LGW["Local Gateway lgw-07a5...<br/>ASN 4200003112<br/>direct-vpc-routing<br/>announces:<br/>10.154.16.0/21<br/>100.81.64.0/19"]
+    end
+
+    subgraph DC["TR Datacenter Network"]
+        TOR1["ToR Switch A<br/>ASN 4200003133<br/>10.154.15.2/31"]
+        TOR2["ToR Switch B<br/>ASN 4200003133<br/>10.154.15.6/31"]
+        CORE["DC Core Network<br/>(routes to corp,<br/>internet egress,<br/>peered DCs)"]
+    end
+
+    LGW -- "VIF 1: VLAN 2511<br/>BGP" --> TOR1
+    LGW -- "VIF 2: VLAN 2513<br/>BGP (backup)" --> TOR2
+    TOR1 --> CORE
+    TOR2 --> CORE
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>What "direct-vpc-routing" Means</h3>
+      <div class="info-box">
+        <strong>direct-vpc-routing mode</strong>: the Outpost subnet IPs (<code>10.154.16.0/21</code> and <code>100.81.64.0/19</code>) are advertised by the LGW directly into the datacenter BGP fabric. From a TR datacenter switch's perspective, those addresses are just another routable corp prefix. <strong>No NAT happens at the LGW.</strong> A pod with IP <code>100.81.66.91</code> sending a packet to <code>10.131.5.10</code> (an on-prem PostgreSQL) keeps that source IP all the way through the LGW, through the ToR switch, into the DC core network, until either a firewall NATs it or the destination receives it directly.
+      </div>
+
+      <div class="warn-box">
+        <strong>Alternative mode — CoIP (Customer-Owned IP):</strong> the second LGW route table (<code>lgw-rtb-0de7ed9502631db6f</code>) is configured for CoIP mode but is <strong>inactive</strong> (no virtual interface group association). CoIP would let Outpost workloads use elastic IPs in a customer-owned IP pool — useful if you need stable, customer-routable IPs for inbound access. We don't use it; ingress comes through F5 / Istio ingress gateway instead.
+      </div>
+
+      <h3>Why a Private 32-bit ASN?</h3>
+      <p>The LGW uses ASN <code>4200003112</code>. That's in the <strong>4-byte private ASN range</strong> (<code>4200000000</code>&ndash;<code>4294967294</code>). The 2-byte private range (<code>64512</code>&ndash;<code>65534</code>) only has ~1000 ASNs, and a large enterprise like TR runs out fast across hundreds of internal sites and Outposts. 4-byte private ASNs (RFC 6996) give effectively unlimited supply, and modern BGP implementations (RFC 4893) carry them transparently.</p>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "VIF 1 (VLAN 2511) goes down. Walk through what happens."</div>
+        <div class="qa-answer">
+          "BGP on VIF 1 keepalive timer (typically 10s, hold timer 30s default for AWS LGW BGP) expires. The LGW marks VIF 1's BGP session as Down. <strong>Routes learned via VIF 1 are withdrawn from the LGW's RIB.</strong> But VIF 2 (VLAN 2513) is still up and was advertising the same prefixes &mdash; so the LGW route table still has paths for <code>10.154.16.0/21</code> and <code>100.81.64.0/19</code> via VIF 2's peer (<code>10.154.15.6/31</code>). Datacenter ToR switch B has the same routes in its RIB.
+          <br><br>
+          <strong>Failover time</strong>: BGP convergence with default timers is 30-90 seconds &mdash; for sub-second failover you'd configure BFD (Bidirectional Forwarding Detection) which AWS LGW now supports. During that 30-90s window, in-flight TCP connections may break. New connections automatically use VIF 2.
+          <br><br>
+          <strong>What we'd see on the DevOps side</strong>: brief spike in 5xx as TCP retries fail, Datadog connection-drop metric on the istio sidecars, then recovery. If both VIFs went down simultaneously, the LGW is effectively offline &mdash; pods can't reach on-prem PostgreSQL, Orleans grain calls fail, MassTransit RabbitMQ traffic via on-prem broker dies. <strong>That's a P1 incident, not a brownout.</strong>"
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.6 SERVICE LINK                                             -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-servicelink">
+      <div class="section-header">
+        <span class="section-num">15b.6</span>
+        <h2>Service Link — The Hidden Tunnel <span class="gap-badge gap-outpost">Your Platform</span></h2>
+      </div>
+
+      <p>The Service Link is an <strong>encrypted WAN tunnel between the Outpost rack and the AWS region</strong>. It's the lifeline that lets the rack pretend it's a normal AWS subnet. AWS owns it end-to-end &mdash; you can't tune it, audit it, or replace it. You only choose its bandwidth at order time.</p>
+
+      <h3>Service Link vs LGW — Two Very Different Things</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Property</th><th>Service Link</th><th>Local Gateway (LGW)</th></tr></thead>
+          <tbody>
+            <tr><td>Purpose</td><td class="td-blue">Outpost &harr; AWS region (control plane, AWS services)</td><td class="td-green">Outpost &harr; customer datacenter LAN</td></tr>
+            <tr><td>Owner</td><td class="td-amber">AWS-managed</td><td class="td-green">Customer-configured (BGP, VLANs, ASN)</td></tr>
+            <tr><td>Subnet on rack</td><td>None &mdash; AWS internal</td><td>None &mdash; not subnet-bound</td></tr>
+            <tr><td>Subnet in cloud</td><td><code>10.137.127.192/26</code> (private.us-east-1a-sl)</td><td>N/A</td></tr>
+            <tr><td>Encryption</td><td>Always encrypted (AWS proprietary)</td><td>None at LGW &mdash; relies on customer DC security</td></tr>
+            <tr><td>Bandwidth</td><td>Sized at order: 1, 10, or 100 Gbps</td><td>Customer's DC link bandwidth</td></tr>
+            <tr><td>Tuneable?</td><td>No &mdash; only resize via support case</td><td>Yes &mdash; VLANs, BGP timers, ASN</td></tr>
+            <tr><td>Failure</td><td>Nodes &rarr; NotReady, ECR pulls fail, Secrets Manager fails</td><td>On-prem dependencies fail, but cluster control plane still works</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>What Flows Over the Service Link</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">control plane</div>
+          <div class="card-title">kubelet &rarr; API server</div>
+          <div class="card-desc">Heartbeats, watch streams, status updates. If link fails, kubelet can't update node status &rarr; node goes NotReady after 40s grace period.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">image pulls</div>
+          <div class="card-title">ECR registry pulls</div>
+          <div class="card-desc">Every container image layer pulled by nodes traverses the Service Link. New deploys can saturate it. Existing pods with cached images keep running.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">secrets</div>
+          <div class="card-title">Secrets Manager / STS</div>
+          <div class="card-desc">ExternalSecrets Operator polls SM via VPC interface endpoint &mdash; ENI lives in cloud subnet, so traffic crosses Service Link.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">vpc endpoints</div>
+          <div class="card-title">All Interface endpoints</div>
+          <div class="card-desc">DynamoDB Gateway endpoint is in-VPC (route table). But Interface endpoints (ECR, Secrets Manager, STS) put ENIs in the cloud anchor subnets &mdash; pod traffic to them is over the link.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">observability</div>
+          <div class="card-title">CloudWatch metrics + logs</div>
+          <div class="card-desc">CloudWatch Logs interface endpoint, EBS snapshot replication, Outpost rack health metrics &mdash; all over the Service Link.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">capacity</div>
+          <div class="card-title">10 Gbps typical, 100 Gbps available</div>
+          <div class="card-desc">TR sized at 10 Gbps. Burst ECR pulls during ArgoCD sync waves can spike utilization 60-70%; that's why we stagger deploys and use prefetched images where possible.</div>
+        </div>
+      </div>
+
+      <h3>The Service Link Subnet Is AWS-Managed</h3>
+      <div class="info-box">
+        The <code>10.137.127.192/26</code> subnet (64 IPs) holds AWS-managed ENIs that terminate the Service Link tunnel on the cloud side. <strong>You cannot put workloads in this subnet.</strong> You cannot modify its route table. AWS Landing Zone team owns it. If you see this subnet referenced in your VPC inventory, leave it alone &mdash; modifying it can sever the rack from AWS.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What's the difference between Service Link and LGW, and which one can you replace if you needed to?"</div>
+        <div class="qa-answer">
+          "<strong>Service Link is AWS-managed; LGW is customer-managed.</strong> You can't replace, tune, or troubleshoot the Service Link &mdash; if it's slow, you open a support ticket and AWS investigates. You only control its <em>bandwidth tier</em> at rack order time (1, 10, or 100 Gbps), and resizing requires a support case.
+          <br><br>
+          The LGW, on the other hand, you fully own. You picked the BGP ASN (<code>4200003112</code>), you picked the VLAN IDs (2511, 2513), you ran the cabling from the rack to the ToR switches, and you maintain the BGP peering on the datacenter side. If the LGW has issues, your network team troubleshoots it &mdash; not AWS.
+          <br><br>
+          <strong>Practical example</strong>: if pods can't reach Secrets Manager, that's almost always a Service Link or VPC endpoint issue &mdash; AWS-side. If pods can't reach on-prem PostgreSQL, that's an LGW or BGP issue &mdash; customer-side. Knowing which side owns which path is the first triage step."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.7 ROUTE TABLES                                             -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-routes">
+      <div class="section-header">
+        <span class="section-num">15b.7</span>
+        <h2>Route Tables — Where Does Each Packet Go? <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>Route tables are where the Outpost vs cloud distinction becomes concrete. Same VPC, but the Outpost subnet's route table sends <code>0.0.0.0/0</code> to the LGW; the cloud subnet's table sends it to the TGW. <strong>Longest prefix match wins</strong> &mdash; specific routes (S3 prefix list, peered VPC CIDR, VPC endpoint) override the default.</p>
+
+      <h3>Outpost Subnet Route Table — <code>privateSubnet1RouteTable-Outposts</code></h3>
+      <div class="info-box">
+        <strong>Associated subnet:</strong> <code>subnet-030286f49e9e3dbb1</code> (<code>10.154.16.0/21</code> — Outpost worker nodes)<br>
+        <strong>Route table ID:</strong> <code>rtb-088e3f817b176df70</code>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Destination</th><th>Target</th><th>What It Means</th></tr></thead>
+          <tbody>
+            <tr><td><code>10.137.124.0/22</code></td><td><code>local</code></td><td>Reach cloud subnets (over Service Link, transparent)</td></tr>
+            <tr><td><code>10.154.16.0/21</code></td><td><code>local</code></td><td>Pod-to-pod / node-to-node within Outpost</td></tr>
+            <tr><td><code>100.81.64.0/19</code></td><td><code>local</code></td><td>Pod IPs reachable from nodes</td></tr>
+            <tr><td><code>172.28.32.0/19</code></td><td>VPC peering <code>pcx-03c96331909a36681</code></td><td>Reach deprecated VPC (CodeBuild, legacy)</td></tr>
+            <tr><td><code>10.0.0.0/8</code></td><td class="td-amber"><strong>LGW</strong> <code>lgw-07a5d519d3cb15dcf</code></td><td>ALL <code>10.x</code> private traffic &rarr; LGW &rarr; corp network (this is CHG0130049)</td></tr>
+            <tr><td><code>0.0.0.0/0</code></td><td class="td-amber"><strong>LGW</strong> <code>lgw-07a5d519d3cb15dcf</code></td><td>ALL other traffic &rarr; LGW &rarr; corp proxy (this is CHG0130049)</td></tr>
+            <tr><td><code>pl-63a5400a</code> (S3 prefix list)</td><td>VPC endpoint <code>vpce-01efb7c5f93543f68</code></td><td>S3 traffic via Gateway endpoint &mdash; never leaves VPC</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Cloud Private Subnet Route Tables — <code>privateSubnet1/2/3RouteTable</code></h3>
+      <div class="info-box">
+        <strong>Associated subnets:</strong> <code>10.137.124.0/24</code>, <code>10.137.125.0/24</code>, <code>10.137.126.0/24</code> (cloud-side, 3 AZs)
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Destination</th><th>Target</th><th>Difference vs Outpost</th></tr></thead>
+          <tbody>
+            <tr><td><code>172.28.32.0/19</code></td><td>VPC peering <code>pcx-03c...</code></td><td>Same as Outpost</td></tr>
+            <tr><td><code>0.0.0.0/0</code></td><td class="td-blue"><strong>TGW</strong> <code>tgw-0d3aebf5bb40f0224</code></td><td><strong>Uses TGW, not LGW</strong> &mdash; cloud subnets don't reach LGW directly</td></tr>
+            <tr><td><code>pl-63a5400a</code></td><td>VPC endpoint <code>vpce-01efb7c5f93543f68</code></td><td>S3 via Gateway endpoint (same as Outpost)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>CGNAT (Pod IP) Subnet Route Table — <code>cgnatSubnet1RouteTable-Outposts</code></h3>
+      <div class="warn-box">
+        <strong>Almost empty by design:</strong> the CGNAT subnet route table only has <code>local</code> entries for in-VPC CIDRs and the S3 prefix list. <strong>No default route.</strong> Pods don't egress directly from the CGNAT subnet &mdash; their traffic is SNATted to the node's primary ENI IP first (in <code>10.154.16.0/21</code>), and then follows the Outpost subnet's route table from there.
+      </div>
+
+      <h3>Side-by-Side: How a Pod Reaches Different Destinations</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Route Table Decision Flow — Five Different Destinations</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-rt', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-rt', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-rt')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-rt">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TB
+    POD["Pod 100.81.66.91<br/>on node 10.154.16.42"]
+    POD --> RT["Outpost Route Table<br/>(longest prefix wins)"]
+
+    RT -->|"dst: another pod IP<br/>100.81.x or 10.154.x"| LOCAL["local<br/>(stays on rack)"]
+    RT -->|"dst: S3 bucket<br/>matches pl-63a5400a"| S3EP["S3 VPC Endpoint<br/>vpce-01ef...<br/>(stays in VPC)"]
+    RT -->|"dst: cloud subnet<br/>10.137.x"| CLOUD["local<br/>(over Service Link)"]
+    RT -->|"dst: 172.28.x<br/>(deprecated VPC)"| PEER["VPC Peering<br/>pcx-03c..."]
+    RT -->|"dst: 10.131.x<br/>or 0.0.0.0/0"| LGW["LGW lgw-07a5...<br/>BGP --> DC --> proxy"]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Route Evaluation Order (Most Specific Wins)</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title"><code>pl-63a5400a</code> (S3 prefix list)</div><div class="step-desc">If destination IP matches the AWS-managed S3 prefix list &rarr; VPC endpoint. S3 traffic never traverses LGW.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title"><code>10.137.124.0/22</code> &rarr; local</div><div class="step-desc">Cloud anchor subnets. Sent over Service Link transparently.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title"><code>10.154.16.0/21</code> &rarr; local</div><div class="step-desc">Outpost node subnet (pod-to-node, node-to-node).</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title"><code>100.81.64.0/19</code> &rarr; local</div><div class="step-desc">CGNAT pod subnet.</div></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title"><code>172.28.32.0/19</code> &rarr; VPC Peering</div><div class="step-desc">Deprecated VPC (CodeBuild, legacy).</div></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title"><code>10.0.0.0/8</code> &rarr; LGW</div><div class="step-desc">All other private <code>10.x</code> traffic. CurrentGen NAT IPs (<code>10.131.x</code>) hit this rule.</div></div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-body"><div class="step-title"><code>0.0.0.0/0</code> &rarr; LGW</div><div class="step-desc">Default. Internet-bound traffic flows to corp proxy via LGW &rarr; DC LAN.</div></div></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.8 VPC ENDPOINTS                                            -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-vpc-endpoints">
+      <div class="section-header">
+        <span class="section-num">15b.8</span>
+        <h2>VPC Endpoints on Outposts <span class="gap-badge gap-outpost">Your Platform</span></h2>
+      </div>
+
+      <p>VPC endpoints let pods reach AWS services without traversing the corp proxy. Two flavors: <strong>Gateway endpoints</strong> (S3, DynamoDB &mdash; free, route-table-based) and <strong>Interface endpoints</strong> (everything else &mdash; cost money, ENI-based via PrivateLink).</p>
+
+      <h3>The Endpoints That Exist in TR's Outpost Setup</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint ID</th><th>Service</th><th>Type</th><th>Why It Matters</th></tr></thead>
+          <tbody>
+            <tr><td><code>vpce-01efb7c5f93543f68</code></td><td>S3 (regional)</td><td>Gateway</td><td>Route table entry via prefix list &mdash; free, fast, used by every pod</td></tr>
+            <tr><td><code>vpce-055b333d1b46da04f</code></td><td>S3 (regional)</td><td>Interface</td><td>Used alongside Gateway for cross-account or PrivateLink-only S3 access patterns</td></tr>
+            <tr><td><code>vpce-0d73aae700160bffb</code></td><td><strong>S3 on Outposts</strong></td><td>Interface</td><td><strong>Distinct from regional S3.</strong> Local S3 service on the rack &mdash; PG backups, audit objects</td></tr>
+            <tr><td><code>vpce-002fbb41a128322fa</code></td><td>Secrets Manager</td><td>Interface</td><td>ExternalSecrets Operator &rarr; SM. Without this, ExternalSecrets fail or go via proxy</td></tr>
+            <tr><td><code>vpce-0df266bb217874ebe</code></td><td>CloudWatch Logs</td><td>Interface</td><td>Datadog forwarder, log shipping</td></tr>
+            <tr><td><code>vpce-007865ea8c40e7cb6</code></td><td>ECR API</td><td>Interface</td><td>Docker pull API calls (auth, manifest)</td></tr>
+            <tr><td><code>vpce-054f0c7d8b9a9d372</code></td><td>ECR DKR</td><td>Interface</td><td>Docker pull layer downloads (large traffic)</td></tr>
+            <tr><td><code>vpce-0cc7065b181ed9d76</code></td><td>STS</td><td>Interface</td><td>IRSA token exchange &mdash; AssumeRoleWithWebIdentity</td></tr>
+            <tr><td><code>vpce-076d8a29633c42fd6</code></td><td>EC2</td><td>Interface</td><td>EC2 API calls (autoscaler, controllers)</td></tr>
+            <tr><td><code>vpce-0144d795dd7a18be4</code></td><td>SSM</td><td>Interface</td><td>Systems Manager (Fivetran agent EC2 access)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Where the Endpoint ENIs Actually Live</h3>
+      <div class="info-box">
+        <strong>Critical detail for the interview:</strong> Interface endpoint ENIs are placed in the <strong>cloud anchor subnets</strong> (<code>10.137.124.0/24</code>, <code>10.137.125.0/24</code>, <code>10.137.126.0/24</code>) &mdash; one ENI per AZ for HA. They are <em>not</em> on the Outpost rack. So when a pod on the rack calls <code>secretsmanager.us-east-1.amazonaws.com</code>:
+        <ol>
+          <li>DNS resolves to the private IP of the endpoint ENI in <code>10.137.124.x</code>.</li>
+          <li>Packet leaves the pod (<code>100.81.x</code>) &rarr; SNAT to node IP (<code>10.154.16.x</code>) by VPC CNI.</li>
+          <li>Routed by Outpost route table &rarr; <code>10.137.124.0/22</code> matches <code>local</code> &rarr; sent over Service Link to the cloud anchor subnet.</li>
+          <li>Hits the endpoint ENI &rarr; PrivateLink &rarr; AWS Secrets Manager backend.</li>
+        </ol>
+      </div>
+
+      <h3>Why Both Gateway and Interface S3 Endpoints?</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">gateway endpoint</div>
+          <div class="card-title">vpce-01efb7c5...</div>
+          <div class="card-desc">Free. Activated by adding the S3 prefix list (<code>pl-63a5400a</code>) as a route table target. Used by 99% of pod &rarr; S3 traffic. No ENI &mdash; pure routing.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">interface endpoint</div>
+          <div class="card-title">vpce-055b333d...</div>
+          <div class="card-desc">Costs ~$0.01/hour per AZ + per-GB. Required for <em>cross-account S3 access</em>, <em>S3 from on-prem via PrivateLink</em>, or <em>VPC endpoint policies</em>. We have it for specific access patterns.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">s3 on outposts</div>
+          <div class="card-title">vpce-0d73aae7...</div>
+          <div class="card-desc">Completely separate service. Only available as Interface endpoint. Routes pod traffic to the local S3 instance on the rack &mdash; data never leaves TR DC.</div>
+        </div>
+      </div>
+
+      <h3>Why NO_PROXY Must Include Endpoint Hostnames</h3>
+      <div class="warn-box">
+        Post-CHG0130049, <code>0.0.0.0/0</code> on the Outpost subnet routes to LGW &rarr; corp proxy. The corp proxy <strong>blocks CONNECT to RFC 1918 private IPs</strong>. Endpoint ENIs have private IPs (<code>10.137.124.x</code>). If you forget to put <code>secretsmanager.us-east-1.amazonaws.com</code> in <code>NO_PROXY</code>, the .NET HTTP client resolves the hostname to <code>10.137.124.x</code>, then tries <code>CONNECT 10.137.124.x:443</code> via the proxy &mdash; the proxy returns 403 / 502 &mdash; pod logs show "secrets manager unreachable" &mdash; you debug it for 90 minutes before realising it's a NO_PROXY config bug.
+        <br><br>
+        <strong>This is exactly the failure mode in INC-004.</strong> Reports-be was hitting Commercial Gateway hostnames that weren't in NO_PROXY &rarr; everything went through the proxy &rarr; proxy rejected internal CG IPs &rarr; 53-57 second timeouts.
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.9 S3 ON OUTPOSTS                                           -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-s3-outposts">
+      <div class="section-header">
+        <span class="section-num">15b.9</span>
+        <h2>S3 on Outposts vs Regional S3 <span class="gap-badge gap-outpost">Your Platform</span></h2>
+      </div>
+
+      <p>S3 on Outposts is a <strong>distinct service</strong>, not a feature of regional S3. It runs on the rack, has its own API endpoint, its own pricing model, its own consistency model. Hitting <code>s3-outposts.us-east-1.amazonaws.com</code> via <code>vpce-0d73aae7</code> goes to the rack; hitting <code>s3.us-east-1.amazonaws.com</code> goes to regional S3 in AWS data centers.</p>
+
+      <h3>What's Different</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Property</th><th>S3 on Outposts</th><th>Regional S3</th></tr></thead>
+          <tbody>
+            <tr><td>Physical location</td><td>On the rack in TR DC</td><td>AWS us-east-1 data centers</td></tr>
+            <tr><td>API endpoint</td><td><code>s3-outposts.us-east-1.amazonaws.com</code></td><td><code>s3.us-east-1.amazonaws.com</code></td></tr>
+            <tr><td>Bucket type</td><td>"Outposts buckets" (different ARN format)</td><td>Standard S3 buckets</td></tr>
+            <tr><td>Storage classes</td><td>Single class (effectively standard, on-rack disk)</td><td>Standard, IA, Glacier, Deep Archive, Express One Zone</td></tr>
+            <tr><td>Pricing</td><td>Pre-paid as part of rack lease (no per-GB charge)</td><td>~$0.023/GB-mo standard, GET/PUT request fees</td></tr>
+            <tr><td>Replication to region</td><td><strong>Not automatic.</strong> You configure CRR policies if needed.</td><td>Native cross-region replication</td></tr>
+            <tr><td>Static website hosting</td><td class="td-amber">Not supported</td><td class="td-green">Supported</td></tr>
+            <tr><td>S3 Object Lambda</td><td class="td-amber">Not supported</td><td class="td-green">Supported</td></tr>
+            <tr><td>Multipart upload</td><td class="td-green">Supported</td><td class="td-green">Supported</td></tr>
+            <tr><td>Encryption</td><td>SSE-S3 (server-managed AES-256), SSE-KMS</td><td>All variants including SSE-C</td></tr>
+            <tr><td>Capacity</td><td>Fixed by rack size (e.g., 11/27/55/110/380 TB)</td><td>Effectively unlimited</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why TR Uses S3 on Outposts</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">use case</div>
+          <div class="card-title">PostgreSQL backups (pgBackRest)</div>
+          <div class="card-desc">CrunchyData PGO writes WAL archives + base backups to S3 on Outposts. Backups stay physically in TR DC &mdash; auditor's preferred boundary for confirmation data.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">use case</div>
+          <div class="card-title">Audit log retention</div>
+          <div class="card-desc">Long-term audit logs that must remain on-prem for regulatory reasons. Datadog ships short-term, S3 Outposts holds the 7-year retention copy.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">use case</div>
+          <div class="card-title">OpenSearch snapshot repository</div>
+          <div class="card-desc">OpenSearch snapshots write to S3 Outposts &mdash; snapshot-and-restore cycles never traverse Service Link, fast and bandwidth-cheap.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">cost</div>
+          <div class="card-title">Pre-paid via rack lease</div>
+          <div class="card-desc">Storage is part of the Outpost monthly fee. No per-request, no per-GB. Heavy snapshot workloads don't hit a surprise bill.</div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>Eventual consistency between Outposts S3 and Regional S3</strong>: there is no automatic replication. If you need a backup of an Outposts bucket in regional S3 (for disaster recovery against rack loss), you configure S3 cross-region-style replication explicitly. Otherwise data on the rack stays on the rack &mdash; which is exactly the regulatory point.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "When should you use S3 on Outposts vs S3 regional?"</div>
+        <div class="qa-answer">
+          "<strong>Default to regional S3.</strong> It's cheaper per GB at small scale, has more features, and the cross-region replication story is mature. Use S3 on Outposts only when you have a specific driver:
+          <ol>
+            <li><strong>Data residency / compliance:</strong> data must remain physically within TR's datacenter (audit confirmation regulatory data is the textbook example).</li>
+            <li><strong>Latency:</strong> applications with hot read paths to large objects &mdash; staying local saves the 5-15ms round trip over Service Link.</li>
+            <li><strong>Bandwidth conservation:</strong> heavy snapshot/backup workloads can saturate the Service Link if they go to regional S3.</li>
+          </ol>
+          For confirmation, drivers 1 and 3 both apply: pgBackRest backups must be on-prem (compliance) <em>and</em> they're large enough to harm Service Link bandwidth (capacity)."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.10 CHG0130049                                              -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-chg">
+      <div class="section-header">
+        <span class="section-num">15b.10</span>
+        <h2>CHG0130049 — The Proxy Routing Change <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>This is the single most operationally consequential network change to the Outpost since it was provisioned. <strong>Date: February 26, 2026.</strong> The default route on the Outpost subnet route table flipped from TGW to LGW &mdash; meaning every outbound packet from a pod now exits via the corp proxy unless explicitly excepted. The CHG was driven by TR Security: they wanted egress visibility, DLP scanning, and threat inspection on all internet-bound traffic from the platform.</p>
+
+      <h3>Before vs After</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Route</th><th>Before CHG0130049</th><th>After CHG0130049 (current)</th></tr></thead>
+          <tbody>
+            <tr><td><code>0.0.0.0/0</code> on Outpost subnet</td><td class="td-amber">TGW <code>tgw-0d3a...</code> &rarr; corp / internet directly</td><td class="td-blue"><strong>LGW <code>lgw-07a5...</code> &rarr; DC &rarr; corp proxy</strong></td></tr>
+            <tr><td><code>10.0.0.0/8</code> on Outpost subnet</td><td>TGW (or no specific route)</td><td class="td-blue"><strong>LGW &mdash; ALL <code>10.x</code> via DC</strong></td></tr>
+            <tr><td>Egress visibility</td><td>Limited &mdash; AWS-side flow logs only</td><td class="td-green">Full &mdash; corp proxy logs every CONNECT, DLP scans</td></tr>
+            <tr><td>Pod env vars</td><td>Optional <code>HTTPS_PROXY</code></td><td class="td-amber"><strong>Required</strong> on every pod making external HTTP calls</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The Required Pod Environment</h3>
+      <span class="code-label">Standard NO_PROXY Pattern Post-CHG0130049</span>
+      <pre><code>env:
+  - name: HTTPS_PROXY
+    value: "http://webproxy.df1.corp.services:80"
+  - name: HTTP_PROXY
+    value: "http://webproxy.df1.corp.services:80"
+  - name: NO_PROXY
+    value: "169.254.169.254,localhost,127.0.0.1,\
+      .cluster.local,.svc.cluster.local,\
+      10.0.0.0/8,100.64.0.0/10,\
+      secretsmanager.us-east-1.amazonaws.com,\
+      ecr.us-east-1.amazonaws.com,\
+      api.ecr.us-east-1.amazonaws.com,\
+      *.dkr.ecr.us-east-1.amazonaws.com,\
+      sts.us-east-1.amazonaws.com,\
+      *.s3.us-east-1.amazonaws.com,\
+      s3-outposts.us-east-1.amazonaws.com,\
+      {service-specific-CG-hostnames}"</code></pre>
+
+      <h3>Why The Proxy Blocks Private IPs</h3>
+      <div class="warn-box">
+        <strong>Corp proxy blocks <code>CONNECT</code> to RFC 1918 (10.x, 172.16/12, 192.168/16) destinations.</strong> The proxy is designed for internet egress, not internal routing &mdash; sending a private IP to it is an indicator of misconfiguration or attempted exfiltration. Result: any internal endpoint that resolves to a <code>10.x</code> IP <em>must</em> be in NO_PROXY, or pods will fail with <code>403 Forbidden</code> or <code>502 Bad Gateway</code> from the proxy.
+        <br><br>
+        VPC endpoint ENIs (<code>10.137.124.x</code>) hit this trap. CurrentGen NAT-translated IPs (<code>10.131.x</code>) hit this trap. Internal CG hostnames that resolve to <code>10.x</code> hit this trap (this is INC-004).
+      </div>
+
+      <h3>Mapping CHG0130049 to Incidents</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Incident</th><th>Symptom</th><th>Root Cause</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>INC-004</strong></td>
+              <td>Reports timeout 53-57s after CHG0130049</td>
+              <td>Commercial Gateway hostnames resolved to internal <code>10.x</code> IPs &mdash; not in NO_PROXY &mdash; corp proxy CONNECT-blocked them &mdash; .NET HTTP client retried until timeout</td>
+              <td>Add CG hostnames + their NAT IPs to NO_PROXY in reports-be values.yaml</td>
+            </tr>
+            <tr>
+              <td><strong>INC-009</strong></td>
+              <td>Selenium-only JS MIME error, but only from corp proxy CIDR</td>
+              <td>WAF IP set missing corp proxy CIDR <code>155.46.128.0/17</code> &mdash; WAF blocked Selenium's now-proxied egress</td>
+              <td>Add corp proxy CIDR to WAF allowed IP set</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>What Doesn't Need The Proxy</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">bypassed</div>
+          <div class="card-title">Pod &rarr; S3</div>
+          <div class="card-desc">VPC Gateway endpoint via <code>pl-63a5400a</code>. Route table sends S3 traffic directly to endpoint, no LGW, no proxy.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">bypassed</div>
+          <div class="card-title">Pod &rarr; ECR / Secrets Manager / STS</div>
+          <div class="card-desc">VPC Interface endpoints. PrivateLink ENI in cloud subnet, pod traffic goes via Service Link &mdash; never hits LGW or proxy.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">bypassed</div>
+          <div class="card-title">Pod &rarr; pod (intra-cluster)</div>
+          <div class="card-desc">Local route + Istio mesh. Never leaves VPC.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">bypassed</div>
+          <div class="card-title">Pod &rarr; deprecated VPC</div>
+          <div class="card-desc">VPC peering for <code>172.28.32.0/19</code> &mdash; specific route, no LGW.</div>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Walk me through what changed in CHG0130049 and why."</div>
+        <div class="qa-answer">
+          "Before the change, the Outpost subnet's default route went to a Transit Gateway, which routed straight to corp / internet without inspection. TR Security wanted full egress visibility &mdash; every outbound HTTP request from the platform should be logged, DLP-scanned, and threat-inspected. The corp proxy at <code>webproxy.df1.corp.services</code> already did all of that for the rest of TR.
+          <br><br>
+          The change was simple in the route table: flip <code>0.0.0.0/0</code> and <code>10.0.0.0/8</code> from TGW target to LGW target. Now every packet from a pod hits the LGW, BGP-routes into the DC, and lands at the corp proxy.
+          <br><br>
+          The operational impact was massive though: every microservice now needs <code>HTTPS_PROXY</code> set, every dependency hostname needs to be in <code>NO_PROXY</code>, and the corp proxy blocks CONNECT to private IPs &mdash; so any internal endpoint that resolves to <code>10.x</code> has to be excepted. INC-004 was the first big production lesson: reports-be was calling Commercial Gateway hostnames that weren't in NO_PROXY, so they went through the proxy, proxy blocked the internal IP, and the .NET HTTP client retried for 53-57 seconds before timing out.
+          <br><br>
+          The fix pattern across all 35 .NET services is now: set proxy env, NO_PROXY includes <code>10.0.0.0/8</code>, <code>.cluster.local</code>, <code>.svc</code>, all VPC endpoint hostnames, and any service-specific internal endpoints."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.11 TRANSIT GATEWAY                                         -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-tgw">
+      <div class="section-header">
+        <span class="section-num">15b.11</span>
+        <h2>Transit Gateway Role <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>Common interview misconception: "the Outpost connects to TR via TGW." Actually, <strong>TGW is on the cloud side only</strong>, attached to the cloud anchor VPC. The Outpost reaches TGW indirectly: pod &rarr; LGW &rarr; (or pod &rarr; service-link &rarr; cloud subnet &rarr; TGW depending on destination).</p>
+
+      <h3>The TGWs Visible in the Account</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>TGW ID</th><th>Name</th><th>Owner</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>tgw-0d3aebf5bb40f0224</code></td><td><strong>TR-TGW1-DX-US-EAST-1</strong></td><td>Platform (<code>896484817525</code>)</td><td>Main corporate TGW &mdash; DirectConnect to corp + cross-account routing</td></tr>
+            <tr><td><code>tgw-07418d7821b683f4b</code></td><td><strong>tr-audit-confirmation-vpn-tgw</strong></td><td>Our account (<code>833618288067</code>)</td><td>VPN TGW &mdash; IPSec to CurrentGen (Culpeper, Miami)</td></tr>
+            <tr><td><code>tgw-003df17e6642b7b87</code></td><td>NonProd shared</td><td>Other account</td><td>Shared via RAM</td></tr>
+            <tr><td><code>tgw-04a5f1fa2f8abc234</code></td><td>us-east-1 (Dec 2024)</td><td>Other account</td><td>Shared via RAM</td></tr>
+            <tr><td><code>tgw-07861dffea06efcfb</code></td><td>us-east-1 (May 2025)</td><td>Other account</td><td>Shared via RAM</td></tr>
+            <tr><td><code>tgw-05d70774799fc969d</code></td><td>Shared (Feb 2019)</td><td>Other account</td><td>Legacy shared</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>TGW Attachments</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>TGW</th><th>Attachment</th><th>Type</th><th>Resource</th></tr></thead>
+          <tbody>
+            <tr><td><code>tgw-0d3a...</code></td><td><code>tgw-attach-000c08381c634d46d</code></td><td>VPC</td><td>Active VPC <code>vpc-0d4351e...</code> (cloud subnets only)</td></tr>
+            <tr><td><code>tgw-0741...</code> (VPN)</td><td><code>tgw-attach-074ee2678da504caf</code></td><td>VPC</td><td>Deprecated VPC</td></tr>
+            <tr><td><code>tgw-0741...</code> (VPN)</td><td><code>tgw-attach-0e38fc32c84e71f98</code></td><td>VPN</td><td>IPSec to CurrentGen DCs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why TGW Is On The Cloud Side Only</h3>
+      <div class="info-box">
+        TGW is a region-only managed service &mdash; you can't deploy a TGW on an Outpost rack. So the TGW attachment is to the cloud subnets of the active VPC. <strong>The Outpost subnet does not directly attach to TGW.</strong> Pre-CHG0130049, the Outpost route table's default route went via TGW (because traffic hopped: Outpost subnet &rarr; service link &rarr; cloud subnet &rarr; TGW). Post-CHG, the Outpost subnet's default goes via LGW instead, sidestepping the TGW entirely for egress.
+        <br><br>
+        Cloud subnets still use TGW for their default route. So if you have an EC2 instance in a cloud private subnet (e.g., the NAT GW or an endpoint ENI test instance), its egress flows differently than a pod's egress.
+      </div>
+
+      <h3>Cross-Account Reachability via TGW</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">cross-account</div>
+          <div class="card-title">CICD account ECR replication</div>
+          <div class="card-desc">CICD account <code>833618288067</code> hosts ECR. Cross-account ECR pulls from the prod account use TGW peering to traverse to the CICD account VPC.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">cross-account</div>
+          <div class="card-title">Shared services</div>
+          <div class="card-desc">Central DNS, shared monitoring &mdash; reached via the corp TGW (<code>tgw-0d3a...</code>) and DirectConnect to the corp network.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">cross-account</div>
+          <div class="card-title">VPN TGW for legacy DCs</div>
+          <div class="card-desc"><code>tgw-0741...</code> attaches an IPSec VPN to <code>vpn-0383c4de867243712</code> &mdash; "Confirmation Legacy DataCenter" &mdash; for hits to legacy CurrentGen.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.12 END TO END WALKS                                        -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-flow">
+      <div class="section-header">
+        <span class="section-num">15b.12</span>
+        <h2>End-to-End Packet Walks <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <p>Five common traffic flows through the Outpost. Each one tests a different part of the route-table / endpoint / proxy stack. Use these as mental drills before the interview.</p>
+
+      <h3>Walk 1: Pod &rarr; AWS Secrets Manager</h3>
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Pod &rarr; Secrets Manager (via VPC Interface Endpoint, NOT proxy)</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-flow1', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-flow1', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-flow1')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-flow1">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+sequenceDiagram
+    participant P as Pod 100.81.66.91
+    participant N as Node 10.154.16.42
+    participant RT as Outpost RT
+    participant SL as Service Link
+    participant E as SM Endpoint ENI 10.137.124.x
+    participant SM as AWS Secrets Manager
+
+    P->>N: SNAT pod 100.81.x to node 10.154.x
+    N->>RT: dst secretsmanager.us-east-1...amazonaws.com<br/>resolves to 10.137.124.x
+    RT->>SL: matches 10.137.124.0/22 local
+    SL->>E: traverses encrypted tunnel
+    E->>SM: PrivateLink to SM backend
+    SM-->>P: response back the same path
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Pod (<code>100.81.66.91</code>) calls <code>secretsmanager.us-east-1.amazonaws.com</code></div><div class="step-desc">Hostname must be in NO_PROXY so the .NET HTTP client doesn't try the proxy.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">DNS resolves to <code>10.137.124.x</code></div><div class="step-desc">VPC private DNS returns the IP of the Secrets Manager endpoint ENI in the cloud anchor.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">VPC CNI SNATs pod IP &rarr; node IP <code>10.154.16.42</code></div><div class="step-desc">Outbound traffic uses the node primary ENI.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Outpost route table: <code>10.137.124.0/22 &rarr; local</code></div><div class="step-desc">Match. Sent over Service Link toward cloud anchor.</div></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Hits endpoint ENI &rarr; PrivateLink &rarr; AWS SM backend</div><div class="step-desc">Never crosses LGW. Never traverses proxy. Stays inside AWS PrivateLink.</div></div></div>
+      </div>
+
+      <h3>Walk 2: Pod &rarr; DynamoDB (Gateway Endpoint)</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Pod calls <code>dynamodb.us-east-1.amazonaws.com</code></div><div class="step-desc">Must be in NO_PROXY (or use AWS SDK which honours <code>aws_endpoint_url</code> overrides).</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">DNS returns the public DynamoDB endpoint IP</div><div class="step-desc">Unlike Interface endpoints, Gateway endpoints don't have a private IP &mdash; the magic is route-table-based.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Outpost route table: matches DynamoDB prefix list &rarr; <strong>VPC Gateway endpoint</strong></div><div class="step-desc">Packet routed to the Gateway endpoint without traversing LGW or NAT.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Stays in AWS &mdash; reaches DynamoDB regional service</div><div class="step-desc">Free, fast, low-latency over Service Link.</div></div></div>
+      </div>
+
+      <h3>Walk 3: Pod &rarr; On-Prem PostgreSQL (CurrentGen)</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Pod calls <code>legacy-pg.cg.thomsonreuters.com</code></div><div class="step-desc">Hostname resolves to a NAT-translated IP like <code>10.131.5.10</code>.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">SNAT pod &rarr; node, then check route table</div><div class="step-desc">Destination <code>10.131.5.10</code>. Most specific match: <code>10.0.0.0/8 &rarr; LGW</code>.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">LGW BGP-forwards to ToR switch (VLAN 2511)</div><div class="step-desc">Direct VPC routing &mdash; no NAT at the LGW. Source IP stays as node IP.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">DC core network &rarr; TechM extranet firewall</div><div class="step-desc">Firewall NATs <code>10.131.5.10</code> back to the legacy <code>192.168.x.x</code> on the CG side.</div></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">IPSec VPN tunnel to CurrentGen DC (Culpeper or Miami)</div><div class="step-desc">Reaches the legacy PostgreSQL.</div></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">Crucial: <code>10.131.5.10</code> must be in NO_PROXY</div><div class="step-desc">Without it, the .NET HTTP client (or pg client) might still try the corp proxy &mdash; which blocks CONNECT to <code>10.x</code>. This is the INC-004 failure mode.</div></div></div>
+      </div>
+
+      <h3>Walk 4: External User &rarr; Istio Ingress Gateway</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">User browser hits CloudFront &rarr; F5 LTM &rarr; KWAF</div><div class="step-desc">Public TR domain, terminates TLS at F5. KWAF inspects for OWASP attacks.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">F5 forwards to Outpost via DC LAN &rarr; LGW (reverse direction)</div><div class="step-desc">F5 lives in TR DC, LGW knows BGP route to the Outpost subnet (<code>10.154.16.0/21</code>) for the istio-ingressgateway service IP.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Hits istio-ingressgateway pod on Outpost</div><div class="step-desc">VirtualService routing decides which backend. mTLS established with sidecars.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Sidecar &rarr; backend pod over mesh (intra-VPC, local route)</div><div class="step-desc">Never leaves rack. Pod-to-pod is the local route entry.</div></div></div>
+      </div>
+
+      <h3>Walk 5: Pod &rarr; Public Internet (e.g., Split.io API)</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Pod calls <code>app.split.io</code> (public hostname, no VPC endpoint)</div><div class="step-desc">Resolves to public IP. <code>HTTPS_PROXY</code> env var is set (CHG0130049).</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">.NET HTTP client uses proxy: TCP CONNECT to <code>webproxy.df1.corp.services:80</code></div><div class="step-desc">Proxy hostname must be reachable: in NO_PROXY? No &mdash; proxy itself doesn't go via proxy. Resolves to corp <code>10.x</code> IP, route table matches <code>10.0.0.0/8 &rarr; LGW</code>.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">LGW &rarr; DC LAN &rarr; corp proxy</div><div class="step-desc">Proxy authenticates pod (if AD-integrated proxy), DLP-scans the request, threat-inspects.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Proxy egresses to TR's internet circuit &rarr; Split.io</div><div class="step-desc">Proxy logs the connect, response returns through the same path.</div></div></div>
+      </div>
+
+      <div class="success-box">
+        <strong>Pattern recognition:</strong> 4 of these 5 walks involve LGW. Only the AWS-service walks (Secrets Manager, DynamoDB) skip LGW &mdash; they ride the Service Link via VPC endpoints. This is why VPC endpoints aren't a cost optimization &mdash; they're a <em>correctness</em> mechanism. Without the SM endpoint, every ExternalSecret refresh would saturate the corp proxy.
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15b.13 INTERVIEW Q&A                                           -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-interview">
+      <div class="section-header">
+        <span class="section-num">15b.13</span>
+        <h2>Interview Q&amp;A Bank <span class="gap-badge gap-senior">Differentiator</span></h2>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q1: "What's an Outpost and how does it differ from a Local Zone?"</div>
+        <div class="qa-answer">
+          "<strong>AWS Outposts</strong> is a physical rack of AWS-owned hardware that sits in <em>your</em> datacenter. You lease it monthly. It runs EC2, EBS, EKS, ECS, RDS (limited), and S3 on Outposts &mdash; all locally on the rack. Connectivity to the AWS region is via the Service Link (encrypted, AWS-managed) for control plane and regional services; connectivity to your DC LAN is via the Local Gateway (BGP-peered to your switches).
+          <br><br>
+          A <strong>Local Zone</strong> is different &mdash; it's an AWS-owned facility in a metro near you (e.g., AWS Local Zone in Los Angeles). You don't own the building, AWS does. Local Zones give you sub-10ms latency to the nearest population centre and run a subset of AWS services. They don't help with on-prem data residency &mdash; the data is still in an AWS facility, just a closer one.
+          <br><br>
+          <strong>The use case split is</strong>: Outposts for <em>data residency + on-prem latency</em> (TR audit confirmation runs on Outposts because data must be in TR's DC). Local Zones for <em>edge latency to consumers</em> (gaming, video streaming, real-time analytics)."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q2: "Why does an Outpost setup use two VPCs (or two halves of one VPC)?"</div>
+        <div class="qa-answer">
+          "It's actually <strong>one logical VPC with two physical realms</strong> &mdash; sometimes people call them two VPCs but technically it's a single VPC with multiple subnets, some on the rack, some in the cloud region.
+          <br><br>
+          You need both halves because:
+          <ol>
+            <li><strong>Outpost is single-AZ.</strong> The rack lives in one physical location. You can't get cross-AZ HA out of it.</li>
+            <li><strong>Some AWS services are region-only.</strong> NAT Gateway, VPC Interface endpoints, EKS control plane ENIs &mdash; you can't put any of these on the rack. They have to live in cloud subnets.</li>
+            <li><strong>HA for those region-only services.</strong> You put one cloud subnet per AZ (1a, 1b, 1c) so endpoint ENIs replicate. If 1a goes down, ENIs in 1b/1c still serve the Outpost.</li>
+          </ol>
+          The Outpost subnet talks to the cloud subnets transparently over the Service Link &mdash; from a pod's perspective, they're just neighbours in the same VPC. The route tables differ though: Outpost subnet sends <code>0.0.0.0/0</code> to LGW, cloud subnets send it to TGW.
+          <br><br>
+          A separate (deprecated) VPC also exists in our account &mdash; <code>172.28.32.0/19</code>, peered &mdash; for legacy CodeBuild and pen-testing workloads. That's a <em>real</em> second VPC, but it's not part of the Outpost story."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q3: "What runs on the rack vs in the region?"</div>
+        <div class="qa-answer">
+          "Cleanly split:
+          <br><br>
+          <strong>On the rack (Outpost):</strong> EKS worker nodes, pods (Confirmation services), local EBS gp2 volumes, Fivetran agent EC2 instance, dbt runner EC2, S3 on Outposts (PG backups, OpenSearch snapshots). Single AZ. Capacity is fixed by the rack model.
+          <br><br>
+          <strong>In the region (cloud anchor + AWS-managed):</strong> EKS control plane (managed by AWS), VPC Interface endpoint ENIs (ECR, Secrets Manager, STS, SSM, CloudWatch), NAT Gateway, IGW, Service Link tunnel termination ENIs, the regional services those endpoints proxy to (ECR registry, SM, STS, etc.), TGW, and any cloud-native databases (RDS, DynamoDB regional).
+          <br><br>
+          <strong>Key consequence:</strong> a Service Link outage doesn't kill the cluster &mdash; pods on the rack keep running with cached secrets and existing connections. But it kills <em>new</em> activity: ECR pulls fail, ExternalSecrets refresh fails, kubelet can't talk to API server, scheduling stops. Existing in-flight work survives, anything new dies."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q4: "How does a pod on the Outpost reach S3?"</div>
+        <div class="qa-answer">
+          "Depends on which S3:
+          <br><br>
+          <strong>Regional S3</strong> (<code>my-bucket.s3.us-east-1.amazonaws.com</code>): the Outpost route table has an entry for the AWS-managed S3 prefix list (<code>pl-63a5400a</code>) pointing at the S3 Gateway endpoint <code>vpce-01efb7c5f93543f68</code>. The pod sends the request, route table matches the prefix list, packet goes to the Gateway endpoint via Service Link, and reaches regional S3. <strong>Free, no proxy, no LGW.</strong>
+          <br><br>
+          <strong>S3 on Outposts</strong> (<code>s3-outposts.us-east-1.amazonaws.com</code> &mdash; different service, different endpoint): there's an Interface endpoint <code>vpce-0d73aae700160bffb</code>. Pod traffic goes to the Interface endpoint ENI, which is in the cloud anchor subnet, then back into the rack to the local S3 service. Slightly more circuitous &mdash; the endpoint ENI lives in cloud, but the actual S3 storage is on the rack.
+          <br><br>
+          For both, <code>s3.us-east-1.amazonaws.com</code> and <code>s3-outposts.us-east-1.amazonaws.com</code> need to be in <code>NO_PROXY</code> &mdash; otherwise the corp proxy intercepts and the request fails."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q5: "Walk me through what changed in CHG0130049 and why."</div>
+        <div class="qa-answer">
+          "Date was Feb 26, 2026. The Outpost subnet's default route flipped from TGW to LGW. Before, <code>0.0.0.0/0</code> went to <code>tgw-0d3aebf5bb40f0224</code> &rarr; corp / internet directly. After, it goes to <code>lgw-07a5d519d3cb15dcf</code> &rarr; DC LAN &rarr; corp proxy at <code>webproxy.df1.corp.services:80</code>. Same change applied to <code>10.0.0.0/8</code> &mdash; all private IP traffic also via LGW.
+          <br><br>
+          <strong>Why</strong>: TR Security wanted egress visibility, DLP scanning, and threat inspection on every outbound HTTP request from the platform. The corp proxy already did all that for the rest of TR &mdash; the change brought the Outpost in line.
+          <br><br>
+          <strong>Operational impact</strong>: every microservice now needs <code>HTTPS_PROXY</code> env, <code>NO_PROXY</code> includes <code>.cluster.local</code>, <code>.svc</code>, internal CIDRs, all VPC endpoint hostnames, and any service-specific internal endpoints. The corp proxy blocks CONNECT to RFC 1918 IPs, so any internal endpoint that resolves to <code>10.x</code> must be in NO_PROXY or it gets blocked.
+          <br><br>
+          <strong>The first big lesson was INC-004</strong>: reports-be was hitting Commercial Gateway hostnames that weren't in NO_PROXY. The .NET HTTP client tried the proxy, proxy returned 502 because the destination was a private <code>10.x</code> IP, .NET retried with exponential backoff for 53-57 seconds before timing out. Fix was adding the CG hostnames + their NAT IPs to the reports-be values.yaml NO_PROXY."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q6: "Could you put a NAT Gateway on the Outpost itself?"</div>
+        <div class="qa-answer">
+          "<strong>No.</strong> NAT Gateway is an AWS-managed service that's only available in regional VPCs &mdash; not on Outposts. The supported-services matrix is explicit about this. The closest you can do is host an EC2-based NAT instance on the rack, but that's an old pattern with a single point of failure and no managed lifecycle.
+          <br><br>
+          <strong>What we do instead</strong>: outbound internet from pods follows the LGW path &mdash; LGW &rarr; DC LAN &rarr; corp proxy &rarr; TR's internet egress. Effectively, the corp network <em>is</em> our NAT &mdash; the proxy SNATs traffic to TR's internet IP block and inspects it. That gives us inspection / DLP that a NAT Gateway wouldn't.
+          <br><br>
+          For traffic that needs cloud-side egress (some legacy paths), we route it via TGW &rarr; cloud anchor private subnet &rarr; NAT Gateway in cloud subnet &rarr; IGW. That's what the cloud subnets' default route does. But for Outpost workloads, post-CHG0130049, the LGW + corp proxy path is the standard.
+          <br><br>
+          <strong>The architectural insight</strong>: on a regulated on-prem deployment, you usually <em>want</em> egress to flow through corp inspection rather than a regional NAT &mdash; otherwise you give up the visibility that drove putting workloads on-prem in the first place."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q7 (bonus): "How would you debug a pod that suddenly can't reach Secrets Manager?"</div>
+        <div class="qa-answer">
+          "Step-by-step:
+          <ol>
+            <li><code>kubectl exec -it pod -- env | grep -i proxy</code> &mdash; verify <code>HTTPS_PROXY</code> is set, <code>NO_PROXY</code> includes <code>secretsmanager.us-east-1.amazonaws.com</code>.</li>
+            <li><code>kubectl exec -it pod -- nslookup secretsmanager.us-east-1.amazonaws.com</code> &mdash; should resolve to a private <code>10.137.124.x</code> IP (endpoint ENI). If it resolves to a public IP, the VPC private DNS isn't being used &mdash; check VPC <code>enableDnsSupport</code> and <code>enableDnsHostnames</code>.</li>
+            <li><code>kubectl exec -it pod -- curl -v https://secretsmanager.us-east-1.amazonaws.com</code> &mdash; should connect with TLS handshake. If "connection refused" check the endpoint ENI status; if "403 from proxy" check NO_PROXY.</li>
+            <li><code>aws ec2 describe-vpc-endpoints --vpc-endpoint-ids vpce-002fbb41a128322fa</code> &mdash; verify endpoint state is "available" and the security group allows :443 from the Outpost CIDR.</li>
+            <li><code>kubectl get externalsecret -n &lt;ns&gt;</code> &mdash; check Status conditions; "SecretSyncedError" means the operator itself is failing.</li>
+            <li>If everything looks fine on Outpost side, check Service Link health in CloudWatch &mdash; <code>OutpostsLinkLatency</code> metric. Sustained &gt;100ms p95 = degradation; AWS support case territory."
+          </ol>
+        </div>
+      </div>
+
+      <div class="success-box">
+        <strong>Closing thought for the interview:</strong> the AWS Outposts networking story is a rare topic where you can demonstrate <em>both</em> deep AWS knowledge (VPC endpoints, TGW vs LGW, BGP on AWS-managed gateways, RFC 6598 in production) <em>and</em> hands-on operational experience (CHG0130049, INC-004, NO_PROXY engineering across 35 microservices, Service Link bandwidth concerns during ECR sync waves). Most candidates know the cloud-native stack. Far fewer have lived through a real on-prem AWS deployment with corp-proxy egress and BGP-peered LGW. Lead with the concrete details &mdash; the subnet IDs, ASNs, VLANs, CHG number &mdash; and the conversation will go in your direction.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<nav class="bottom-nav">
+  <a href="15-aws-networking.html">&larr; Previous: AWS Networking (Banking VPC / TGW / DX)</a>
+  <span class="nav-index">15B of network-deep series &mdash; Outposts AWS layer</span>
+  <a href="16-secret-management.html">Next: Secret Management &rarr;</a>
+</nav>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true, theme: 'base',
+    themeVariables: { primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#22c55e', lineColor: '#7a9ab5', secondaryColor: '#0f1826', tertiaryColor: '#090d1a', background: '#090d1a', mainBkg: '#141f35', nodeBorder: '#1d2d4f', clusterBkg: '#0f1826', titleColor: '#dce8f5', edgeLabelBackground: '#0f1826', fontFamily: 'DM Sans, sans-serif', fontSize: '15px' },
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true }
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  const scales = {};
+  function zoom(id, f) { scales[id] = (scales[id] || 1) * f; document.getElementById(id).style.transform = `scale(${scales[id]})`; }
+  function reset(id) { scales[id] = 1; document.getElementById(id).style.transform = 'scale(1)'; }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#${id}`));
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

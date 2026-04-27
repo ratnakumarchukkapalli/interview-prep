@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 3: Istio Service Mesh — Deep Dive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d1a;
+      --surface: #0f1826;
+      --surface2: #141f35;
+      --border: #1d2d4f;
+      --text: #dce8f5;
+      --text-muted: #7a9ab5;
+      --accent: #22c55e;
+      --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8;
+      --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b;
+      --accent3-dim: rgba(245,158,11,0.12);
+      --code-bg: #060a13;
+      --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      --radius: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .hero {
+      background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3rem 2rem 2.5rem;
+    }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .badge-green { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.025em;
+    }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    /* THEME TOGGLE */
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      z-index: 100;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 2rem;
+      gap: 2.5rem;
+    }
+
+    /* TOC */
+    .toc { width: 195px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 0.63rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a {
+      display: block;
+      padding: 0.28rem 0.6rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .toc-list a:hover, .toc-list a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    /* MAIN */
+    .main-content { flex: 1; min-width: 0; }
+
+    /* SECTIONS */
+    .section { margin-bottom: 3.5rem; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .section h3 {
+      font-size: 0.93rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin: 1.5rem 0 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-mono);
+    }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    tbody td {
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--code-text);
+      background: var(--code-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+    .td-green { color: var(--accent) !important; font-weight: 500; }
+    .td-blue { color: var(--accent2) !important; }
+    .td-amber { color: var(--accent3) !important; }
+    .td-muted { color: var(--text-muted) !important; font-size: 0.8rem; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2) !important; }
+
+    /* COMPONENT GRID */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      transition: border-color 0.15s;
+    }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+    .card-ip {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--accent2);
+      background: var(--code-bg);
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+
+    /* CODE BLOCK */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: none;
+      padding: 0;
+    }
+
+    /* DIAGRAM */
+    .diagram-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .diagram-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow-x: auto; width: 100%; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; width: 100%; }
+    .mermaid { width: 100%; }
+    .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+
+    /* INFO / WARN BOXES */
+    .info-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent2);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .info-box strong { color: var(--accent2); }
+    .warn-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent3);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .warn-box strong { color: var(--accent3); }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-top: 0.15rem;
+    }
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      .toc { display: none; }
+      .layout { padding: 1rem; }
+      .hero h1 { font-size: 1.5rem; }
+    }
+
+    /* LIGHT MODE */
+    body.light {
+      --bg: #f2f6fc;
+      --surface: #ffffff;
+      --surface2: #eaeff8;
+      --border: #c8d6e8;
+      --text: #1a2535;
+      --text-muted: #4f6880;
+      --code-bg: #e2eaf5;
+      --code-text: #1d5fa0;
+    }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .bottom-nav a {
+      color: var(--accent2);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      padding: 0.4rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .bottom-nav a:hover {
+      border-color: var(--accent2);
+      background: var(--accent2-dim);
+    }
+    .bottom-nav .nav-index {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    /* INTERVIEW ANSWER BOX */
+    .interview-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .interview-box strong { color: var(--accent); }
+    .interview-box .interview-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 0.4rem;
+      display: block;
+    }
+
+    /* SCENARIO Q */
+    .scenario-q {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--accent3);
+      margin: 1.2rem 0 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">Istio</span>
+      <span class="badge badge-amber">Service Mesh</span>
+    </div>
+    <h1>Section 3: Istio Service Mesh</h1>
+    <p class="hero-sub">mTLS, VirtualService, DestinationRule, AuthorizationPolicy &mdash; Deep Dive</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Platform</span>
+        <span class="hero-meta-value">Confirmation &mdash; 40+ microservices on EKS</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Last Updated</span>
+        <span class="hero-meta-value">2026-03-12</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Source</span>
+        <span class="hero-meta-value" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">03-istio-service-mesh-deep-dive-with-our-implementation.md</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#what-is-mesh">3.1 What is a Service Mesh?</a></li>
+        <li><a href="#architecture">3.2 Architecture</a></li>
+        <li><a href="#architecture" class="toc-sub">Data Plane vs Control Plane</a></li>
+        <li><a href="#traffic-flow">3.3 Traffic Flow</a></li>
+        <li><a href="#istio-resources">3.4 Istio Resources</a></li>
+        <li><a href="#istio-resources" class="toc-sub">Gateway</a></li>
+        <li><a href="#virtualservice" class="toc-sub">VirtualService</a></li>
+        <li><a href="#destinationrule" class="toc-sub">DestinationRule</a></li>
+        <li><a href="#peerauth" class="toc-sub">PeerAuthentication</a></li>
+        <li><a href="#authpolicy" class="toc-sub">AuthorizationPolicy</a></li>
+        <li><a href="#serviceentry" class="toc-sub">ServiceEntry</a></li>
+        <li><a href="#canary">3.5 Canary + Argo Rollouts</a></li>
+        <li><a href="#security-layers">3.6 Security Layers</a></li>
+        <li><a href="#scenarios">3.7 Scenario Questions</a></li>
+        <li><a href="#resource-map">3.8 Resource Map</a></li>
+        <li><a href="#real-flow">3.9 Real Traffic Flow</a></li>
+        <li><a href="#real-flow" class="toc-sub">Two Layers of TLS</a></li>
+        <li><a href="#real-flow" class="toc-sub">Gateway Patterns</a></li>
+        <li><a href="#real-flow" class="toc-sub">Sync Wave Order</a></li>
+        <li><a href="#real-flow" class="toc-sub">Debug Commands</a></li>
+        <li><a href="#kwaf">3.10 KWAF (ext-authz WAF)</a></li>
+        <li><a href="#kwaf" class="toc-sub">Component breakdown</a></li>
+        <li><a href="#kwaf" class="toc-sub">Inspection flow</a></li>
+        <li><a href="#f5-bridge">3.11 F5 + TLS Bridging</a></li>
+        <li><a href="#f5-bridge" class="toc-sub">BANANA portal</a></li>
+        <li><a href="#f5-bridge" class="toc-sub">Three-cert reality</a></li>
+        <li><a href="#labels-ports">3.12 Label Injection + Ports</a></li>
+        <li><a href="#labels-ports" class="toc-sub">rollouts-pod-template-hash</a></li>
+        <li><a href="#labels-ports" class="toc-sub">Port reference</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- 3.1 WHAT IS A SERVICE MESH -->
+    <section class="section" id="what-is-mesh">
+      <div class="section-header">
+        <span class="section-num">3.1</span>
+        <h2>What is a Service Mesh? Why Istio?</h2>
+      </div>
+
+      <p><strong>Without a service mesh:</strong></p>
+      <pre><code>┌─────────┐   plain HTTP (unencrypted)   ┌─────────┐
+│  Pod A  │ ──────────────────────────▶ │  Pod B  │
+└─────────┘  no auth · no observability  └─────────┘</code></pre>
+
+      <p><strong>With Istio service mesh:</strong></p>
+      <pre><code>┌─────────┐   ┌───────────────┐   mTLS encrypted   ┌───────────────┐   ┌─────────┐
+│  Pod A  │──▶│ Envoy Sidecar │ ══════════════════▶ │ Envoy Sidecar │──▶│  Pod B  │
+└─────────┘   │ (auto-inject) │    (transparent to  │ (auto-inject) │   └─────────┘
+              └───────────────┘     application)    └───────────────┘</code></pre>
+
+      <p><strong>What Istio gives you (without changing application code):</strong></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Capability</th><th>How</th><th>Your Usage</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>mTLS encryption</strong></td>
+              <td>Envoy sidecars handle TLS handshake between all pods</td>
+              <td>PeerAuthentication mode: STRICT &mdash; all traffic encrypted</td>
+            </tr>
+            <tr>
+              <td><strong>Access control</strong></td>
+              <td>AuthorizationPolicy controls who can talk to whom</td>
+              <td>Only IngressGateway can reach our services</td>
+            </tr>
+            <tr>
+              <td><strong>Traffic management</strong></td>
+              <td>VirtualService routes traffic by path, header, weight</td>
+              <td>Canary deployments &mdash; 50% &rarr; 100% traffic shift</td>
+            </tr>
+            <tr>
+              <td><strong>Observability</strong></td>
+              <td>Envoy exports metrics, traces, access logs automatically</td>
+              <td>Datadog gets request count, latency, error rate per service</td>
+            </tr>
+            <tr>
+              <td><strong>Retries/Timeouts</strong></td>
+              <td>DestinationRule configures retry policies</td>
+              <td>Connection pool settings, circuit breaking</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "Istio is a service mesh that injects an Envoy sidecar proxy into every pod. The sidecar intercepts all inbound and outbound traffic. This gives us three things without touching application code: mutual TLS encryption between all services, fine-grained access control via AuthorizationPolicy, and traffic routing for canary deployments via VirtualService. In our platform, every one of our 40+ microservices has an Istio sidecar."
+      </div>
+    </section>
+
+    <!-- 3.2 ARCHITECTURE -->
+    <section class="section" id="architecture">
+      <div class="section-header">
+        <span class="section-num">3.2</span>
+        <h2>Istio Architecture &mdash; Data Plane vs Control Plane</h2>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Istio Architecture &mdash; Control Plane + Data Plane</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-arch', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-arch', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-arch')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-arch">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    subgraph CP["CONTROL PLANE (istiod)"]
+        PILOT["Pilot\nPushes routing config\nto all Envoy sidecars"]
+        CITADEL["Citadel\nManages certificates\nfor mTLS"]
+        GALLEY["Galley\nValidates Istio config\n(VirtualService, etc.)"]
+    end
+    subgraph DP["DATA PLANE (Envoy Sidecars)"]
+        PA["Pod: pricing-be\n.NET app + Envoy sidecar"]
+        PB["Pod: nucleus-be\n.NET app + Envoy sidecar"]
+        PA <-->|"mTLS encrypted"| PB
+    end
+    CP -->|"xDS protocol\nconfig push"| DP
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Component</th><th>What It Does</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>istiod</strong></td>
+              <td>Single binary running Pilot + Citadel + Galley. Pushes config to all sidecars, manages certs.</td>
+            </tr>
+            <tr>
+              <td><strong>Envoy sidecar</strong></td>
+              <td>Proxy injected into every pod (via <code>istio-injection=enabled</code> namespace label). Handles mTLS, routing, retries, metrics.</td>
+            </tr>
+            <tr>
+              <td><strong>Istio IngressGateway</strong></td>
+              <td>Entry point for external traffic into the mesh. Runs as a separate pod (usually LoadBalancer Service).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "Istio has two planes. The control plane (istiod) manages configuration and certificate distribution. The data plane is Envoy sidecar proxies injected into every pod. When I create a VirtualService, istiod pushes that routing rule to all relevant Envoy sidecars via the xDS protocol. The sidecars enforce it at the network level."
+      </div>
+    </section>
+
+    <!-- 3.3 TRAFFIC FLOW -->
+    <section class="section" id="traffic-flow">
+      <div class="section-header">
+        <span class="section-num">3.3</span>
+        <h2>How Traffic Flows in Our Platform (End-to-End)</h2>
+      </div>
+
+      <p>This is the <strong>full flow</strong> from a user request to a pod response in our Confirmation platform:</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">End-to-End Request Flow</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-flow', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-flow', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-flow')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-flow">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    BROWSER["User Browser"]
+    NLB["AWS NLB / Load Balancer\n(Layer 4)"]
+    IGW["Istio IngressGateway Pod\nprivate-ingressgateway namespace"]
+    GW["Gateway resource\nhost, TLS cert, port 443"]
+    VS["VirtualService\npath -> service routing"]
+    SIDECAR["Envoy Sidecar\n(in target pod)"]
+    AUTH["AuthorizationPolicy\nSource allowed?"]
+    PEER["PeerAuthentication\nmTLS STRICT"]
+    DR["DestinationRule\nSubset routing (stable/canary)"]
+    APP["Application Container\ne.g., audit-devops-assistant :8000"]
+
+    BROWSER --> NLB
+    NLB --> IGW
+    IGW --> GW
+    GW --> VS
+    VS --> SIDECAR
+    SIDECAR --> AUTH
+    AUTH --> PEER
+    PEER --> DR
+    DR --> APP
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "External traffic hits our AWS NLB, which forwards to the Istio IngressGateway pod. The Gateway resource configures TLS termination with our certificate. The VirtualService routes based on URL path &mdash; for example, <code>/v1/chat</code> goes to the assistant service. The request passes through the destination pod's Envoy sidecar, which enforces mTLS and AuthorizationPolicy. Only then does it reach the application container."
+      </div>
+    </section>
+
+    <!-- 3.4 ISTIO RESOURCES -->
+    <section class="section" id="istio-resources">
+      <div class="section-header">
+        <span class="section-num">3.4</span>
+        <h2>Each Istio Resource &mdash; What It Does + Our Implementation</h2>
+      </div>
+
+      <!-- 3.4.1 GATEWAY -->
+      <h3>3.4.1 Gateway &mdash; The Front Door</h3>
+
+      <p><strong>Concept:</strong> Defines which hosts, ports, and TLS certificates the IngressGateway accepts.</p>
+
+      <p><strong>Our implementation</strong> (from <code>kwaf-service-mesh/templates/gateway.yaml</code>):</p>
+
+      <pre><code>apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: e2e-gui-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"    # Created FIRST in ArgoCD sync
+spec:
+  selector:
+    istio: ingressgateway                  # Binds to Istio IngressGateway pod
+  servers:
+  - hosts:
+    - ci-outpost.api.tr.confirmation.com   # Our domain
+    port:
+      name: https-kwaf-preprod
+      number: 443
+      protocol: HTTPS
+    tls:
+      credentialName: waf-outpost-cert     # K8s Secret with TLS cert
+      mode: SIMPLE                          # TLS termination at gateway</code></pre>
+
+      <p><strong>Key points to explain:</strong></p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title"><code>selector: istio: ingressgateway</code></div>
+            <div class="step-desc">Tells which IngressGateway pod this Gateway binds to</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title"><code>tls.mode: SIMPLE</code></div>
+            <div class="step-desc">Gateway terminates TLS (decrypts), then forwards plain HTTP into the mesh (where mTLS re-encrypts)</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title"><code>credentialName</code></div>
+            <div class="step-desc">References a K8s Secret containing the TLS certificate and private key</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="scenario-q">Scenario Q: "What TLS modes does Istio Gateway support?"</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Mode</th><th>What Happens</th><th>When to Use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>SIMPLE</strong></td>
+              <td>Gateway terminates TLS</td>
+              <td>Most common &mdash; our setup. Client&rarr;Gateway is HTTPS, Gateway&rarr;Pod is mTLS</td>
+            </tr>
+            <tr>
+              <td><strong>PASSTHROUGH</strong></td>
+              <td>Gateway passes TLS through, pod terminates</td>
+              <td>When the app handles its own TLS</td>
+            </tr>
+            <tr>
+              <td><strong>MUTUAL</strong></td>
+              <td>Both client and gateway present certificates</td>
+              <td>Client certificate authentication (mTLS at edge)</td>
+            </tr>
+            <tr>
+              <td><strong>ISTIO_MUTUAL</strong></td>
+              <td>Uses Istio's internal certificates</td>
+              <td>For mesh-internal gateways</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3.4.2 VIRTUALSERVICE -->
+    <section class="section" id="virtualservice">
+      <div class="section-header">
+        <span class="section-num">3.4.2</span>
+        <h2>VirtualService &mdash; Traffic Routing</h2>
+      </div>
+
+      <p><strong>Concept:</strong> Routes traffic based on host, path, headers, etc. to the right service and subset.</p>
+
+      <p><strong>Our implementation</strong> (from <code>audit-devops-assistant/templates/virtual-service.yaml</code>):</p>
+
+      <pre><code>apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: audit-devops-assistant-virtualservice
+spec:
+  hosts:
+    - ci-outpost.api.tr.confirmation.com   # Match incoming host
+  gateways:
+    - ci-ingress-gateway                    # Attached to this Gateway
+  http:
+    - name: chat-route
+      match:
+        - uri:
+            prefix: /v1/chat               # Match these URL paths
+        - uri:
+            prefix: /v1/health
+      route:
+        - destination:
+            host: audit-devops-assistant-service.207804-confirmation-ci.svc.cluster.local
+            port:
+              number: 8000
+            subset: stable                  # Routes to "stable" subset
+          weight: 100                       # 100% traffic to stable
+        - destination:
+            host: audit-devops-assistant-service.207804-confirmation-ci.svc.cluster.local
+            port:
+              number: 8000
+            subset: canary                  # Canary subset
+          weight: 0                         # 0% during normal operation</code></pre>
+
+      <p><strong>Key points:</strong></p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title"><code>hosts</code></div>
+            <div class="step-desc">Which hostname this VirtualService handles</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title"><code>gateways</code></div>
+            <div class="step-desc">Attached to our Gateway (otherwise only handles mesh-internal traffic)</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title"><code>match.uri.prefix</code></div>
+            <div class="step-desc">Path-based routing</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title"><code>subset: stable</code> / <code>subset: canary</code></div>
+            <div class="step-desc">Defined in DestinationRule, used by Argo Rollouts for canary</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-title"><code>weight: 100/0</code></div>
+            <div class="step-desc">During canary deployment, Argo Rollouts changes this to 50/50 then 100/0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "VirtualService is like an Nginx location block but at the mesh level. It matches incoming requests by host and path, then routes to a destination service + subset. The key is the weight field &mdash; during normal operation, 100% goes to stable. During a canary deployment, Argo Rollouts automatically updates the weights to shift traffic gradually."
+      </div>
+
+      <p class="scenario-q">Scenario Q: "How is VirtualService different from Kubernetes Ingress?"</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspect</th><th>K8s Ingress</th><th>Istio VirtualService</th></tr></thead>
+          <tbody>
+            <tr><td>Traffic splitting</td><td>Not supported</td><td class="td-green">weight-based (canary)</td></tr>
+            <tr><td>Matching</td><td>Host + path only</td><td class="td-green">Host, path, headers, query params, method</td></tr>
+            <tr><td>Retries/Timeouts</td><td>Not supported</td><td class="td-green">Built-in</td></tr>
+            <tr><td>mTLS</td><td>Not supported</td><td class="td-green">Native via Istio</td></tr>
+            <tr><td>Fault injection</td><td>Not supported</td><td class="td-green">Inject delays/errors for testing</td></tr>
+            <tr><td>Subset routing</td><td>Not supported</td><td class="td-green">Route to specific pod subsets</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3.4.3 DESTINATIONRULE -->
+    <section class="section" id="destinationrule">
+      <div class="section-header">
+        <span class="section-num">3.4.3</span>
+        <h2>DestinationRule &mdash; Subsets + Traffic Policy</h2>
+      </div>
+
+      <p><strong>Concept:</strong> Defines subsets (stable/canary) and traffic policies (mTLS, load balancing) for a service.</p>
+
+      <p><strong>Our implementation</strong> (from <code>audit-devops-assistant/templates/destination-rule.yaml</code>):</p>
+
+      <pre><code>apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: audit-devops-assistant-v1.0.0-destination-rule
+spec:
+  host: audit-devops-assistant-service     # Target K8s Service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL                   # mTLS between all pods
+  subsets:
+    - name: stable                         # Stable subset
+      labels:
+        app: audit-devops-assistant-rollout
+    - name: canary                         # Canary subset
+      labels:
+        app: audit-devops-assistant-rollout
+      trafficPolicy:
+        loadBalancer:
+          simple: RANDOM                   # Random LB for canary pods</code></pre>
+
+      <p><strong>Key points:</strong></p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title"><code>tls.mode: ISTIO_MUTUAL</code></div>
+            <div class="step-desc">Enforces mutual TLS for all traffic to this service</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title"><code>subsets</code></div>
+            <div class="step-desc">Stable and canary both select pods with same label, but Argo Rollouts manages which pods are in which subset via pod-template-hash</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title"><code>loadBalancer: RANDOM</code></div>
+            <div class="step-desc">For canary, random distribution prevents sticky sessions masking issues</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="scenario-q">Scenario Q: "What's the difference between ISTIO_MUTUAL and STRICT mTLS?"</p>
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "They work at different layers:<br>
+        &bull; <code>ISTIO_MUTUAL</code> in DestinationRule &mdash; tells the <strong>client</strong> sidecar to use Istio-managed certificates when connecting to this service<br>
+        &bull; <code>STRICT</code> in PeerAuthentication &mdash; tells the <strong>server</strong> sidecar to REJECT any non-mTLS traffic<br>
+        Together they ensure end-to-end mTLS. DestinationRule controls what the sender does, PeerAuthentication controls what the receiver accepts."
+      </div>
+    </section>
+
+    <!-- 3.4.4 PEERAUTHENTICATION -->
+    <section class="section" id="peerauth">
+      <div class="section-header">
+        <span class="section-num">3.4.4</span>
+        <h2>PeerAuthentication &mdash; mTLS Enforcement</h2>
+      </div>
+
+      <p><strong>Concept:</strong> Controls whether a workload accepts mTLS, plaintext, or both.</p>
+
+      <p><strong>Our implementation</strong> (from <code>kwaf-service-mesh/templates/peerauthentication.yaml</code>):</p>
+
+      <pre><code>apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: 207804-confirmation-ci        # Applied to entire namespace
+spec:
+  mtls:
+    mode: STRICT                           # ONLY accept mTLS traffic</code></pre>
+
+      <h3>mTLS Modes</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Mode</th><th>Accepts mTLS?</th><th>Accepts Plaintext?</th><th>When to Use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>STRICT</strong></td>
+              <td>Yes</td>
+              <td>NO &mdash; rejects plaintext</td>
+              <td>Production &mdash; our setup. Maximum security.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>PERMISSIVE</strong></td>
+              <td>Yes</td>
+              <td>Yes</td>
+              <td>Migration phase &mdash; when some services don't have sidecars yet</td>
+            </tr>
+            <tr>
+              <td><strong>DISABLE</strong></td>
+              <td>No</td>
+              <td>Yes</td>
+              <td>Special cases (e.g., legacy services without Istio)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "We use PeerAuthentication with mode STRICT on every namespace. This means any traffic that isn't mutually authenticated via Istio certificates is rejected. When we first onboarded services, we used PERMISSIVE mode temporarily so non-mesh services could still communicate. Once all services had sidecars, we switched to STRICT."
+      </div>
+
+      <p class="scenario-q">Scenario Q: "Service A (with sidecar) can't talk to Service B (without sidecar). Why?"</p>
+      <div class="interview-box">
+        <span class="interview-label">Answer</span>
+        "If the namespace has PeerAuthentication STRICT, Service B must present an mTLS certificate. Without a sidecar, it sends plaintext &rarr; rejected.<br><br>
+        Fix options:<br>
+        1. Inject sidecar into Service B (best)<br>
+        2. Create a port-level PeerAuthentication exception for Service B<br>
+        3. Temporarily set namespace to PERMISSIVE (not recommended for prod)"
+      </div>
+    </section>
+
+    <!-- 3.4.5 AUTHORIZATIONPOLICY -->
+    <section class="section" id="authpolicy">
+      <div class="section-header">
+        <span class="section-num">3.4.5</span>
+        <h2>AuthorizationPolicy &mdash; Access Control</h2>
+      </div>
+
+      <p><strong>Concept:</strong> Fine-grained access control &mdash; which service accounts can access which paths.</p>
+
+      <p><strong>Our implementation</strong> (from <code>audit-devops-assistant/templates/authorization-policy.yaml</code>):</p>
+
+      <pre><code>apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: audit-devops-assistant-ci-authorization-policy
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/private-ingressgateway/sa/private-ingressgateway-service-account
+      to:
+        - operation:
+            paths:
+              - /*
+  selector:
+    matchLabels:
+      app: audit-devops-assistant-rollout</code></pre>
+
+      <p><strong>Breaking this down:</strong></p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title"><code>action: ALLOW</code></div>
+            <div class="step-desc">Whitelist model &mdash; only listed sources are allowed, everything else denied</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title"><code>principals</code></div>
+            <div class="step-desc">Istio identity = <code>cluster.local/ns/&lt;namespace&gt;/sa/&lt;service-account&gt;</code></div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Only IngressGateway allowed</div>
+            <div class="step-desc">No pod-to-pod direct access &mdash; must go through IngressGateway</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title"><code>selector</code></div>
+            <div class="step-desc">Applies only to pods matching this label</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "AuthorizationPolicy is like a firewall rule at Layer 7. In our setup, we use an ALLOW policy that only permits traffic from the IngressGateway's service account. This means even if an attacker gets into a random pod in the cluster, they can't directly call our service &mdash; they'd need to go through the IngressGateway, which handles authentication. It's defense in depth."
+      </div>
+
+      <p class="scenario-q">Scenario Q: "You need to allow one service to call another directly (not through IngressGateway). How?"</p>
+      <div class="interview-box">
+        <span class="interview-label">Answer</span>
+        "Add another principal to the AuthorizationPolicy:"
+        <pre><code>principals:
+  - cluster.local/ns/private-ingressgateway/sa/private-ingressgateway-service-account
+  - cluster.local/ns/207804-confirmation-ci/sa/pricing-be-sa   # NEW</code></pre>
+        "This allows pricing-be to call our service directly within the mesh. The identity is verified by Istio's mTLS certificate &mdash; you can't spoof it."
+      </div>
+    </section>
+
+    <!-- 3.4.6 SERVICEENTRY -->
+    <section class="section" id="serviceentry">
+      <div class="section-header">
+        <span class="section-num">3.4.6</span>
+        <h2>ServiceEntry &mdash; External Egress</h2>
+      </div>
+
+      <p><strong>Concept:</strong> By default, Istio blocks outbound traffic to external services. ServiceEntry allows specific external hosts.</p>
+
+      <p><strong>Our implementation</strong> (from <code>audit-devops-assistant/templates/service-entry.yaml</code>):</p>
+
+      <pre><code># We need 4 external services:
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: audit-devops-assistant-datadog-egress
+spec:
+  hosts:
+    - api.datadoghq.com                    # Datadog API
+  location: MESH_EXTERNAL                  # Outside the mesh
+  ports:
+    - number: 443
+      name: https
+      protocol: TLS
+  resolution: DNS                          # Resolve hostname via DNS
+
+# Also created for:
+# - aiplatform.gcs.int.thomsonreuters.com  (TR AI Platform)
+# - api.anthropic.com                       (Claude API)
+# - sso.thomsonreuters.com                  (JWT/JWKS validation)</code></pre>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "In a strict Istio mesh, outbound traffic to external services is blocked by default. Our AI assistant needs to call Datadog API, Anthropic API, TR AI Platform, and TR SSO. I created ServiceEntry resources for each external host &mdash; this tells Istio 'allow outbound TLS to these specific hosts on port 443'. Without ServiceEntry, the Envoy sidecar would reject the connection."
+      </div>
+    </section>
+
+    <!-- 3.5 CANARY -->
+    <section class="section" id="canary">
+      <div class="section-header">
+        <span class="section-num">3.5</span>
+        <h2>How Argo Rollouts + Istio Work Together for Canary</h2>
+      </div>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Canary Deployment Flow with Istio + Argo Rollouts</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-canary', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-canary', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-canary')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-canary">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    DEV["Developer pushes\nnew image tag to Helm chart"]
+    ARGO["ArgoCD detects drift\nSyncs resources"]
+    ROLLOUT["Argo Rollout creates\ncanary pod (new image)"]
+    W50["Step 1: setWeight: 50\nstable: 50% / canary: 50%\nArgo patches VirtualService"]
+    PAUSE["Step 2: pause: 1m\nObserve in Datadog"]
+    W100["Step 3: setWeight: 100\nstable: 0% / canary: 100%\nOld pods terminated"]
+    DONE["Deployment complete\nVirtualService reset to 100/0"]
+
+    DEV --> ARGO --> ROLLOUT --> W50 --> PAUSE --> W100 --> DONE
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p><strong>Our rollout config</strong> (from <code>rollout.yaml</code>):</p>
+
+      <pre><code>spec:
+  strategy:
+    canary:
+      trafficRouting:
+        istio:
+          virtualService:
+            name: audit-devops-assistant-virtualservice
+            routes:
+              - app-route           # Must match the route name in VirtualService
+          destinationRule:
+            name: audit-devops-assistant-v1.0.0-destination-rule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+        - setWeight: 50             # Send 50% to canary
+        - pause:
+            duration: 1m            # Wait 1 minute (monitor in Datadog)
+        - setWeight: 100            # Promote to 100%</code></pre>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "We use Argo Rollouts integrated with Istio for canary deployments. When a new image tag is pushed, Argo creates canary pods and patches the VirtualService weights &mdash; first 50/50, then pauses for 1 minute so we can observe metrics in Datadog, then promotes to 100%. The Istio DestinationRule defines the stable and canary subsets. If we see errors during the pause, we can abort and it rolls back automatically."
+      </div>
+    </section>
+
+    <!-- 3.6 SECURITY LAYERS -->
+    <section class="section" id="security-layers">
+      <div class="section-header">
+        <span class="section-num">3.6</span>
+        <h2>Security Layers &mdash; Our Defense in Depth</h2>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">AWS NLB</div>
+            <div class="step-desc">Only allows port 443</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Istio Gateway</div>
+            <div class="step-desc">TLS termination, host validation</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">VirtualService</div>
+            <div class="step-desc">Path-based routing (only allowed paths)</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">AuthorizationPolicy</div>
+            <div class="step-desc">Only IngressGateway service account allowed</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-title">PeerAuthentication</div>
+            <div class="step-desc">mTLS STRICT &mdash; no plaintext</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-content">
+            <div class="step-title">Container security</div>
+            <div class="step-desc">readOnlyRootFilesystem, runAsUser:14000, drop ALL capabilities, Seccomp RuntimeDefault</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">7</div>
+          <div class="step-content">
+            <div class="step-title">Application JWT</div>
+            <div class="step-desc">RS256 token validation at FastAPI level</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "We have 7 layers of security. Network level: NLB restricts to port 443. Mesh level: Istio Gateway terminates TLS, VirtualService restricts paths, AuthorizationPolicy whitelists only the IngressGateway, PeerAuthentication enforces mTLS STRICT. Container level: read-only filesystem, non-root user (14000), all capabilities dropped, Seccomp RuntimeDefault. Application level: JWT RS256 authentication. An attacker would need to bypass all 7 layers."
+      </div>
+    </section>
+
+    <!-- 3.7 SCENARIOS -->
+    <section class="section" id="scenarios">
+      <div class="section-header">
+        <span class="section-num">3.7</span>
+        <h2>Advanced Scenario Questions &mdash; Istio</h2>
+      </div>
+
+      <p class="scenario-q">Q: "A new service you deployed can't receive any traffic. All other services work fine. What do you check?"</p>
+      <div class="interview-box">
+        <span class="interview-label">Answer</span>
+        Istio-specific debugging:<br>
+        1. <strong>Does the pod have a sidecar?</strong> <code>kubectl get pod &lt;name&gt; -o jsonpath='{.spec.containers[*].name}'</code> &mdash; should show <code>istio-proxy</code><br>
+        2. <strong>Is the namespace labeled?</strong> <code>kubectl get ns &lt;ns&gt; --show-labels</code> &mdash; needs <code>istio-injection=enabled</code><br>
+        3. <strong>AuthorizationPolicy too restrictive?</strong> If I forgot to create one, and namespace has a deny-all default, traffic is blocked<br>
+        4. <strong>VirtualService route missing?</strong> The URL path might not match any route<br>
+        5. <strong>DestinationRule subset mismatch?</strong> If subset labels don't match pod labels, traffic has no destination<br>
+        6. <strong>Check Envoy logs:</strong> <code>kubectl logs &lt;pod&gt; -c istio-proxy</code> &mdash; shows connection rejections and reasons
+      </div>
+
+      <p class="scenario-q">Q: "How do you debug mTLS issues between services?"</p>
+      <div class="interview-box">
+        <span class="interview-label">Answer</span>
+        mTLS troubleshooting:<br>
+        1. <code>istioctl proxy-config cluster &lt;pod&gt;</code> &mdash; shows TLS settings for each upstream<br>
+        2. <code>istioctl authn tls-check &lt;pod&gt; &lt;service&gt;</code> &mdash; verifies mTLS status between specific pods<br>
+        3. Common issue: PeerAuthentication is STRICT but DestinationRule has <code>tls.mode: DISABLE</code> &rarr; connection fails<br>
+        4. Check certificate validity: <code>istioctl proxy-config secret &lt;pod&gt;</code> &mdash; shows cert expiry<br>
+        5. In Envoy logs: <code>SSL handshake error</code> means certificate mismatch or expired
+      </div>
+
+      <p class="scenario-q">Q: "How would you gradually migrate from no service mesh to Istio?"</p>
+      <div class="interview-box">
+        <span class="interview-label">Answer</span>
+        Phased approach:<br>
+        1. <strong>Phase 1:</strong> Enable sidecar injection on one non-prod namespace. Set PeerAuthentication to PERMISSIVE (accepts both mTLS and plaintext)<br>
+        2. <strong>Phase 2:</strong> Verify all services work with sidecars. Check Kiali or Envoy metrics for traffic flows<br>
+        3. <strong>Phase 3:</strong> Create VirtualServices and DestinationRules for each service. No behavior change yet &mdash; just makes routing explicit<br>
+        4. <strong>Phase 4:</strong> Add AuthorizationPolicies (ALLOW mode). Start restrictive &mdash; only IngressGateway<br>
+        5. <strong>Phase 5:</strong> Switch PeerAuthentication to STRICT on non-prod. Test thoroughly<br>
+        6. <strong>Phase 6:</strong> Roll out to prod namespaces one at a time. PERMISSIVE first, then STRICT after validation
+      </div>
+
+      <p class="scenario-q">Q: "What happens if istiod (control plane) goes down?"</p>
+      <div class="interview-box">
+        <span class="interview-label">Answer</span>
+        "The data plane (sidecars) continues working! Envoy sidecars cache their configuration. Existing routing rules, mTLS certificates &mdash; all still work. What breaks:<br>
+        &bull; No new configuration pushes (new VirtualServices won't take effect)<br>
+        &bull; Certificate rotation stops (certs expire in 24h by default)<br>
+        &bull; New pods won't get proper config on startup<br>
+        &bull; So it's not immediate disaster, but must be fixed within hours before certs expire"
+      </div>
+
+      <p class="scenario-q">Q: "How does Istio sidecar injection work?"</p>
+      <div class="interview-box">
+        <span class="interview-label">Answer</span>
+        "Two ways:<br>
+        1. <strong>Automatic</strong> (our approach): Label the namespace <code>istio-injection=enabled</code>. A mutating admission webhook intercepts pod creation and injects the Envoy sidecar container + init container automatically<br>
+        2. <strong>Manual:</strong> <code>istioctl kube-inject -f deployment.yaml</code> &mdash; modifies the YAML to add sidecar<br><br>
+        The init container (<code>istio-init</code>) sets up iptables rules to redirect all pod traffic through Envoy. That's how the sidecar intercepts traffic transparently &mdash; the app doesn't know it's there."
+      </div>
+    </section>
+
+    <!-- 3.8 RESOURCE MAP -->
+    <section class="section" id="resource-map">
+      <div class="section-header">
+        <span class="section-num">3.8</span>
+        <h2>Our Complete Istio Resource Map Per Service</h2>
+      </div>
+
+      <p>Every service in our platform gets this set of Istio resources:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Resource</th><th>Purpose</th><th>Sync Wave</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Gateway</strong></td>
+              <td>TLS termination, host binding (shared across services)</td>
+              <td class="td-blue">1</td>
+            </tr>
+            <tr>
+              <td><strong>VirtualService</strong></td>
+              <td>Path routing &rarr; service, stable/canary weights</td>
+              <td class="td-blue">3</td>
+            </tr>
+            <tr>
+              <td><strong>DestinationRule</strong></td>
+              <td>mTLS policy, stable/canary subsets</td>
+              <td class="td-blue">2</td>
+            </tr>
+            <tr>
+              <td><strong>AuthorizationPolicy</strong></td>
+              <td>Whitelist IngressGateway only</td>
+              <td class="td-blue">2</td>
+            </tr>
+            <tr>
+              <td><strong>PeerAuthentication</strong></td>
+              <td>mTLS STRICT (namespace-wide, shared)</td>
+              <td class="td-blue">1</td>
+            </tr>
+            <tr>
+              <td><strong>ServiceEntry</strong></td>
+              <td>External egress whitelist (only services that need it)</td>
+              <td class="td-blue">1</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="interview-box">
+        <span class="interview-label">Interview Answer</span>
+        "Every one of our 40+ services has a VirtualService for routing, DestinationRule for mTLS and subset definitions, and AuthorizationPolicy for access control. These are all templated in Helm &mdash; I maintain the templates. Gateway and PeerAuthentication are namespace-wide (shared). ServiceEntry is only for services that call external APIs. ArgoCD sync waves ensure they deploy in the right order &mdash; Gateway and PeerAuth first, then DestinationRule and AuthPolicy, then VirtualService, then the Rollout itself."
+      </div>
+    </section>
+
+    <!-- 3.9 REAL TRAFFIC FLOW -->
+    <section class="section" id="real-flow">
+      <div class="section-header">
+        <span class="section-num">3.9</span>
+        <h2>Real Traffic Flow &mdash; selfreg-be (Self-Registration Backend) in Demo</h2>
+      </div>
+
+      <div class="warn-box">
+        <strong>This is your go-to interview story.</strong> When the interviewer asks "walk me through traffic flow in your platform," use this exact example with real names, real IPs, real ports.
+      </div>
+
+      <h3>The Request</h3>
+      <p>An auditor opens their browser and navigates to the Confirmation self-registration page. The frontend sends an API call:</p>
+      <pre><code>GET https://demo-outpost.api.tr.confirmation.com/api/confirmation/selfregistration/health</code></pre>
+
+      <h3>Step-by-Step Flow (with real resource names)</h3>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">selfreg-be Full Request Flow &mdash; Demo Environment</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-selfreg', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-selfreg', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-selfreg')" title="Reset zoom">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-selfreg">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart TD
+    BROWSER["Browser\nGET /api/confirmation/selfregistration/health"]
+    DNS["DNS Resolution\ndemo-outpost.api.tr.confirmation.com\n-> 10.230.34.4 (F5 LB)"]
+    F5["F5 Load Balancer\n10.230.34.4:443\nTLS passthrough to NodePort 32390"]
+    IGW["Istio IngressGateway\n3 Envoy proxy pods (HA)\nport 8443 / private-ingressgateway ns\nReads TLS SNI header"]
+    GW["Gateway: demo-ingress-gateway\nns: 207804-confirmation-demo\nLoads cert: demo-outpost-cert\nTerminates TLS (SIMPLE)"]
+    VS["VirtualService\nconfirmation-selfreg-be-demo-virtualservice\nMatch: prefix /api/confirmation/selfregistration\nRoute: selfreg-be-demo-service:8080\nSubset: stable (100%)"]
+    DR["DestinationRule\nconfirmation-selfreg-be-demo-v*-destination-rule\ntls.mode: ISTIO_MUTUAL\nEstablishes mTLS to target pod"]
+    SVC["Service\nconfirmation-selfreg-be-demo-service\nClusterIP / Port 8080"]
+    AUTH["AuthorizationPolicy\nAllows: private-ingressgateway SA\nDenies: everything else (zero-trust)"]
+    POD["Pod: confirmation-selfreg-be-demo-rollout-*\n.NET app :8080 + istio-proxy sidecar\nUID:14000 / read-only FS"]
+    RESP["Response flows back\nencrypted at each layer"]
+
+    BROWSER --> DNS --> F5 --> IGW --> GW --> VS --> DR --> SVC --> AUTH --> POD --> RESP
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p><strong>Simplified one-liner</strong> (for quick reference):</p>
+      <pre><code>Browser ──▶ F5 BigIP ──▶ IngressGateway ──▶ Gateway ──▶ VirtualService ──▶ DestinationRule ──▶ Service ──▶ AuthorizationPolicy ──▶ Pod
+              (10.230.34.4)  [TLS terminate]                 [route]            [subset/LB]                       [allow/deny]       [mTLS]</code></pre>
+
+      <h3>The Two Layers of TLS Encryption</h3>
+
+      <p>This is critical to explain clearly in interviews:</p>
+
+      <pre><code>╔══════════════════════════════════════════════════════════════════════════╗
+║          LAYER 1: External TLS  (Browser ↔ IngressGateway)             ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║                                                                          ║
+║  ┌─────────────────────────┐      ┌──────────────────────────────┐      ║
+║  │   IngressName CRD       │      │      Plexus Platform         │      ║
+║  │  (plexus.tr.com/v1alpha1│      │   (TR cert automation)       │      ║
+║  │  lists domain names,    │      │   provisions TLS cert        │      ║
+║  │  e.g. demo-outpost.api) │      │   for listed domains         │      ║
+║  └────────────┬────────────┘      └──────────────┬───────────────┘      ║
+║               │                                  │                      ║
+║               └─────────────┬────────────────────┘                      ║
+║                             ▼                                            ║
+║           ┌─────────────────────────────────────┐                       ║
+║           │  K8s Secret: demo-outpost-cert       │                       ║
+║           │  Namespace:  private-ingressgateway  │                       ║
+║           │  Type:       kubernetes.io/tls       │                       ║
+║           └─────────────────┬───────────────────┘                       ║
+║                             │  Gateway: credentialName: demo-outpost-cert║
+║                             ▼                                            ║
+║           ┌─────────────────────────────────────┐                       ║
+║           │    Istio IngressGateway Pod          │                       ║
+║           │    TLS mode: SIMPLE (server-side)    │                       ║
+║           │    Terminates HTTPS from browser     │                       ║
+║           │    Decrypts → forwards plain HTTP    │                       ║
+║           └─────────────────────────────────────┘                       ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║          LAYER 2: Internal mTLS  (Pod ↔ Pod within mesh)               ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║                                                                          ║
+║  ┌─────────────────────────────────────┐                                ║
+║  │  DestinationRule                    │                                ║
+║  │  trafficPolicy.tls.mode: ISTIO_MUTUAL│                               ║
+║  └──────────────────┬──────────────────┘                                ║
+║                     │  istiod auto-issues short-lived certs              ║
+║                     │  to each pod's Envoy sidecar                       ║
+║                     ▼                                                    ║
+║  ┌──────────────────────┐  mTLS   ┌──────────────────────┐             ║
+║  │ Pod A (Envoy sidecar)│◀══════▶│ Pod B (Envoy sidecar) │             ║
+║  └──────────────────────┘         └──────────────────────┘             ║
+║   • Mutual authentication — both sides present certificates              ║
+║   • All traffic encrypted in transit                                     ║
+║   • Certificates auto-rotated (istiod manages lifecycle)                 ║
+╚══════════════════════════════════════════════════════════════════════════╝</code></pre>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>What</th><th>Where</th><th>TLS Mode</th><th>Who Manages Cert</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>External</strong></td>
+              <td>Browser &rarr; IngressGateway</td>
+              <td>F5 &rarr; IngressGateway</td>
+              <td><code>SIMPLE</code></td>
+              <td>IngressName CRD (Plexus auto-provisions)</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>Internal</strong></td>
+              <td>Pod &rarr; Pod</td>
+              <td>Within service mesh</td>
+              <td><code>ISTIO_MUTUAL</code></td>
+              <td>Istio (automatic, short-lived, auto-rotated)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Three Gateway Patterns Per Environment</h3>
+
+      <p>Each environment has <strong>3 domain patterns</strong> for different access types:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Pattern</th><th>Gateway Name</th><th>Host (Demo)</th><th>Use Case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Outpost</strong></td>
+              <td><code>demo-ingress-gateway</code></td>
+              <td><code>demo-outpost.api.tr.confirmation.com</code></td>
+              <td>Primary external traffic via F5</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>External</strong></td>
+              <td><code>demo-external-ingress-gateway</code></td>
+              <td><code>demo-external.api.tr.confirmation.com</code></td>
+              <td>External API consumers (banks, auditors)</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Internal/OP</strong></td>
+              <td><code>demo-gateway</code></td>
+              <td><code>demo.api.tr.confirmation.com</code> + <code>demo.sso.confirmation.com</code></td>
+              <td>Internal operations, SSO, VPN access</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>All 3 domains resolve to the same F5 IP</strong> (10.230.34.4). The IngressGateway uses <strong>TLS SNI</strong> (Server Name Indication) to match the correct Gateway &mdash; the client sends the hostname in the TLS ClientHello before encryption, and Istio uses that to pick which Gateway config to apply.
+      </div>
+
+      <p>Each service gets <strong>2 VirtualServices</strong> &mdash; one for the outpost gateway, one for the internal/OP gateway. Same routing logic, different entry points.</p>
+
+      <h3>ArgoCD Sync Wave Order (Why Order Matters)</h3>
+
+      <p>When ArgoCD deploys selfreg-be, resources must be created in a specific order. If a VirtualService references a Service that doesn't exist yet, Istio can't route traffic.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Wave</th><th>Resource</th><th>Example Name</th><th>Why This Order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-muted">-1</td>
+              <td>Job (PreSync)</td>
+              <td><code>confirmation-selfreg-be-migration-job</code></td>
+              <td>DB migrations BEFORE app starts</td>
+            </tr>
+            <tr>
+              <td class="td-muted">0</td>
+              <td>ExternalSecret</td>
+              <td><code>confirmation-selfreg-be-demo-rolloutexternalsecret</code></td>
+              <td>Fetch secrets from AWS SM</td>
+            </tr>
+            <tr>
+              <td class="td-muted">0</td>
+              <td>ExternalSecret</td>
+              <td><code>confirmation-rmq-externalsecret-demo</code></td>
+              <td>RabbitMQ credentials</td>
+            </tr>
+            <tr>
+              <td class="td-blue">1</td>
+              <td>Service</td>
+              <td><code>confirmation-selfreg-be-demo-service</code></td>
+              <td>Must exist before DR references it</td>
+            </tr>
+            <tr>
+              <td class="td-blue">2</td>
+              <td>DestinationRule</td>
+              <td><code>confirmation-selfreg-be-demo-v*-destination-rule</code></td>
+              <td>Subsets must exist before VS routes to them</td>
+            </tr>
+            <tr>
+              <td class="td-blue">2</td>
+              <td>AuthorizationPolicy</td>
+              <td><code>confirmation-selfreg-be-demo-authorization-policy</code></td>
+              <td>Access rules before traffic flows</td>
+            </tr>
+            <tr>
+              <td class="td-green">3</td>
+              <td>VirtualService</td>
+              <td><code>confirmation-selfreg-be-demo-virtualservice</code></td>
+              <td>Routes traffic &mdash; needs Service + DR ready</td>
+            </tr>
+            <tr>
+              <td class="td-green">3</td>
+              <td>VirtualService</td>
+              <td><code>confirmation-selfreg-be-demo-op-virtualservice</code></td>
+              <td>Internal route (same logic)</td>
+            </tr>
+            <tr>
+              <td class="td-amber">4</td>
+              <td>Rollout</td>
+              <td><code>confirmation-selfreg-be-demo-rollout-*</code></td>
+              <td>Pods created AFTER all networking is ready</td>
+            </tr>
+            <tr>
+              <td class="td-amber">5</td>
+              <td>HPA</td>
+              <td><code>confirmation-selfreg-be-demo-hpa</code></td>
+              <td>Auto-scaling starts after pods are running</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Canary Deployment During This Flow</h3>
+
+      <p>When a new image tag is pushed for selfreg-be:</p>
+
+      <pre><code>Time ──────────────────────────────────────────────────────────────────────▶
+
+          ┌── setWeight:50 ──┬── pause:1m ──┬── auto-promote ──┐
+          │                  │              │                   │
+Stable:  100% ─────────────▶ 50% ─────────▶ 50% ────────────▶ 0%  (old: scaled down)
+Canary:    0% ─────────────▶ 50% ─────────▶ 50% ────────────▶100%  (new: fully promoted)
+          │                  │              │                   │
+        deploy             shift         monitor              done</code></pre>
+
+      <p>The Argo Rollout modifies the VirtualService weights and injects <code>rollouts-pod-template-hash</code> labels into the DestinationRule subsets so Istio knows which physical pods are stable vs canary.</p>
+
+      <h3>Naming Convention &mdash; The Glue That Connects Everything</h3>
+
+      <p>All resources reference each other through a consistent naming pattern:</p>
+
+      <pre><code>Prefix:      confirmation
+Service:     selfreg
+Type:        be
+Environment: demo
+
+app.fullname = confirmation-selfreg-be</code></pre>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Resource</th><th>Name Pattern</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Service</td><td><code>{fullname}-{env}-service</code></td><td><code>confirmation-selfreg-be-demo-service</code></td></tr>
+            <tr><td>VirtualService</td><td><code>{fullname}-{env}-virtualservice</code></td><td><code>confirmation-selfreg-be-demo-virtualservice</code></td></tr>
+            <tr><td>VirtualService (OP)</td><td><code>{fullname}-{env}-op-virtualservice</code></td><td><code>confirmation-selfreg-be-demo-op-virtualservice</code></td></tr>
+            <tr><td>DestinationRule</td><td><code>{fullname}-{env}-v{tag}-destination-rule</code></td><td><code>confirmation-selfreg-be-demo-v1.0.0-9241a8e1-destination-rule</code></td></tr>
+            <tr><td>Rollout</td><td><code>{fullname}-{env}-rollout-{tag}</code></td><td><code>confirmation-selfreg-be-demo-rollout-1.0.0-9241a8e1</code></td></tr>
+            <tr><td>AuthPolicy</td><td><code>{fullname}-{env}-authorization-policy</code></td><td><code>confirmation-selfreg-be-demo-authorization-policy</code></td></tr>
+            <tr><td>HPA</td><td><code>{fullname}-{env}-hpa</code></td><td><code>confirmation-selfreg-be-demo-hpa</code></td></tr>
+            <tr><td>Pod label</td><td><code>{fullname}-{env}-rollout</code></td><td><code>confirmation-selfreg-be-demo-rollout</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Environment Map</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Env</th><th>Namespace</th><th>Outpost Host</th><th>Internal Host</th><th>Cert Secret</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>CI</strong></td>
+              <td><code>207804-confirmation-ci</code></td>
+              <td><code>ci-outpost.api.tr.confirmation.com</code></td>
+              <td><code>ci.api.tr.confirmation.com</code></td>
+              <td><code>ci-outpost-cert</code></td>
+            </tr>
+            <tr>
+              <td class="td-green"><strong>Demo</strong></td>
+              <td><code>207804-confirmation-demo</code></td>
+              <td><code>demo-outpost.api.tr.confirmation.com</code></td>
+              <td><code>demo.api.tr.confirmation.com</code></td>
+              <td><code>demo-outpost-cert</code></td>
+            </tr>
+            <tr>
+              <td class="td-green"><strong>QA</strong></td>
+              <td><code>207804-confirmation-qa</code></td>
+              <td><code>qa-outpost.api.tr.confirmation.com</code></td>
+              <td><code>qa.api.tr.confirmation.com</code></td>
+              <td><code>qa-outpost-cert</code></td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Preprod</strong></td>
+              <td><code>207804-datawarehouse-preprod</code></td>
+              <td>(KWAF + postgres-dwh only)</td>
+              <td>&mdash;</td>
+              <td>&mdash;</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>All environments share:</strong> same F5 LB IP (10.230.34.4), same IngressGateway namespace (<code>private-ingressgateway</code>), same 3 IngressGateway pods.
+      </div>
+
+      <h3>Debug Commands (Quick Reference)</h3>
+      <pre><code># Check the full flow for selfreg-be in demo
+kubectl get gateway -n 207804-confirmation-demo | grep demo
+kubectl get vs -n 207804-confirmation-demo | grep selfreg
+kubectl get dr -n 207804-confirmation-demo | grep selfreg
+kubectl get authorizationpolicy -n 207804-confirmation-demo | grep selfreg
+
+# Check VirtualService weights (during canary)
+kubectl get vs confirmation-selfreg-be-demo-virtualservice -n 207804-confirmation-demo \
+  -o yaml | grep -A5 "weight"
+
+# Check DestinationRule subsets (see rollouts-pod-template-hash)
+kubectl get dr -n 207804-confirmation-demo -o yaml | grep -A5 "subsets"
+
+# View cert domains
+kubectl get secret demo-outpost-cert -n private-ingressgateway \
+  -o jsonpath='{.data.tls\.crt}' | base64 -d | openssl x509 -text -noout | grep -A1 "Subject Alternative Name"
+
+# Check Envoy sidecar logs for traffic issues
+kubectl logs &lt;pod-name&gt; -n 207804-confirmation-demo -c istio-proxy --tail=50
+
+# Watch rollout progress
+kubectl argo rollouts get rollout confirmation-selfreg-be-demo-rollout-1.0.0-9241a8e1 \
+  -n 207804-confirmation-demo -w</code></pre>
+
+      <h3>Interview Answer &mdash; Full Story Format</h3>
+
+      <div class="interview-box">
+        <span class="interview-label">Full Story Answer</span>
+        "Let me walk you through a real request on our Confirmation platform. Say an auditor hits our self-registration API:<br><br>
+
+        The request goes to <code>demo-outpost.api.tr.confirmation.com</code>, which DNS resolves to our F5 load balancer at 10.230.34.4. The F5 does TLS passthrough &mdash; it doesn't terminate TLS, just forwards to the EKS cluster's NodePort.<br><br>
+
+        Inside the cluster, the Istio IngressGateway receives the request. We run 3 IngressGateway pods for HA in the <code>private-ingressgateway</code> namespace. The IngressGateway reads the TLS SNI header to figure out which Gateway config to use. It finds <code>demo-ingress-gateway</code>, loads the cert from <code>demo-outpost-cert</code> secret, and terminates TLS in SIMPLE mode. That's <strong>Layer 1</strong> of our encryption &mdash; external TLS.<br><br>
+
+        Now the request is plaintext HTTP inside the mesh. The VirtualService matches the path prefix <code>/api/confirmation/selfregistration</code> and routes to the <code>confirmation-selfreg-be-demo-service</code> with subset <code>stable</code> at 100% weight. During canary deployments, this weight shifts &mdash; Argo Rollouts automatically patches the VirtualService.<br><br>
+
+        The DestinationRule kicks in &mdash; it selects the stable pods using the <code>rollouts-pod-template-hash</code> label that Argo Rollouts injects, and applies <code>ISTIO_MUTUAL</code> TLS. That's <strong>Layer 2</strong> &mdash; pod-to-pod mTLS. Istiod auto-issues short-lived certs to each pod's Envoy sidecar and rotates them automatically.<br><br>
+
+        Before the request reaches the application container, the AuthorizationPolicy checks the source identity. We use zero-trust &mdash; only the IngressGateway's SPIFFE identity is allowed. Any pod-to-pod call that isn't from the IngressGateway gets denied.<br><br>
+
+        Finally, the request hits the .NET container on port 8080, running as UID 14000 with a read-only filesystem. The response flows back through the same encrypted path.<br><br>
+
+        All of this is deployed through ArgoCD with sync waves &mdash; secrets first (wave 0), Service (wave 1), DestinationRule and AuthPolicy (wave 2), VirtualService (wave 3), Rollout (wave 4), HPA (wave 5). The ordering ensures every dependency exists before it's referenced."
+      </div>
+    </section>
+
+    <!-- 3.10 KWAF -->
+    <section class="section" id="kwaf">
+      <div class="section-header">
+        <span class="section-num">3.10</span>
+        <h2>KWAF &mdash; The WAF Inside Your Mesh (ext-authz mode)</h2>
+      </div>
+
+      <div class="warn-box">
+        <strong>Why this matters in interviews:</strong> Most candidates explain Istio mTLS but skip how a WAF integrates. KWAF (Radware's Kubernetes WAF, now rebranded <strong>KWAAP</strong> &mdash; Kubernetes Web Application and API Protection) sits as an Envoy <code>ext-authz</code> filter on the IngressGateway and inspects every request <em>before</em> it ever reaches your Gateway/VirtualService. It's deployed only to <strong>preprod</strong> in our setup (namespace <code>207804-waf-preprod</code>) under a single <code>kwaf-applicationset</code> with 14 charts.
+      </div>
+
+      <h3>Where KWAF Sits in the Request Path</h3>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">KWAF ext-authz placement &mdash; runs after IngressGateway TLS terminate, before Gateway routing</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-kwaf', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-kwaf', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-kwaf')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-kwaf">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    F5["F5 (10.230.34.4)\nTLS bridge"]
+    IGW["IngressGateway\nport 8443\nSNI lookup\nTLS SIMPLE terminate"]
+    ENF["KWAF Enforcer\next-authz gRPC"]
+    CTRL["KWAF Controller\ngRPC :12121\nprofiles + signatures"]
+    RL["KWAF Rate-Limiter\ngRPC :8081"]
+    REDIS["KWAF Redis\nblocked-IP store"]
+    LS["KWAF Logstash\nfluentbit ship"]
+    ES["KWAF Elasticsearch\nforensics"]
+    GUI["KWAF GUI\nForensics dashboard"]
+    GW["Gateway / VirtualService\n(only if ALLOW)"]
+    POD["Pod (.NET app)\nport 8080"]
+
+    F5 --> IGW
+    IGW -- "ext-authz check" --> ENF
+    ENF -- "fetch config" --> CTRL
+    ENF -- "rate-limit check" --> RL
+    RL --> REDIS
+    ENF -- "security event" --> LS --> ES --> GUI
+    ENF -- "ALLOW" --> GW --> POD
+    ENF -. "DENY (HTTP 403)" .-> F5
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Component Breakdown by Architecture Layer</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Chart</th><th>Resource</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>Control plane</strong></td><td><code>kwaf-controller</code></td><td>Deployment <code>waas-controller-deployment</code></td><td>Central brain. Distributes profiles, signatures, custom rules to all enforcers via gRPC <strong>port 12121</strong>.</td></tr>
+            <tr><td class="td-green">Control plane</td><td><code>kwaf-profiles-crud</code></td><td>Deployment</td><td>Node.js CRUD API for KWAF CRDs (profiles, classifiers, protections). Listens on 8080.</td></tr>
+            <tr><td class="td-green">Control plane</td><td><code>kwaf-api-discovery</code></td><td>StatefulSet</td><td>Auto-builds OpenAPI specs from observed traffic. Consumes via NATS (port 4222).</td></tr>
+            <tr><td class="td-green">Control plane</td><td><code>kwaf-validationcontroller</code></td><td>Admission webhook (port 4443)</td><td>Validates KWAF CRDs before they apply. Two <code>ValidatingWebhookConfiguration</code> resources.</td></tr>
+            <tr><td class="td-blue"><strong>Data plane</strong></td><td><code>kwaf-enforcer</code></td><td>Deployment</td><td>Inspection engine. Envoy-based <code>waas-bootstrap</code> image with sidecars: <code>enforcer</code>, <code>logrotate</code>, <code>fluentbit</code>, <code>log-streamer</code> (Datadog). Init container loads signature DB.</td></tr>
+            <tr><td class="td-blue">Data plane</td><td><code>kwaf-rate-limiter</code></td><td>Deployment</td><td>TPS/TPM/TPH/TPD evaluation via gRPC <strong>port 8081</strong>. Stores blocked-IP decisions in Redis.</td></tr>
+            <tr><td class="td-amber"><strong>Forensics</strong></td><td><code>kwaf-elasticsearch</code></td><td>StatefulSet</td><td>Stores security events. xpack mTLS on transport + HTTP. ILM + cleanup CronJob.</td></tr>
+            <tr><td class="td-amber">Forensics</td><td><code>kwaf-logstash</code></td><td>Deployment</td><td>Pipelines events from fluentbit into Elasticsearch. Optional Splunk/S3 forwarders.</td></tr>
+            <tr><td class="td-amber">Forensics</td><td><code>kwaf-events-fetcher</code></td><td>Deployment</td><td>Node.js REST API on 8080 querying Elasticsearch for the GUI.</td></tr>
+            <tr><td class="td-amber">Forensics</td><td><code>kwaf-gui</code></td><td>Deployment</td><td>Nginx + Node.js console. Two containers (<code>gui</code>, <code>identity</code>).</td></tr>
+            <tr><td class="td-purple"><strong>Infra</strong></td><td><code>kwaf-redis</code></td><td>StatefulSet</td><td>Rate-limit + blocked-IP backing store. TLS, optional PVC, standalone/cluster/HA modes.</td></tr>
+            <tr><td class="td-purple">Infra</td><td><code>kwaf-nats</code></td><td>StatefulSet</td><td>Internal bus for API discovery. Reloader sidecar for hot config.</td></tr>
+            <tr><td class="td-purple">Infra</td><td><code>kwaf-policies</code></td><td>Istio AuthZ (no pods)</td><td>Per-component AuthorizationPolicies + deny-by-default. Locks down inter-component comms.</td></tr>
+            <tr><td class="td-purple">Infra</td><td><code>kwaf-service-mesh</code></td><td>Gateway + VS + PeerAuth (no pods)</td><td>Exposes the GUI externally with cert <code>waf-outpost-cert</code>. Separate gateway for ES.</td></tr>
+            <tr><td class="td-purple">Infra</td><td><code>kwaf-crds</code></td><td>CRDs (no pods)</td><td>Defines profiles, apispecs, sourcegroups, sigfilters, mappings, etc. Must install first &mdash; separate <code>kwaf-crds-applicationset</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>What the Enforcer Actually Does Per Request</h3>
+
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span><div class="step-body"><div class="step-title">Receive ext-authz call from Istio</div><div class="step-desc">After TLS terminate, Envoy on the IngressGateway calls the enforcer via gRPC with the full request (method, headers, URI, body bytes, source IP, SNI host). Blocking call &mdash; Envoy waits for a verdict.</div></div></div>
+        <div class="step"><span class="step-num">2</span><div class="step-body"><div class="step-title">Signature inspection</div><div class="step-desc">Match against SQL injection, XSS, command injection, path traversal, deserialization, LFI patterns. Profiles + signatures are pulled from <code>kwaf-controller</code> over gRPC <strong>port 12121</strong>.</div></div></div>
+        <div class="step"><span class="step-num">3</span><div class="step-body"><div class="step-title">Rate-limit descriptor check</div><div class="step-desc">Send descriptors (source IP, host, path) to <code>kwaf-rate-limiter</code> over gRPC <strong>port 8081</strong>. Rate-limiter increments counters in Redis with configurable TTLs (TPS/TPM/TPH/TPD).</div></div></div>
+        <div class="step"><span class="step-num">4</span><div class="step-body"><div class="step-title">Decision: ALLOW or DENY</div><div class="step-desc">DENY &rarr; Envoy returns HTTP 403 to F5 &rarr; browser. The request never reaches Gateway/VirtualService. ALLOW &rarr; Envoy continues normal routing (Gateway &rarr; VS &rarr; DR &rarr; Pod).</div></div></div>
+        <div class="step"><span class="step-num">5</span><div class="step-body"><div class="step-title">Log the security event</div><div class="step-desc">Enforcer's <code>fluentbit</code> sidecar ships the verdict + matched rule + request fingerprint to <code>kwaf-logstash</code> &rarr; <code>kwaf-elasticsearch</code>. The GUI's Forensics view queries this via <code>kwaf-events-fetcher</code>.</div></div></div>
+      </div>
+
+      <div class="info-box">
+        <strong>Latency budget:</strong> ext-authz adds a few milliseconds per request (single gRPC round-trip on-cluster). It's blocking by design &mdash; if the enforcer is unhealthy, traffic stops. That's why <code>kwaf-policies</code> hardens it with strict AuthZ rules and Patroni-grade availability matters even for the rate-limiter Redis.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why ext-authz instead of a separate WAF in front of your F5 or behind your IngressGateway?"</div>
+        <div class="qa-answer">
+          Three reasons: <strong>(1) one TLS hop fewer</strong> &mdash; the WAF sees plaintext directly from Envoy, no extra terminate/re-encrypt. <strong>(2) Identity-aware</strong> &mdash; ext-authz hands the enforcer the full Istio request context (SNI, headers, source workload identity), so policies can be per-service. <strong>(3) Same K8s deploy model</strong> &mdash; KWAF is just another ApplicationSet, scaled and observed like any other workload, instead of a separate appliance to patch.
+          <br><br>
+          The cost is a synchronous gRPC call per request and a hard dependency on the enforcer's health. We mitigate with multiple enforcer replicas, health-gated AuthorizationPolicies in <code>kwaf-policies</code>, and a Datadog monitor on enforcer p95 latency.
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why is KWAF only in preprod, not prod?"</div>
+        <div class="qa-answer">
+          Honest answer &mdash; in our environment KWAF runs in <code>207804-waf-preprod</code> as a single ApplicationSet against the preprod cluster. The CICD/QA flows (Selenium, ReportPortal) hit it because they include all four non-prod envs. Prod traffic goes through the Radware appliance further upstream rather than the in-cluster KWAF. If I were greenfielding it I'd push for KWAF in prod too &mdash; the per-request gRPC cost is small and the forensics granularity is much better than F5/appliance logs &mdash; but that's a CHG-controlled change because it puts a synchronous K8s service on the hot path of every prod request.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3.11 F5 + TLS bridging -->
+    <section class="section" id="f5-bridge">
+      <div class="section-header">
+        <span class="section-num">3.11</span>
+        <h2>F5 + TLS Bridging &mdash; The Layer Before Istio</h2>
+      </div>
+
+      <p>Your earlier sections explain the <em>two TLS layers</em> abstractly. In production there's actually a third hop sitting <strong>before</strong> Istio: the F5 BigIP at <code>10.230.34.4</code> is not a passthrough &mdash; it terminates TLS, applies <code>SSLCIPHER</code> rules and SNAT, then re-encrypts to the cluster's NodePort <code>32390</code>. This is called <strong>TLS bridging</strong> (a.k.a. SSL re-encryption).</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Three TLS hops &mdash; F5 bridge + Istio terminate + pod-to-pod mTLS</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-bridge', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-bridge', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-bridge')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-bridge">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    BR["Browser"]
+    F5["F5 BigIP\n10.230.34.4:443\nSectigo OV R46 cert\n(BANANA-managed)"]
+    IGW["Istio IngressGateway\n:8443 / SNI lookup\nPlexus IngressName cert\n(demo-outpost-cert)"]
+    POD["Target Pod\n+ Envoy sidecar"]
+
+    BR -- "TLS hop 1\nbrowser TLS" --> F5
+    F5 -- "TLS hop 2\nre-encrypted to NodePort 32390" --> IGW
+    IGW -- "TLS hop 3\nmTLS ISTIO_MUTUAL\n(istiod-issued certs)" --> POD
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Three Certificates, Three Owners</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hop</th><th>Where</th><th>Cert</th><th>Issuer</th><th>How you change it</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Hop 1</strong></td>
+              <td>F5 VIP <code>10.230.34.4:443</code></td>
+              <td>Sectigo public OV R46 (single cert with SANs for all envs)</td>
+              <td>Public CA (Sectigo)</td>
+              <td><strong>BANANA portal</strong> &mdash; TR's internal F5 management tool. Network/platform team installs the cert on the F5 VIP. Outside K8s entirely.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>Hop 2</strong></td>
+              <td>IngressGateway pod (<code>private-ingressgateway</code> ns)</td>
+              <td><code>{env}-outpost-cert</code> Secret &mdash; per-environment</td>
+              <td>TR internal CA via Plexus</td>
+              <td><strong>IngressName CRD</strong> in <code>core-components/values.yaml</code>. Plexus controller watches it, requests a cert from the TR CA with all listed domains as SANs, materialises the K8s Secret in <code>private-ingressgateway</code> ns.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Hop 3</strong></td>
+              <td>Pod-to-pod (Envoy sidecars)</td>
+              <td>Istio-issued workload certs (short-lived, ~24h)</td>
+              <td><code>istiod</code></td>
+              <td>Auto. SPIFFE identities are derived from the K8s ServiceAccount. You don't touch the certs &mdash; you change the SA / AuthorizationPolicy.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The SAN Inventory on the F5's Sectigo Cert</h3>
+
+      <p>One Sectigo cert covers <strong>all environments and all access patterns</strong>. The F5 picks the right backend pool by SNI; the cert just needs the SAN. Adding a new domain = a BANANA request to update the cert.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>SAN</th><th>Environment</th><th>Used by</th></tr></thead>
+          <tbody>
+            <tr><td><code>ci-outpost.api.tr.confirmation.com</code></td><td>CI</td><td>External CI traffic</td></tr>
+            <tr><td><code>ci.api.tr.confirmation.com</code></td><td>CI</td><td>Internal/VPN CI</td></tr>
+            <tr><td><code>demo-outpost.api.tr.confirmation.com</code></td><td>Demo</td><td>External demo traffic</td></tr>
+            <tr><td><code>demo.api.tr.confirmation.com</code></td><td>Demo</td><td>Internal/VPN demo</td></tr>
+            <tr><td><code>demo.sso.confirmation.com</code></td><td>Demo</td><td>SSO login</td></tr>
+            <tr><td><code>qa-outpost.api.tr.confirmation.com</code></td><td>QA</td><td>External QA</td></tr>
+            <tr><td><code>qa.api.tr.confirmation.com</code></td><td>QA</td><td>Internal QA</td></tr>
+            <tr><td><code>qa.sso.confirmation.com</code></td><td>QA</td><td>SSO QA</td></tr>
+            <tr><td><code>kwaf-preprod.tr.confirmation.com</code></td><td>WAF GUI</td><td>Forensics console</td></tr>
+            <tr><td><code>reportportal.tr.confirmation.com</code></td><td>Test reports</td><td>ReportPortal (also bit us in INC-009/010)</td></tr>
+            <tr><td><code>selenium.tr.confirmation.com</code></td><td>Selenium</td><td>Test automation grid</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why Two Certs for the Same Domain?</h3>
+
+      <div class="info-box">
+        <strong>Because there are two TLS connections.</strong> The browser ↔ F5 connection uses the Sectigo cert. The F5 ↔ IngressGateway connection uses the Plexus IngressName cert. Each endpoint terminates its own TLS with its own cert. When you add a new domain:
+        <ul>
+          <li>Raise a <strong>BANANA</strong> request &rarr; F5 cert gets new SAN</li>
+          <li>Update the <code>core-components/values.yaml</code> <strong>IngressName</strong> &rarr; Plexus issues a new cluster cert</li>
+          <li>If you forget either, the TLS handshake fails on that hop &mdash; <strong>browsers see "untrusted" or 502 from F5 if the cluster side rejects the SNI hostname</strong>.</li>
+        </ul>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Walk me through what I have to change to onboard a brand-new public hostname like <code>partner-api.tr.confirmation.com</code>."</div>
+        <div class="qa-answer">
+          <ol>
+            <li><strong>DNS:</strong> ask the network team to add the public DNS record pointing at <code>10.230.34.4</code>.</li>
+            <li><strong>F5 (BANANA):</strong> raise a BANANA request to add <code>partner-api.tr.confirmation.com</code> as a SAN on the Sectigo cert and bind a pool entry to NodePort <code>32390</code>.</li>
+            <li><strong>Cluster cert (IngressName):</strong> add the domain to the relevant environment's IngressName in <code>core-components/values.yaml</code>. ArgoCD syncs &mdash; Plexus issues a new internal cert with that SAN and updates the Secret in <code>private-ingressgateway</code>.</li>
+            <li><strong>Gateway:</strong> add or update a Gateway resource referencing <code>credentialName: {env}-outpost-cert</code> with the new host.</li>
+            <li><strong>VirtualService:</strong> add the host match and the path-prefix routing.</li>
+            <li><strong>AuthorizationPolicy:</strong> nothing per-host needed &mdash; the existing zero-trust policy already restricts source to the IngressGateway SA.</li>
+            <li><strong>Smoke test:</strong> <code>curl -sv https://partner-api.tr.confirmation.com/health</code>, then <code>kubectl logs</code> on the IngressGateway and the target pod to confirm the SNI matched and AuthZ allowed.</li>
+          </ol>
+          The trap is forgetting either hop's cert. If BANANA is done but IngressName isn't synced, the F5 connects fine and then the cluster rejects the SNI &mdash; you'll see TLS handshake failures in the IngressGateway pod logs.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3.12 Label injection + ports -->
+    <section class="section" id="labels-ports">
+      <div class="section-header">
+        <span class="section-num">3.12</span>
+        <h2>Label Injection Mechanics + Port Reference</h2>
+      </div>
+
+      <h3>How Argo Rollouts Partitions stable vs canary Pods</h3>
+
+      <p>Both subsets in your DestinationRule have the <strong>same</strong> <code>app</code> label. They look identical &mdash; so how does Istio route 50% to canary and 50% to stable?</p>
+
+      <p><strong>Rollout injects a runtime label.</strong> When Argo Rollouts manages a canary, it computes a hash of the pod template spec and injects <code>rollouts-pod-template-hash</code> into both the pods and the DestinationRule subsets. The label exists in the cluster but not in your Helm chart Git source.</p>
+
+      <span class="code-label">What ArgoCD shows in the cluster after Rollout has done its work</span>
+      <pre><code>subsets:
+- name: stable
+  labels:
+    app: confirmation-selfreg-be-demo-rollout
+    rollouts-pod-template-hash: abc123        # &lt;-- injected by Rollout
+- name: canary
+  labels:
+    app: confirmation-selfreg-be-demo-rollout
+    rollouts-pod-template-hash: def456        # &lt;-- injected by Rollout</code></pre>
+
+      <div class="info-box">
+        <strong>This is why the DestinationRule name embeds the image tag</strong> (<code>...-v0.0.1-96eed7f0-destination-rule</code>). Each rollout gets a fresh DR name; the previous DR is cleaned up after promotion. If you see <code>ignoreDifferences</code> on <code>spec.subsets[*].labels</code> in your ApplicationSet, that's because ArgoCD would otherwise fight the Rollout controller over the injected label.
+      </div>
+
+      <h3>Canary Step Sequence (selfreg-be example)</h3>
+
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span><div class="step-body"><div class="step-title">Initial state</div><div class="step-desc">VS weight: stable=100, canary=0. Only the stable hash is in the DR. New image tag commits to <code>environments/demo/selfreg-be/values.yaml</code>.</div></div></div>
+        <div class="step"><span class="step-num">2</span><div class="step-body"><div class="step-title">ArgoCD sync &rarr; Rollout creates canary pods</div><div class="step-desc">Rollout starts new replicas with the new pod-template-hash. They join the Service but the VS still routes 100% to stable.</div></div></div>
+        <div class="step"><span class="step-num">3</span><div class="step-body"><div class="step-title">setWeight: 50</div><div class="step-desc">Rollout patches the VS: <code>stable=50, canary=50</code>. Patches the DR to add the canary subset's <code>rollouts-pod-template-hash</code>. Real user traffic now splits 50/50.</div></div></div>
+        <div class="step"><span class="step-num">4</span><div class="step-body"><div class="step-title">pause 1m</div><div class="step-desc">Watch error rate, p95 latency, Datadog APM. Manual abort with <code>kubectl argo rollouts abort</code> rolls weights back instantly.</div></div></div>
+        <div class="step"><span class="step-num">5</span><div class="step-body"><div class="step-title">Auto-promotion</div><div class="step-desc">Rollout promotes canary to stable: VS back to <code>stable=100, canary=0</code>; old DR (with previous tag in its name) gets deleted; old replicas drained.</div></div></div>
+      </div>
+
+      <h3>Port + Identifier Reference Card</h3>
+
+      <p>Cite these in interviews to sound concrete instead of generic.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>What</th><th>Value</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>F5 BigIP VIP</td><td><code>10.230.34.4:443</code></td><td>Rackspace, Sectigo cert, BANANA-managed</td></tr>
+            <tr><td>F5 &rarr; cluster NodePort</td><td><code>32390</code></td><td>EKS Outpost worker NodePort</td></tr>
+            <tr><td>IngressGateway listener</td><td><code>:8443</code></td><td><code>private-ingressgateway</code> namespace</td></tr>
+            <tr><td>IngressGateway pods</td><td>3 replicas (HA)</td><td>Envoy data plane</td></tr>
+            <tr><td>Application container</td><td><code>:8080</code></td><td>Standard for all .NET services in our charts</td></tr>
+            <tr><td>Istio mTLS mode</td><td><code>ISTIO_MUTUAL</code></td><td>DestinationRule <code>trafficPolicy.tls.mode</code></td></tr>
+            <tr><td>IngressGateway TLS mode</td><td><code>SIMPLE</code> (server-side TLS)</td><td>Gateway resource</td></tr>
+            <tr><td>SPIFFE principal (allowed source)</td><td><code>cluster.local/ns/private-ingressgateway/sa/private-ingressgateway-service-account</code></td><td>AuthorizationPolicy</td></tr>
+            <tr><td>KWAF controller gRPC</td><td><code>:12121</code></td><td><code>kwaf-controller</code> &rarr; enforcer config push</td></tr>
+            <tr><td>KWAF rate-limiter gRPC</td><td><code>:8081</code></td><td>enforcer &rarr; rate-limiter</td></tr>
+            <tr><td>KWAF NATS</td><td><code>:4222</code></td><td>API discovery bus</td></tr>
+            <tr><td>KWAF GUI / events-fetcher</td><td><code>:8080</code></td><td>Forensics REST API + UI</td></tr>
+            <tr><td>KWAF admission webhook</td><td><code>:4443</code></td><td><code>kwaf-validationcontroller</code></td></tr>
+            <tr><td>Workload runtime UID/GID</td><td><code>14000 / 14001</code></td><td>Pod <code>securityContext</code>, read-only FS</td></tr>
+            <tr><td>Sync wave order</td><td>-1 PreSync (Liquibase) &rarr; 0 ESO &rarr; 1 Service &rarr; 2 DR + AuthZ &rarr; 3 VS &rarr; 4 Rollout &rarr; 5 HPA</td><td>ArgoCD <code>argocd.argoproj.io/sync-wave</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Cert + Routing Inspection Commands</h3>
+
+      <span class="code-label">Verify the F5-side cert vs the cluster-side cert match the same domain</span>
+      <pre><code># What the F5 presents to a browser (Sectigo cert)
+echo | openssl s_client -connect demo-outpost.api.tr.confirmation.com:443 -servername demo-outpost.api.tr.confirmation.com 2&gt;/dev/null \
+  | openssl x509 -noout -issuer -subject -ext subjectAltName
+
+# What the IngressGateway holds (Plexus / IngressName)
+kubectl -n private-ingressgateway get secret demo-outpost-cert -o jsonpath='{.data.tls\.crt}' \
+  | base64 -d | openssl x509 -noout -issuer -subject -ext subjectAltName</code></pre>
+
+      <span class="code-label">Confirm Rollout label injection happened</span>
+      <pre><code>kubectl -n 207804-confirmation-demo get destinationrule \
+  confirmation-selfreg-be-demo-v0.0.1-XXXXXXXX-destination-rule -o yaml \
+  | yq '.spec.subsets'
+
+kubectl -n 207804-confirmation-demo get pods -l app=confirmation-selfreg-be-demo-rollout \
+  -L rollouts-pod-template-hash</code></pre>
+
+      <span class="code-label">Confirm mTLS is active on the call (Envoy admin port)</span>
+      <pre><code>kubectl -n 207804-confirmation-demo exec -it &lt;pod&gt; -c istio-proxy -- \
+  curl -s localhost:15000/config_dump | jq '.. | objects | select(.tls_context?) | .tls_context'</code></pre>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "If I see traffic hitting the canary pods even when VS weight is 0, where do I look?"</div>
+        <div class="qa-answer">
+          Three suspects, in order:
+          <ol>
+            <li><strong>DR subset hash:</strong> if the <code>rollouts-pod-template-hash</code> label on the canary subset matches the <em>stable</em> pods (e.g. Rollout failed mid-update and didn't refresh it), the canary subset will resolve to stable pods. Diff the DR's subset labels against the actual pod labels.</li>
+            <li><strong>Service selector:</strong> the K8s Service selector might be too broad. The Service should select on <code>app</code> + <code>environment</code>; if it skips environment, you can pull pods from another env if labels collide. <code>kubectl get svc -o yaml</code>.</li>
+            <li><strong>Cached endpoints:</strong> Envoy caches endpoint sets. After an abort, Envoy may take a few seconds to drain. <code>curl localhost:15000/clusters | grep canary</code> on the IngressGateway sidecar shows the active endpoints.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <a href="02-kubernetes-deep-dive.html">&larr; 02 Kubernetes Deep Dive</a>
+  <span class="nav-index">Section 3 of 14</span>
+  <a href="04-helm-argocd-gitops.html">04 Helm &amp; ArgoCD GitOps &rarr;</a>
+</nav>
+
+<script>
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#141f35',
+      primaryTextColor: '#dce8f5',
+      primaryBorderColor: '#22c55e',
+      lineColor: '#7a9ab5',
+      secondaryColor: '#0f1826',
+      tertiaryColor: '#090d1a',
+      background: '#090d1a',
+      mainBkg: '#141f35',
+      nodeBorder: '#1d2d4f',
+      clusterBkg: '#0f1826',
+      titleColor: '#dce8f5',
+      edgeLabelBackground: '#0f1826',
+      fontFamily: 'DM Sans, sans-serif',
+      fontSize: '15px'
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true }
+  });
+
+  // Force SVGs to fill container after Mermaid renders
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+
+  // Zoom controls
+  const scales = {};
+  function zoom(id, factor) {
+    scales[id] = (scales[id] || 1) * factor;
+    document.getElementById(id).style.transform = `scale(${scales[id]})`;
+  }
+  function reset(id) {
+    scales[id] = 1;
+    document.getElementById(id).style.transform = 'scale(1)';
+  }
+
+  // Theme toggle
+  const toggleBtn = document.getElementById('themeToggle');
+  toggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    toggleBtn.textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+
+  // Active ToC highlighting via IntersectionObserver
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

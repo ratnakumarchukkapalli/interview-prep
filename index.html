@@ -188,19 +188,19 @@
         <p class="hero-sub">Ratna Kumar Chukkapalli — Confirmation Platform @ Thomson Reuters</p>
         <div class="hero-stats">
             <div class="stat">
-                <div class="stat-value">19</div>
+                <div class="stat-value">24</div>
                 <div class="stat-label">Sections</div>
             </div>
             <div class="stat">
-                <div class="stat-value">12,000+</div>
+                <div class="stat-value">15,000+</div>
                 <div class="stat-label">Lines of Content</div>
             </div>
             <div class="stat">
-                <div class="stat-value">55+</div>
+                <div class="stat-value">70+</div>
                 <div class="stat-label">Scenario Q&As</div>
             </div>
             <div class="stat">
-                <div class="stat-value">9</div>
+                <div class="stat-value">11</div>
                 <div class="stat-label">Real Incidents</div>
             </div>
         </div>
@@ -235,12 +235,17 @@
         <div class="study-card" style="border-left: 3px solid #f87171;">
             <div class="study-label">Banking / Westpac Critical</div>
             <div class="study-title">AWS Networking + Secrets + Terraform</div>
-            <div class="study-desc">Sections 15, 16, 17 — gaps filled for APRA-regulated banking environment</div>
+            <div class="study-desc">Sections 15, 15B, 16, 17 — gaps filled for APRA-regulated banking environment</div>
+        </div>
+        <div class="study-card" style="border-left: 3px solid #38bdf8;">
+            <div class="study-label">Internals + Data</div>
+            <div class="study-title">PostgreSQL Internals + Fivetran Pipeline</div>
+            <div class="study-desc">Sections 8B, 19 — buffer cache, MVCC, WAL, ELT pipeline, replication slot war stories</div>
         </div>
     </div>
 
     <!-- All Sections -->
-    <div class="section-heading">All 19 Sections</div>
+    <div class="section-heading">All 24 Sections</div>
     <div class="sections-grid">
         <a class="section-card" href="01-tell-me-about-yourself.html">
             <div class="card-top">
@@ -290,6 +295,20 @@
                 <span class="card-tag">Init Containers</span>
                 <span class="card-tag">CRDs</span>
                 <span class="card-tag" style="color:var(--accent3); border-color:rgba(245,158,11,0.3);">🟡 Medium</span>
+            </div>
+        </a>
+        <a class="section-card" href="02d-kubernetes-gaps-part-c.html" style="border-color: rgba(56,189,248,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:var(--accent2); background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3);">2D</span>
+                <span class="card-title">K8s Gaps — Part C</span>
+            </div>
+            <div class="card-desc">Probes, Pod Security Standards, PDB, Jobs/CronJobs, Quotas, Topology Spread, Finalizers, kubectl debug, Gateway API, Outposts Deep Dive</div>
+            <div class="card-tags">
+                <span class="card-tag">Probes</span>
+                <span class="card-tag">PSA</span>
+                <span class="card-tag">PDB</span>
+                <span class="card-tag">Outposts</span>
+                <span class="card-tag" style="color:var(--accent2); border-color:rgba(56,189,248,0.3);">🔵 Ops + Outposts</span>
             </div>
         </a>
         <a class="section-card" href="03-istio-service-mesh.html">
@@ -362,6 +381,19 @@
                 <span class="card-tag">PostgreSQL</span>
                 <span class="card-tag">Patroni</span>
                 <span class="card-tag">pgBackRest</span>
+            </div>
+        </a>
+        <a class="section-card" href="08b-postgresql-internals.html" style="border-color: rgba(56,189,248,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:var(--accent2); background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3);">8B</span>
+                <span class="card-title">PostgreSQL Internals</span>
+            </div>
+            <div class="card-desc">Buffer cache, clock-sweep, MVCC autovacuum deadlock, WAL/LSN, checkpoint spreading, Patroni FSM, Fivetran logical slots, PITR</div>
+            <div class="card-tags">
+                <span class="card-tag">Buffer Cache</span>
+                <span class="card-tag">MVCC</span>
+                <span class="card-tag">WAL</span>
+                <span class="card-tag" style="color:var(--accent2); border-color:rgba(56,189,248,0.3);">🔵 Internals</span>
             </div>
         </a>
         <a class="section-card" href="09-rabbitmq.html">
@@ -449,6 +481,19 @@
                 <span class="card-tag" style="color:#f87171; border-color:rgba(239,68,68,0.3);">Banking Critical</span>
             </div>
         </a>
+        <a class="section-card" href="15b-aws-outposts.html" style="border-color: rgba(56,189,248,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:var(--accent2); background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3);">15B</span>
+                <span class="card-title">AWS Outposts — Networking Deep</span>
+            </div>
+            <div class="card-desc">Two-VPC model, RFC 6598 pod CIDR, LGW BGP (VLAN 2511/2513), service-link tunnel, route tables, S3-on-Outposts, CHG0130049 proxy change</div>
+            <div class="card-tags">
+                <span class="card-tag">Outposts</span>
+                <span class="card-tag">LGW</span>
+                <span class="card-tag">BGP</span>
+                <span class="card-tag" style="color:var(--accent2); border-color:rgba(56,189,248,0.3);">🔵 Your Platform</span>
+            </div>
+        </a>
         <a class="section-card" href="16-secret-management.html" style="border-color: rgba(239,68,68,0.35);">
             <div class="card-top">
                 <span class="card-num" style="color:#f87171; background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3);">16</span>
@@ -486,6 +531,19 @@
                 <span class="card-tag">AWS Networking</span>
                 <span class="card-tag">Terraform</span>
                 <span class="card-tag" style="color:#c084fc; border-color:rgba(168,85,247,0.3);">Session 1</span>
+            </div>
+        </a>
+        <a class="section-card" href="19-fivetran-data-pipeline.html" style="border-color: rgba(56,189,248,0.35);">
+            <div class="card-top">
+                <span class="card-num" style="color:var(--accent2); background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.3);">19</span>
+                <span class="card-title">Fivetran Data Pipeline</span>
+            </div>
+            <div class="card-desc">6-component ELT (sources → EC2 agent → Fivetran Cloud → Citus DWH → dbt medallion → Power BI), 3-layer slot protection, Apr 26-27 reboot incident, EC2→K8s migration</div>
+            <div class="card-tags">
+                <span class="card-tag">Fivetran</span>
+                <span class="card-tag">dbt</span>
+                <span class="card-tag">Citus</span>
+                <span class="card-tag" style="color:var(--accent2); border-color:rgba(56,189,248,0.3);">🔵 New Section</span>
             </div>
         </a>
     </div>
