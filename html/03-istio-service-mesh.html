@@ -499,6 +499,15 @@
         <li><a href="#real-flow" class="toc-sub">Gateway Patterns</a></li>
         <li><a href="#real-flow" class="toc-sub">Sync Wave Order</a></li>
         <li><a href="#real-flow" class="toc-sub">Debug Commands</a></li>
+        <li><a href="#kwaf">3.10 KWAF (ext-authz WAF)</a></li>
+        <li><a href="#kwaf" class="toc-sub">Component breakdown</a></li>
+        <li><a href="#kwaf" class="toc-sub">Inspection flow</a></li>
+        <li><a href="#f5-bridge">3.11 F5 + TLS Bridging</a></li>
+        <li><a href="#f5-bridge" class="toc-sub">BANANA portal</a></li>
+        <li><a href="#f5-bridge" class="toc-sub">Three-cert reality</a></li>
+        <li><a href="#labels-ports">3.12 Label Injection + Ports</a></li>
+        <li><a href="#labels-ports" class="toc-sub">rollouts-pod-template-hash</a></li>
+        <li><a href="#labels-ports" class="toc-sub">Port reference</a></li>
       </ul>
     </div>
   </nav>
@@ -1714,6 +1723,333 @@ kubectl argo rollouts get rollout confirmation-selfreg-be-demo-rollout-1.0.0-924
         Finally, the request hits the .NET container on port 8080, running as UID 14000 with a read-only filesystem. The response flows back through the same encrypted path.<br><br>
 
         All of this is deployed through ArgoCD with sync waves &mdash; secrets first (wave 0), Service (wave 1), DestinationRule and AuthPolicy (wave 2), VirtualService (wave 3), Rollout (wave 4), HPA (wave 5). The ordering ensures every dependency exists before it's referenced."
+      </div>
+    </section>
+
+    <!-- 3.10 KWAF -->
+    <section class="section" id="kwaf">
+      <div class="section-header">
+        <span class="section-num">3.10</span>
+        <h2>KWAF &mdash; The WAF Inside Your Mesh (ext-authz mode)</h2>
+      </div>
+
+      <div class="warn-box">
+        <strong>Why this matters in interviews:</strong> Most candidates explain Istio mTLS but skip how a WAF integrates. KWAF (Radware's Kubernetes WAF, now rebranded <strong>KWAAP</strong> &mdash; Kubernetes Web Application and API Protection) sits as an Envoy <code>ext-authz</code> filter on the IngressGateway and inspects every request <em>before</em> it ever reaches your Gateway/VirtualService. It's deployed only to <strong>preprod</strong> in our setup (namespace <code>207804-waf-preprod</code>) under a single <code>kwaf-applicationset</code> with 14 charts.
+      </div>
+
+      <h3>Where KWAF Sits in the Request Path</h3>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">KWAF ext-authz placement &mdash; runs after IngressGateway TLS terminate, before Gateway routing</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-kwaf', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-kwaf', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-kwaf')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-kwaf">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    F5["F5 (10.230.34.4)\nTLS bridge"]
+    IGW["IngressGateway\nport 8443\nSNI lookup\nTLS SIMPLE terminate"]
+    ENF["KWAF Enforcer\next-authz gRPC"]
+    CTRL["KWAF Controller\ngRPC :12121\nprofiles + signatures"]
+    RL["KWAF Rate-Limiter\ngRPC :8081"]
+    REDIS["KWAF Redis\nblocked-IP store"]
+    LS["KWAF Logstash\nfluentbit ship"]
+    ES["KWAF Elasticsearch\nforensics"]
+    GUI["KWAF GUI\nForensics dashboard"]
+    GW["Gateway / VirtualService\n(only if ALLOW)"]
+    POD["Pod (.NET app)\nport 8080"]
+
+    F5 --> IGW
+    IGW -- "ext-authz check" --> ENF
+    ENF -- "fetch config" --> CTRL
+    ENF -- "rate-limit check" --> RL
+    RL --> REDIS
+    ENF -- "security event" --> LS --> ES --> GUI
+    ENF -- "ALLOW" --> GW --> POD
+    ENF -. "DENY (HTTP 403)" .-> F5
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Component Breakdown by Architecture Layer</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Chart</th><th>Resource</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><strong>Control plane</strong></td><td><code>kwaf-controller</code></td><td>Deployment <code>waas-controller-deployment</code></td><td>Central brain. Distributes profiles, signatures, custom rules to all enforcers via gRPC <strong>port 12121</strong>.</td></tr>
+            <tr><td class="td-green">Control plane</td><td><code>kwaf-profiles-crud</code></td><td>Deployment</td><td>Node.js CRUD API for KWAF CRDs (profiles, classifiers, protections). Listens on 8080.</td></tr>
+            <tr><td class="td-green">Control plane</td><td><code>kwaf-api-discovery</code></td><td>StatefulSet</td><td>Auto-builds OpenAPI specs from observed traffic. Consumes via NATS (port 4222).</td></tr>
+            <tr><td class="td-green">Control plane</td><td><code>kwaf-validationcontroller</code></td><td>Admission webhook (port 4443)</td><td>Validates KWAF CRDs before they apply. Two <code>ValidatingWebhookConfiguration</code> resources.</td></tr>
+            <tr><td class="td-blue"><strong>Data plane</strong></td><td><code>kwaf-enforcer</code></td><td>Deployment</td><td>Inspection engine. Envoy-based <code>waas-bootstrap</code> image with sidecars: <code>enforcer</code>, <code>logrotate</code>, <code>fluentbit</code>, <code>log-streamer</code> (Datadog). Init container loads signature DB.</td></tr>
+            <tr><td class="td-blue">Data plane</td><td><code>kwaf-rate-limiter</code></td><td>Deployment</td><td>TPS/TPM/TPH/TPD evaluation via gRPC <strong>port 8081</strong>. Stores blocked-IP decisions in Redis.</td></tr>
+            <tr><td class="td-amber"><strong>Forensics</strong></td><td><code>kwaf-elasticsearch</code></td><td>StatefulSet</td><td>Stores security events. xpack mTLS on transport + HTTP. ILM + cleanup CronJob.</td></tr>
+            <tr><td class="td-amber">Forensics</td><td><code>kwaf-logstash</code></td><td>Deployment</td><td>Pipelines events from fluentbit into Elasticsearch. Optional Splunk/S3 forwarders.</td></tr>
+            <tr><td class="td-amber">Forensics</td><td><code>kwaf-events-fetcher</code></td><td>Deployment</td><td>Node.js REST API on 8080 querying Elasticsearch for the GUI.</td></tr>
+            <tr><td class="td-amber">Forensics</td><td><code>kwaf-gui</code></td><td>Deployment</td><td>Nginx + Node.js console. Two containers (<code>gui</code>, <code>identity</code>).</td></tr>
+            <tr><td class="td-purple"><strong>Infra</strong></td><td><code>kwaf-redis</code></td><td>StatefulSet</td><td>Rate-limit + blocked-IP backing store. TLS, optional PVC, standalone/cluster/HA modes.</td></tr>
+            <tr><td class="td-purple">Infra</td><td><code>kwaf-nats</code></td><td>StatefulSet</td><td>Internal bus for API discovery. Reloader sidecar for hot config.</td></tr>
+            <tr><td class="td-purple">Infra</td><td><code>kwaf-policies</code></td><td>Istio AuthZ (no pods)</td><td>Per-component AuthorizationPolicies + deny-by-default. Locks down inter-component comms.</td></tr>
+            <tr><td class="td-purple">Infra</td><td><code>kwaf-service-mesh</code></td><td>Gateway + VS + PeerAuth (no pods)</td><td>Exposes the GUI externally with cert <code>waf-outpost-cert</code>. Separate gateway for ES.</td></tr>
+            <tr><td class="td-purple">Infra</td><td><code>kwaf-crds</code></td><td>CRDs (no pods)</td><td>Defines profiles, apispecs, sourcegroups, sigfilters, mappings, etc. Must install first &mdash; separate <code>kwaf-crds-applicationset</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>What the Enforcer Actually Does Per Request</h3>
+
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span><div class="step-body"><div class="step-title">Receive ext-authz call from Istio</div><div class="step-desc">After TLS terminate, Envoy on the IngressGateway calls the enforcer via gRPC with the full request (method, headers, URI, body bytes, source IP, SNI host). Blocking call &mdash; Envoy waits for a verdict.</div></div></div>
+        <div class="step"><span class="step-num">2</span><div class="step-body"><div class="step-title">Signature inspection</div><div class="step-desc">Match against SQL injection, XSS, command injection, path traversal, deserialization, LFI patterns. Profiles + signatures are pulled from <code>kwaf-controller</code> over gRPC <strong>port 12121</strong>.</div></div></div>
+        <div class="step"><span class="step-num">3</span><div class="step-body"><div class="step-title">Rate-limit descriptor check</div><div class="step-desc">Send descriptors (source IP, host, path) to <code>kwaf-rate-limiter</code> over gRPC <strong>port 8081</strong>. Rate-limiter increments counters in Redis with configurable TTLs (TPS/TPM/TPH/TPD).</div></div></div>
+        <div class="step"><span class="step-num">4</span><div class="step-body"><div class="step-title">Decision: ALLOW or DENY</div><div class="step-desc">DENY &rarr; Envoy returns HTTP 403 to F5 &rarr; browser. The request never reaches Gateway/VirtualService. ALLOW &rarr; Envoy continues normal routing (Gateway &rarr; VS &rarr; DR &rarr; Pod).</div></div></div>
+        <div class="step"><span class="step-num">5</span><div class="step-body"><div class="step-title">Log the security event</div><div class="step-desc">Enforcer's <code>fluentbit</code> sidecar ships the verdict + matched rule + request fingerprint to <code>kwaf-logstash</code> &rarr; <code>kwaf-elasticsearch</code>. The GUI's Forensics view queries this via <code>kwaf-events-fetcher</code>.</div></div></div>
+      </div>
+
+      <div class="info-box">
+        <strong>Latency budget:</strong> ext-authz adds a few milliseconds per request (single gRPC round-trip on-cluster). It's blocking by design &mdash; if the enforcer is unhealthy, traffic stops. That's why <code>kwaf-policies</code> hardens it with strict AuthZ rules and Patroni-grade availability matters even for the rate-limiter Redis.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why ext-authz instead of a separate WAF in front of your F5 or behind your IngressGateway?"</div>
+        <div class="qa-answer">
+          Three reasons: <strong>(1) one TLS hop fewer</strong> &mdash; the WAF sees plaintext directly from Envoy, no extra terminate/re-encrypt. <strong>(2) Identity-aware</strong> &mdash; ext-authz hands the enforcer the full Istio request context (SNI, headers, source workload identity), so policies can be per-service. <strong>(3) Same K8s deploy model</strong> &mdash; KWAF is just another ApplicationSet, scaled and observed like any other workload, instead of a separate appliance to patch.
+          <br><br>
+          The cost is a synchronous gRPC call per request and a hard dependency on the enforcer's health. We mitigate with multiple enforcer replicas, health-gated AuthorizationPolicies in <code>kwaf-policies</code>, and a Datadog monitor on enforcer p95 latency.
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why is KWAF only in preprod, not prod?"</div>
+        <div class="qa-answer">
+          Honest answer &mdash; in our environment KWAF runs in <code>207804-waf-preprod</code> as a single ApplicationSet against the preprod cluster. The CICD/QA flows (Selenium, ReportPortal) hit it because they include all four non-prod envs. Prod traffic goes through the Radware appliance further upstream rather than the in-cluster KWAF. If I were greenfielding it I'd push for KWAF in prod too &mdash; the per-request gRPC cost is small and the forensics granularity is much better than F5/appliance logs &mdash; but that's a CHG-controlled change because it puts a synchronous K8s service on the hot path of every prod request.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3.11 F5 + TLS bridging -->
+    <section class="section" id="f5-bridge">
+      <div class="section-header">
+        <span class="section-num">3.11</span>
+        <h2>F5 + TLS Bridging &mdash; The Layer Before Istio</h2>
+      </div>
+
+      <p>Your earlier sections explain the <em>two TLS layers</em> abstractly. In production there's actually a third hop sitting <strong>before</strong> Istio: the F5 BigIP at <code>10.230.34.4</code> is not a passthrough &mdash; it terminates TLS, applies <code>SSLCIPHER</code> rules and SNAT, then re-encrypts to the cluster's NodePort <code>32390</code>. This is called <strong>TLS bridging</strong> (a.k.a. SSL re-encryption).</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <span class="diagram-title">Three TLS hops &mdash; F5 bridge + Istio terminate + pod-to-pod mTLS</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('d-bridge', 1.2)">+</button>
+            <button class="zoom-btn" onclick="zoom('d-bridge', 0.833)">&minus;</button>
+            <button class="zoom-btn" onclick="reset('d-bridge')">&#8634;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="d-bridge">
+            <div class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#141f35', 'primaryTextColor': '#dce8f5', 'primaryBorderColor': '#22c55e', 'lineColor': '#7a9ab5', 'secondaryColor': '#0f1826', 'tertiaryColor': '#090d1a', 'background': '#090d1a', 'mainBkg': '#141f35', 'nodeBorder': '#1d2d4f', 'clusterBkg': '#0f1826', 'titleColor': '#dce8f5', 'edgeLabelBackground': '#0f1826', 'fontFamily': 'DM Sans, sans-serif', 'fontSize': '13px'}}}%%
+flowchart LR
+    BR["Browser"]
+    F5["F5 BigIP\n10.230.34.4:443\nSectigo OV R46 cert\n(BANANA-managed)"]
+    IGW["Istio IngressGateway\n:8443 / SNI lookup\nPlexus IngressName cert\n(demo-outpost-cert)"]
+    POD["Target Pod\n+ Envoy sidecar"]
+
+    BR -- "TLS hop 1\nbrowser TLS" --> F5
+    F5 -- "TLS hop 2\nre-encrypted to NodePort 32390" --> IGW
+    IGW -- "TLS hop 3\nmTLS ISTIO_MUTUAL\n(istiod-issued certs)" --> POD
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Three Certificates, Three Owners</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hop</th><th>Where</th><th>Cert</th><th>Issuer</th><th>How you change it</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><strong>Hop 1</strong></td>
+              <td>F5 VIP <code>10.230.34.4:443</code></td>
+              <td>Sectigo public OV R46 (single cert with SANs for all envs)</td>
+              <td>Public CA (Sectigo)</td>
+              <td><strong>BANANA portal</strong> &mdash; TR's internal F5 management tool. Network/platform team installs the cert on the F5 VIP. Outside K8s entirely.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><strong>Hop 2</strong></td>
+              <td>IngressGateway pod (<code>private-ingressgateway</code> ns)</td>
+              <td><code>{env}-outpost-cert</code> Secret &mdash; per-environment</td>
+              <td>TR internal CA via Plexus</td>
+              <td><strong>IngressName CRD</strong> in <code>core-components/values.yaml</code>. Plexus controller watches it, requests a cert from the TR CA with all listed domains as SANs, materialises the K8s Secret in <code>private-ingressgateway</code> ns.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><strong>Hop 3</strong></td>
+              <td>Pod-to-pod (Envoy sidecars)</td>
+              <td>Istio-issued workload certs (short-lived, ~24h)</td>
+              <td><code>istiod</code></td>
+              <td>Auto. SPIFFE identities are derived from the K8s ServiceAccount. You don't touch the certs &mdash; you change the SA / AuthorizationPolicy.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The SAN Inventory on the F5's Sectigo Cert</h3>
+
+      <p>One Sectigo cert covers <strong>all environments and all access patterns</strong>. The F5 picks the right backend pool by SNI; the cert just needs the SAN. Adding a new domain = a BANANA request to update the cert.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>SAN</th><th>Environment</th><th>Used by</th></tr></thead>
+          <tbody>
+            <tr><td><code>ci-outpost.api.tr.confirmation.com</code></td><td>CI</td><td>External CI traffic</td></tr>
+            <tr><td><code>ci.api.tr.confirmation.com</code></td><td>CI</td><td>Internal/VPN CI</td></tr>
+            <tr><td><code>demo-outpost.api.tr.confirmation.com</code></td><td>Demo</td><td>External demo traffic</td></tr>
+            <tr><td><code>demo.api.tr.confirmation.com</code></td><td>Demo</td><td>Internal/VPN demo</td></tr>
+            <tr><td><code>demo.sso.confirmation.com</code></td><td>Demo</td><td>SSO login</td></tr>
+            <tr><td><code>qa-outpost.api.tr.confirmation.com</code></td><td>QA</td><td>External QA</td></tr>
+            <tr><td><code>qa.api.tr.confirmation.com</code></td><td>QA</td><td>Internal QA</td></tr>
+            <tr><td><code>qa.sso.confirmation.com</code></td><td>QA</td><td>SSO QA</td></tr>
+            <tr><td><code>kwaf-preprod.tr.confirmation.com</code></td><td>WAF GUI</td><td>Forensics console</td></tr>
+            <tr><td><code>reportportal.tr.confirmation.com</code></td><td>Test reports</td><td>ReportPortal (also bit us in INC-009/010)</td></tr>
+            <tr><td><code>selenium.tr.confirmation.com</code></td><td>Selenium</td><td>Test automation grid</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Why Two Certs for the Same Domain?</h3>
+
+      <div class="info-box">
+        <strong>Because there are two TLS connections.</strong> The browser ↔ F5 connection uses the Sectigo cert. The F5 ↔ IngressGateway connection uses the Plexus IngressName cert. Each endpoint terminates its own TLS with its own cert. When you add a new domain:
+        <ul>
+          <li>Raise a <strong>BANANA</strong> request &rarr; F5 cert gets new SAN</li>
+          <li>Update the <code>core-components/values.yaml</code> <strong>IngressName</strong> &rarr; Plexus issues a new cluster cert</li>
+          <li>If you forget either, the TLS handshake fails on that hop &mdash; <strong>browsers see "untrusted" or 502 from F5 if the cluster side rejects the SNI hostname</strong>.</li>
+        </ul>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Walk me through what I have to change to onboard a brand-new public hostname like <code>partner-api.tr.confirmation.com</code>."</div>
+        <div class="qa-answer">
+          <ol>
+            <li><strong>DNS:</strong> ask the network team to add the public DNS record pointing at <code>10.230.34.4</code>.</li>
+            <li><strong>F5 (BANANA):</strong> raise a BANANA request to add <code>partner-api.tr.confirmation.com</code> as a SAN on the Sectigo cert and bind a pool entry to NodePort <code>32390</code>.</li>
+            <li><strong>Cluster cert (IngressName):</strong> add the domain to the relevant environment's IngressName in <code>core-components/values.yaml</code>. ArgoCD syncs &mdash; Plexus issues a new internal cert with that SAN and updates the Secret in <code>private-ingressgateway</code>.</li>
+            <li><strong>Gateway:</strong> add or update a Gateway resource referencing <code>credentialName: {env}-outpost-cert</code> with the new host.</li>
+            <li><strong>VirtualService:</strong> add the host match and the path-prefix routing.</li>
+            <li><strong>AuthorizationPolicy:</strong> nothing per-host needed &mdash; the existing zero-trust policy already restricts source to the IngressGateway SA.</li>
+            <li><strong>Smoke test:</strong> <code>curl -sv https://partner-api.tr.confirmation.com/health</code>, then <code>kubectl logs</code> on the IngressGateway and the target pod to confirm the SNI matched and AuthZ allowed.</li>
+          </ol>
+          The trap is forgetting either hop's cert. If BANANA is done but IngressName isn't synced, the F5 connects fine and then the cluster rejects the SNI &mdash; you'll see TLS handshake failures in the IngressGateway pod logs.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3.12 Label injection + ports -->
+    <section class="section" id="labels-ports">
+      <div class="section-header">
+        <span class="section-num">3.12</span>
+        <h2>Label Injection Mechanics + Port Reference</h2>
+      </div>
+
+      <h3>How Argo Rollouts Partitions stable vs canary Pods</h3>
+
+      <p>Both subsets in your DestinationRule have the <strong>same</strong> <code>app</code> label. They look identical &mdash; so how does Istio route 50% to canary and 50% to stable?</p>
+
+      <p><strong>Rollout injects a runtime label.</strong> When Argo Rollouts manages a canary, it computes a hash of the pod template spec and injects <code>rollouts-pod-template-hash</code> into both the pods and the DestinationRule subsets. The label exists in the cluster but not in your Helm chart Git source.</p>
+
+      <span class="code-label">What ArgoCD shows in the cluster after Rollout has done its work</span>
+      <pre><code>subsets:
+- name: stable
+  labels:
+    app: confirmation-selfreg-be-demo-rollout
+    rollouts-pod-template-hash: abc123        # &lt;-- injected by Rollout
+- name: canary
+  labels:
+    app: confirmation-selfreg-be-demo-rollout
+    rollouts-pod-template-hash: def456        # &lt;-- injected by Rollout</code></pre>
+
+      <div class="info-box">
+        <strong>This is why the DestinationRule name embeds the image tag</strong> (<code>...-v0.0.1-96eed7f0-destination-rule</code>). Each rollout gets a fresh DR name; the previous DR is cleaned up after promotion. If you see <code>ignoreDifferences</code> on <code>spec.subsets[*].labels</code> in your ApplicationSet, that's because ArgoCD would otherwise fight the Rollout controller over the injected label.
+      </div>
+
+      <h3>Canary Step Sequence (selfreg-be example)</h3>
+
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span><div class="step-body"><div class="step-title">Initial state</div><div class="step-desc">VS weight: stable=100, canary=0. Only the stable hash is in the DR. New image tag commits to <code>environments/demo/selfreg-be/values.yaml</code>.</div></div></div>
+        <div class="step"><span class="step-num">2</span><div class="step-body"><div class="step-title">ArgoCD sync &rarr; Rollout creates canary pods</div><div class="step-desc">Rollout starts new replicas with the new pod-template-hash. They join the Service but the VS still routes 100% to stable.</div></div></div>
+        <div class="step"><span class="step-num">3</span><div class="step-body"><div class="step-title">setWeight: 50</div><div class="step-desc">Rollout patches the VS: <code>stable=50, canary=50</code>. Patches the DR to add the canary subset's <code>rollouts-pod-template-hash</code>. Real user traffic now splits 50/50.</div></div></div>
+        <div class="step"><span class="step-num">4</span><div class="step-body"><div class="step-title">pause 1m</div><div class="step-desc">Watch error rate, p95 latency, Datadog APM. Manual abort with <code>kubectl argo rollouts abort</code> rolls weights back instantly.</div></div></div>
+        <div class="step"><span class="step-num">5</span><div class="step-body"><div class="step-title">Auto-promotion</div><div class="step-desc">Rollout promotes canary to stable: VS back to <code>stable=100, canary=0</code>; old DR (with previous tag in its name) gets deleted; old replicas drained.</div></div></div>
+      </div>
+
+      <h3>Port + Identifier Reference Card</h3>
+
+      <p>Cite these in interviews to sound concrete instead of generic.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>What</th><th>Value</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>F5 BigIP VIP</td><td><code>10.230.34.4:443</code></td><td>Rackspace, Sectigo cert, BANANA-managed</td></tr>
+            <tr><td>F5 &rarr; cluster NodePort</td><td><code>32390</code></td><td>EKS Outpost worker NodePort</td></tr>
+            <tr><td>IngressGateway listener</td><td><code>:8443</code></td><td><code>private-ingressgateway</code> namespace</td></tr>
+            <tr><td>IngressGateway pods</td><td>3 replicas (HA)</td><td>Envoy data plane</td></tr>
+            <tr><td>Application container</td><td><code>:8080</code></td><td>Standard for all .NET services in our charts</td></tr>
+            <tr><td>Istio mTLS mode</td><td><code>ISTIO_MUTUAL</code></td><td>DestinationRule <code>trafficPolicy.tls.mode</code></td></tr>
+            <tr><td>IngressGateway TLS mode</td><td><code>SIMPLE</code> (server-side TLS)</td><td>Gateway resource</td></tr>
+            <tr><td>SPIFFE principal (allowed source)</td><td><code>cluster.local/ns/private-ingressgateway/sa/private-ingressgateway-service-account</code></td><td>AuthorizationPolicy</td></tr>
+            <tr><td>KWAF controller gRPC</td><td><code>:12121</code></td><td><code>kwaf-controller</code> &rarr; enforcer config push</td></tr>
+            <tr><td>KWAF rate-limiter gRPC</td><td><code>:8081</code></td><td>enforcer &rarr; rate-limiter</td></tr>
+            <tr><td>KWAF NATS</td><td><code>:4222</code></td><td>API discovery bus</td></tr>
+            <tr><td>KWAF GUI / events-fetcher</td><td><code>:8080</code></td><td>Forensics REST API + UI</td></tr>
+            <tr><td>KWAF admission webhook</td><td><code>:4443</code></td><td><code>kwaf-validationcontroller</code></td></tr>
+            <tr><td>Workload runtime UID/GID</td><td><code>14000 / 14001</code></td><td>Pod <code>securityContext</code>, read-only FS</td></tr>
+            <tr><td>Sync wave order</td><td>-1 PreSync (Liquibase) &rarr; 0 ESO &rarr; 1 Service &rarr; 2 DR + AuthZ &rarr; 3 VS &rarr; 4 Rollout &rarr; 5 HPA</td><td>ArgoCD <code>argocd.argoproj.io/sync-wave</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Cert + Routing Inspection Commands</h3>
+
+      <span class="code-label">Verify the F5-side cert vs the cluster-side cert match the same domain</span>
+      <pre><code># What the F5 presents to a browser (Sectigo cert)
+echo | openssl s_client -connect demo-outpost.api.tr.confirmation.com:443 -servername demo-outpost.api.tr.confirmation.com 2&gt;/dev/null \
+  | openssl x509 -noout -issuer -subject -ext subjectAltName
+
+# What the IngressGateway holds (Plexus / IngressName)
+kubectl -n private-ingressgateway get secret demo-outpost-cert -o jsonpath='{.data.tls\.crt}' \
+  | base64 -d | openssl x509 -noout -issuer -subject -ext subjectAltName</code></pre>
+
+      <span class="code-label">Confirm Rollout label injection happened</span>
+      <pre><code>kubectl -n 207804-confirmation-demo get destinationrule \
+  confirmation-selfreg-be-demo-v0.0.1-XXXXXXXX-destination-rule -o yaml \
+  | yq '.spec.subsets'
+
+kubectl -n 207804-confirmation-demo get pods -l app=confirmation-selfreg-be-demo-rollout \
+  -L rollouts-pod-template-hash</code></pre>
+
+      <span class="code-label">Confirm mTLS is active on the call (Envoy admin port)</span>
+      <pre><code>kubectl -n 207804-confirmation-demo exec -it &lt;pod&gt; -c istio-proxy -- \
+  curl -s localhost:15000/config_dump | jq '.. | objects | select(.tls_context?) | .tls_context'</code></pre>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "If I see traffic hitting the canary pods even when VS weight is 0, where do I look?"</div>
+        <div class="qa-answer">
+          Three suspects, in order:
+          <ol>
+            <li><strong>DR subset hash:</strong> if the <code>rollouts-pod-template-hash</code> label on the canary subset matches the <em>stable</em> pods (e.g. Rollout failed mid-update and didn't refresh it), the canary subset will resolve to stable pods. Diff the DR's subset labels against the actual pod labels.</li>
+            <li><strong>Service selector:</strong> the K8s Service selector might be too broad. The Service should select on <code>app</code> + <code>environment</code>; if it skips environment, you can pull pods from another env if labels collide. <code>kubectl get svc -o yaml</code>.</li>
+            <li><strong>Cached endpoints:</strong> Envoy caches endpoint sets. After an abort, Envoy may take a few seconds to drain. <code>curl localhost:15000/clusters | grep canary</code> on the IngressGateway sidecar shows the active endpoints.</li>
+          </ol>
+        </div>
       </div>
     </section>
 
