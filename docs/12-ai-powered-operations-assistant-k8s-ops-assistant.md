@@ -35,7 +35,8 @@
 │                         → @k8s    → K8sAgent                 │
 │                         → @cert   → CertAgent                │
 │                                                              │
-│  Level 2: Keyword score → Cert(2.0) > DD(1.5) > K8s(1.0)    │
+│  Level 2: Keyword score → K8S_INFRA(2.5) > Cert(2.0) > DD(1.5) > K8s(1.0) │
+│           K8S_INFRA: postgres/rmq/opensearch/connections/locks│
 │                                                              │
 │  Level 3: Fallback      → DatadogAgent                       │
 └────────┬──────────────────┬──────────────────┬──────────────┘
@@ -43,7 +44,7 @@
     ┌────▼────┐       ┌────▼────┐        ┌────▼────┐
     │Datadog  │       │K8s     │        │Cert    │
     │Agent    │       │Agent   │        │Agent   │
-    │19 tools │       │10 tools│        │1 tool  │
+    │~20 tools│       │17 tools│        │1 tool  │
     └────┬────┘       └────┬────┘        └────┬────┘
          │                  │                  │
          ▼                  ▼                  ▼
@@ -55,7 +56,7 @@
          │                  │                  │
     ┌────▼────┐       ┌────▼────┐        ┌────▼────┐
     │Claude   │       │K8s API │        │TLS     │
-    │Opus 4.5 │       │(boto3) │        │checker │
+    │Opus 4.7 │       │(boto3) │        │checker │
     │via TR AI│       │        │        │        │
     │Platform │       │        │        │        │
     └─────────┘       └─────────┘        └─────────┘
@@ -66,9 +67,10 @@
 | Decision | Why |
 |----------|-----|
 | **Rule-based routing (not LLM)** | Deterministic, fast (~0ms), testable. LLM routing adds 2-3 seconds latency and non-determinism |
-| **Multi-agent (not monolithic)** | Single agent with 30 tools confuses Claude. Specialized agents have focused system prompts |
+| **Multi-agent (not monolithic)** | Single agent with 38 tools confuses Claude. Specialized agents have focused system prompts |
 | **10-iteration limit** | Prevents runaway queries and unbounded cost. Most queries complete in 3-5 iterations |
-| **Opus-first model** | Complex investigations need strong reasoning. Switch to Sonnet at 150K+ tokens for cost |
+| **Keyword-based model routing** | COMPLEX queries → Opus 4.7, MEDIUM/SIMPLE → Sonnet 4.6. Cost guard: switch to Sonnet above 150K tokens |
+| **Prompt caching** | System prompt + tool schemas cached at Anthropic (2 of 4 breakpoints). Saves ~60% on repeated short queries |
 | **SSE streaming** | Time-to-first-feedback dropped from 41s (blocking) to <1s. Users see tool calls in real-time |
 
 ---
@@ -153,20 +155,27 @@ async def handle(self, message: str, history: list) -> str:
 | **Metrics** (6) | `query_apm_metrics`, `get_service_health_metrics`, `get_metric_timeseries`, `compare_metrics_across_services`, `get_slo_status`, `discover_service_operation` | "Compare error rates across all services" |
 | **Correlation** (4) | `investigate_error_full_context`, `analyze_service_health_unified`, `trace_error_to_root_cause`, `detect_anomalies` | "Investigate why record-gql-be has high latency" |
 
-**K8sAgent (10 Tools):**
+**K8sAgent (17 Tools — 10 base + 7 infra diagnostics when `ENABLE_INFRA_DIAGNOSTICS=true`):**
 
-| Tool | Purpose |
-|------|---------|
-| `get_pods` | List pods with status, filtering by namespace/labels |
-| `describe_pod` | Detailed pod info (containers, limits, conditions) |
-| `get_pod_events` | Pod failure diagnostics (OOMKill, ImagePull, scheduling) |
-| `get_namespaces` | List available namespaces |
-| `resolve_namespace` | Fuzzy match: "qa" → `207804-confirmation-qa` |
-| `get_hpa_status` | HPA current/desired replicas, scaling events |
-| `get_rollout_status` | Argo Rollout deployment status, canary progress |
-| `get_pvcs` | PersistentVolumeClaim status and capacity |
-| `get_resource_metrics` | CPU/Memory utilization per pod |
-| `search_resources` | Cross-namespace resource search |
+| Category | Tool | Purpose |
+|----------|------|---------|
+| **Core K8s** | `get_pods` | List pods with status, filtering by namespace/labels |
+| | `describe_pod` | Detailed pod info (containers, limits, conditions) |
+| | `get_pod_events` | Pod failure diagnostics (OOMKill, ImagePull, scheduling) |
+| | `get_namespaces` | List available namespaces |
+| | `resolve_namespace` | Fuzzy match: "qa" → `207804-confirmation-qa` |
+| | `get_hpa_status` | HPA current/desired replicas, scaling events |
+| | `get_rollout_status` | Argo Rollout deployment status, canary progress |
+| | `get_pvcs` | PersistentVolumeClaim status and capacity |
+| | `get_resource_metrics` | CPU/Memory utilization per pod |
+| | `search_resources` | Cross-namespace resource search |
+| **Infra Diagnostics** | `query_postgresql_diagnostics` | PG connection pools, table sizes, locks, replication lag for any service (32-service DB map) |
+| | `query_rabbitmq_diagnostics` | RMQ queue depths, consumer counts, dead-letter queues |
+| | `search_opensearch` | Full-text search across OpenSearch indexes |
+| | `export_opensearch_csv` | HMAC-signed CSV export for audit compliance — time-bounded, tamper-evident download link |
+| | `compare_secret_keys_across_envs` | Diff ExternalSecret key sets between CI/QA/Prod — catches missing keys before deployment |
+| | `correlate_infra_with_services` | **Fan-out tool**: hits PG + RMQ + OpenSearch + Datadog in parallel via ThreadPoolExecutor. Returns composite platform health. Latency = max(4 backends) not sum. |
+| | `exec_in_container` | Run read-only diagnostic commands inside a pod (e.g., `psql` health checks) |
 
 **CertAgent (1 Tool):**
 
@@ -204,13 +213,14 @@ def truncate(history: list) -> list:
     # Last resort: truncate large tool results to first+last 4,000 chars
 ```
 
-**Model Selection:**
+**Model Selection (keyword-driven, not context-size-driven):**
 
-| Token Count | Model | Reasoning |
-|-------------|-------|-----------|
-| < 150K | Claude Opus 4.5 | Best reasoning for complex investigations |
-| 150K–180K | Claude Sonnet 4.6 | Balanced — still good but cheaper |
-| > 180K | Opus 4.5 + truncation | Stay on Opus but trim context |
+| Query Type | Model | Reasoning |
+|------------|-------|-----------|
+| COMPLEX: investigate/why/root-cause/correlate/anomaly, ambiguous queries | Claude Opus 4.7 | Strongest reasoning; default for quality |
+| MEDIUM: show/get/list/check/view logs/errors/pods/traces | Claude Sonnet 4.6 | Fast, cheap for routine lookups |
+| SIMPLE: greetings, help | Claude Sonnet 4.6 | Haiku not available at api.anthropic.com |
+| Any query >150K tokens (cost guard) | Claude Sonnet 4.6 | Context-size override regardless of complexity |
 
 ---
 
@@ -352,13 +362,69 @@ env:ci service:audit-devops-assistant @gen_ai.usage.input_tokens:>10000
 
 ---
 
+### 12.8b Cross-Subsystem Fan-Out — `correlate_infra_with_services`
+
+When asked "is the platform healthy?" or "what's the state of demo right now?", the answer spans four subsystems. Instead of letting Claude call four tools sequentially (4 loop iterations, ~15-20s), one tool does the fan-out internally:
+
+```python
+# From tools/k8s_tools.py
+def correlate_infra_with_services(namespace: str, environment: str):
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {
+            executor.submit(query_postgresql_diagnostics, environment): "postgres",
+            executor.submit(query_rabbitmq_diagnostics, namespace): "rabbitmq",
+            executor.submit(search_opensearch, environment): "opensearch",
+            executor.submit(query_datadog_error_rates, environment): "datadog",
+        }
+        results = {label: f.result() for f, label in futures.items()}
+    return summarize_platform_health(results)
+```
+
+**Why one tool instead of four separate tools?**
+
+| Approach | Latency | Token cost | Structure |
+|----------|---------|------------|-----------|
+| 4 sequential tools via Claude | sum(4 backends) ~15-20s | 4 loop iterations × full context | Claude decides what to check |
+| `correlate_infra_with_services` (fan-out) | max(4 backends) ~3-5s | 1 tool result | Always checks all 4, deterministic |
+
+**The tradeoff:** For exploration ("why is pricing-be slow?") — let Claude choose. For surveys ("is the platform healthy?") — fix the shape. This tool is the latter.
+
+---
+
+### 12.8c Proactive Monitoring Subsystem
+
+Beyond answering questions, the assistant has a proactive watchdog that runs on a schedule and posts to Slack/Teams without a user query:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Proactive Scheduler                        │
+│  Runs every N minutes (configurable)                         │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ fires pre-configured checks
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│              ProactiveAgent (same BaseAgent loop)            │
+│  Checks: CrashLoopBackOff pods, pending pods > 5 min,        │
+│          cert expiry within 30 days, HPA at max replicas,    │
+│          Datadog error rate spike vs baseline                │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ only if anomaly found
+                           ▼
+                  Teams / Slack webhook
+```
+
+**Interview angle:** This converts the assistant from a reactive Q&A tool into a proactive observability layer. It's the same agentic loop but triggered by a scheduler instead of a user — the architecture doesn't change, the trigger does.
+
+---
+
 ### 12.9 Multi-Tenant Portability
 
 The assistant is designed so any TR team can onboard with zero code changes:
 
 ```bash
-# New team onboarding: 4 required env vars, everything else optional
-ESSO_TOKEN=<token>          # or CIAM_CLIENT_ID + CIAM_CLIENT_SECRET
+# New team onboarding: CIAM M2M is the primary auth (ESSO is legacy fallback)
+CIAM_CLIENT_ID=<id>         # Primary: service-account credentials
+CIAM_CLIENT_SECRET=<secret> # Primary: auto-refreshing, 24h token lifetime
 DD_API_KEY=<key>
 DD_APP_KEY=<key>
 NAMESPACE_PREFIX=207804     # Their asset ID
@@ -385,7 +451,7 @@ SERVICES=their-svc-1,their-svc-2
 | **Software 2.0** | ML-trained patterns | Train classifier on incident data — needs labeled data, retraining |
 | **Software 3.0** | Natural language reasoning | "Investigate why service has errors" → Claude autonomously decides tools |
 
-> "We provide 30 well-defined tools (capabilities), domain context via system prompts, and real-time data access. Claude autonomously determines which tools to invoke, in what sequence, and how to synthesize results. We don't prescribe investigation workflows — the AI reasons about the best approach for each unique question. This is why it can handle questions it's never seen before."
+> "We provide 38 tools (capabilities), domain context via system prompts, and real-time data access. Claude autonomously determines which tools to invoke, in what sequence, and how to synthesize results. We don't prescribe investigation workflows — the AI reasons about the best approach for each unique question. This is why it can handle questions it's never seen before."
 
 **What the AI CANNOT Do (Interview Safety Question):**
 
