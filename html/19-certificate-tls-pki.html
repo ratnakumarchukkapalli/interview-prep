@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Section 19: TLS Certificates & PKI | Interview Prep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #090d1a;
+            --surface: #0f1826;
+            --surface2: #141f35;
+            --border: #1d2d4f;
+            --text: #dce8f5;
+            --text-muted: #7a9ab5;
+            --accent: #22c55e;
+            --accent2: #38bdf8;
+            --accent3: #f59e0b;
+            --code-bg: #060a13;
+            --shadow: 0 2px 16px rgba(0,0,0,0.3);
+            --radius: 12px;
+        }
+        [data-theme="light"] {
+            --bg: #f2f6fc;
+            --surface: #ffffff;
+            --surface2: #eaeff8;
+            --border: #c8d6e5;
+            --text: #1a2332;
+            --text-muted: #5a6a7a;
+            --accent: #16a34a;
+            --accent2: #0284c7;
+            --accent3: #d97706;
+            --code-bg: #e8edf5;
+            --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; scroll-padding-top: 32px; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 16px;
+            transition: background 0.3s, color 0.3s;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+
+        .theme-toggle {
+            position: fixed; top: 20px; right: 24px; z-index: 1000;
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); width: 44px; height: 44px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; transition: all 0.3s; box-shadow: var(--shadow);
+        }
+        .theme-toggle:hover { border-color: var(--accent2); transform: scale(1.1); }
+
+        .layout { display: flex; max-width: 1400px; margin: 0 auto; gap: 0; }
+
+        .toc {
+            position: sticky; top: 0; left: 0;
+            width: 280px; min-width: 280px; height: 100vh;
+            overflow-y: auto; padding: 32px 20px;
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .toc-title {
+            font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--accent2);
+            margin-bottom: 20px; padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .toc a {
+            display: block; padding: 8px 12px; margin: 2px 0;
+            color: var(--text-muted); text-decoration: none;
+            font-size: 13.5px; font-weight: 400;
+            border-radius: 6px; border-left: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .toc a:hover { color: var(--text); background: var(--surface2); }
+        .toc a.active {
+            color: var(--accent); border-left-color: var(--accent);
+            background: rgba(34, 197, 94, 0.06); font-weight: 500;
+        }
+        .toc a.toc-sub { padding-left: 24px; font-size: 12.5px; }
+
+        .content { flex: 1; min-width: 0; padding: 0 48px 80px; }
+
+        .hero {
+            padding: 56px 0 40px; margin-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero-badges { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .badge {
+            display: inline-flex; align-items: center;
+            padding: 5px 14px; border-radius: 20px;
+            font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+        }
+        .badge-green { background: rgba(34,197,94,0.12); color: var(--accent); border: 1px solid rgba(34,197,94,0.25); }
+        .badge-blue  { background: rgba(56,189,248,0.12); color: var(--accent2); border: 1px solid rgba(56,189,248,0.25); }
+        .badge-amber { background: rgba(245,158,11,0.12); color: var(--accent3); border: 1px solid rgba(245,158,11,0.25); }
+        .badge-red   { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+        .hero h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+        .hero .subtitle { font-size: 1.1rem; color: var(--text-muted); font-weight: 400; line-height: 1.5; max-width: 640px; }
+        .hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+        .hero-meta span { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+        .section-header {
+            display: flex; align-items: center; gap: 14px;
+            margin: 52px 0 24px; padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-num {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: rgba(34,197,94,0.12); color: var(--accent);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 15px; flex-shrink: 0;
+            border: 1px solid rgba(34,197,94,0.2);
+        }
+        .section-header h2 { font-size: 1.55rem; font-weight: 600; color: var(--text); }
+
+        p { margin-bottom: 16px; color: var(--text); line-height: 1.8; }
+
+        .info-box {
+            background: var(--surface); border: 1px solid var(--border);
+            border-left: 4px solid var(--accent2); border-radius: var(--radius);
+            padding: 20px 24px; margin: 20px 0; line-height: 1.8;
+        }
+        .info-box p { margin-bottom: 12px; }
+        .info-box p:last-child { margin-bottom: 0; }
+
+        .warn-box {
+            background: var(--surface); border: 1px solid var(--border);
+            border-left: 4px solid var(--accent3); border-radius: var(--radius);
+            padding: 20px 24px; margin: 20px 0; line-height: 1.8;
+        }
+
+        .danger-box {
+            background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.25);
+            border-left: 4px solid #f87171; border-radius: var(--radius);
+            padding: 20px 24px; margin: 20px 0; line-height: 1.8;
+        }
+
+        .success-box {
+            background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.25);
+            border-left: 4px solid var(--accent); border-radius: var(--radius);
+            padding: 20px 24px; margin: 20px 0; line-height: 1.8;
+        }
+
+        strong { color: var(--accent2); font-weight: 600; }
+
+        code {
+            font-family: 'Fira Code', monospace; font-size: 0.88em;
+            background: var(--code-bg); color: var(--accent2);
+            padding: 2px 7px; border-radius: 5px; border: 1px solid var(--border);
+        }
+
+        pre {
+            background: var(--code-bg); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px 24px;
+            margin: 20px 0; overflow-x: auto; position: relative;
+        }
+        pre code {
+            background: none; border: none; padding: 0;
+            font-size: 13.5px; line-height: 1.7; color: var(--text);
+        }
+        .code-label {
+            position: absolute; top: 10px; right: 14px;
+            font-size: 11px; color: var(--text-muted);
+            font-family: 'Fira Code', monospace; opacity: 0.6;
+        }
+
+        .table-wrapper {
+            overflow-x: auto; margin: 20px 0;
+            border-radius: var(--radius); border: 1px solid var(--border);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+        thead { background: var(--surface2); }
+        th {
+            text-align: left; padding: 14px 18px; font-weight: 600;
+            color: var(--accent); font-size: 12.5px;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            border-bottom: 1px solid var(--border);
+        }
+        td { padding: 12px 18px; border-bottom: 1px solid var(--border); color: var(--text); }
+        tr:last-child td { border-bottom: none; }
+        tbody tr { transition: background 0.15s; }
+        tbody tr:hover { background: var(--surface2); }
+        .td-secret { color: #f87171; font-weight: 600; }
+        .td-public { color: var(--accent); font-weight: 600; }
+
+        .steps { margin: 20px 0; padding: 0; list-style: none; }
+        .step { display: flex; gap: 16px; padding: 14px 0; align-items: flex-start; }
+        .step-num {
+            width: 30px; height: 30px; min-width: 30px; border-radius: 50%;
+            background: rgba(34,197,94,0.12); color: var(--accent);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 13px;
+            border: 1px solid rgba(34,197,94,0.25); margin-top: 2px;
+        }
+        .step-content { flex: 1; }
+        .step-content strong { color: var(--text); font-weight: 600; }
+
+        .card-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 22px 24px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .card:hover { border-color: var(--accent2); transform: translateY(-2px); }
+        .card-title { font-weight: 600; color: var(--accent2); margin-bottom: 8px; font-size: 15px; }
+        .card-desc { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+
+        .mermaid-wrapper {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 24px; margin: 20px 0;
+            overflow-x: auto; width: 100%;
+        }
+        .mermaid { display: flex; justify-content: center; width: 100%; }
+        .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+
+        blockquote {
+            background: var(--surface); border: 1px solid var(--border);
+            border-left: 4px solid var(--accent); border-radius: var(--radius);
+            padding: 20px 24px; margin: 20px 0;
+            font-style: italic; color: var(--text-muted); line-height: 1.8;
+        }
+        blockquote strong { color: var(--accent3); }
+
+        h3 { margin: 32px 0 16px; color: var(--accent2); font-size: 1.1rem; font-weight: 600; }
+        h4 { margin: 24px 0 12px; color: var(--accent3); font-size: 1rem; font-weight: 600; }
+
+        .interview-q {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px 24px; margin: 16px 0;
+        }
+        .interview-q .q {
+            font-weight: 600; color: var(--accent3); margin-bottom: 12px; font-size: 15px;
+        }
+        .interview-q .a { color: var(--text); line-height: 1.8; }
+
+        .nav-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 64px; padding: 24px 0;
+            border-top: 1px solid var(--border); gap: 16px;
+        }
+        .nav-footer a {
+            color: var(--accent2); text-decoration: none; font-weight: 500;
+            font-size: 14.5px; padding: 10px 18px; border: 1px solid var(--border);
+            border-radius: 8px; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+        }
+        .nav-footer a:hover { border-color: var(--accent2); background: var(--surface); }
+        .nav-footer .nav-index { color: var(--text-muted); border-color: transparent; }
+        .nav-footer .nav-index:hover { color: var(--accent2); border-color: var(--border); }
+
+        @media (max-width: 860px) {
+            .toc { display: none; }
+            .content { padding: 0 20px 60px; }
+            .hero h1 { font-size: 1.8rem; }
+            .theme-toggle { top: 12px; right: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <span id="theme-icon">&#9789;</span>
+    </button>
+
+    <div class="layout">
+        <!-- Sidebar TOC -->
+        <nav class="toc">
+            <div class="toc-title">On This Page</div>
+            <a href="#concepts" class="active">19.1 Concepts &amp; Players</a>
+            <a href="#concepts" class="toc-sub">What is a Certificate?</a>
+            <a href="#concepts" class="toc-sub">CA / Root / Intermediate</a>
+            <a href="#concepts" class="toc-sub">CA Bundle</a>
+            <a href="#e2e-process">19.2 End-to-End Process</a>
+            <a href="#e2e-process" class="toc-sub">Step 1 — Private Key</a>
+            <a href="#e2e-process" class="toc-sub">Step 2 — CSR</a>
+            <a href="#e2e-process" class="toc-sub">Step 3 — CA Signs</a>
+            <a href="#e2e-process" class="toc-sub">Step 4 — CA Bundle</a>
+            <a href="#e2e-process" class="toc-sub">Step 5 — TLS Handshake</a>
+            <a href="#rabbitmq-certs">19.3 RabbitMQ — Our Setup</a>
+            <a href="#rabbitmq-certs" class="toc-sub">Why Self-Signed?</a>
+            <a href="#rabbitmq-certs" class="toc-sub">Why 4 SANs?</a>
+            <a href="#rabbitmq-certs" class="toc-sub">Generation Script</a>
+            <a href="#rabbitmq-certs" class="toc-sub">File Roles</a>
+            <a href="#dotnet-trust">19.4 How .NET Services Trust It</a>
+            <a href="#argocd-injection">19.5 ArgoCD PreSync Injection</a>
+            <a href="#mtls">19.6 mTLS vs TLS</a>
+            <a href="#istio-certs">19.7 Istio / SPIFFE Certs</a>
+            <a href="#cert-manager">19.8 cert-manager</a>
+            <a href="#interview-scenarios">19.9 Interview Scenarios</a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content">
+            <!-- Hero -->
+            <div class="hero">
+                <div class="hero-badges">
+                    <span class="badge badge-green">Interview Prep</span>
+                    <span class="badge badge-blue">TLS / PKI</span>
+                    <span class="badge badge-amber">RabbitMQ</span>
+                    <span class="badge badge-blue">Certificates</span>
+                </div>
+                <h1>Section 19: TLS Certificates &amp; PKI</h1>
+                <p class="subtitle">End-to-end certificate creation, CA bundles, self-signed TLS, RabbitMQ cert generation, mTLS, Istio SPIFFE, and cert-manager</p>
+                <div class="hero-meta">
+                    <span><span class="dot"></span> Section 19</span>
+                    <span><span class="dot"></span> ~25 min read</span>
+                    <span><span class="dot"></span> Security Foundation</span>
+                </div>
+            </div>
+
+            <!-- 19.1 Concepts -->
+            <div class="section-header" id="concepts">
+                <span class="section-num">1</span>
+                <h2>Concepts &amp; Key Players</h2>
+            </div>
+
+            <h3>What is a Certificate? (The Passport Analogy)</h3>
+
+            <p>Think of a TLS certificate like a <strong>passport</strong>. A passport proves who you are, was issued by a trusted authority (government), hasn't expired, and hasn't been tampered with. A TLS certificate does the same for servers and services.</p>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">Identity</div>
+                    <div class="card-desc">Who this server is — e.g. <code>rabbitmq.confirmation.svc.cluster.local</code>. Encoded in the Common Name (CN) and Subject Alternative Names (SANs).</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Trust</div>
+                    <div class="card-desc">It was signed by a Certificate Authority (CA) that the client already trusts. Without a trusted CA, the client rejects the connection.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Integrity</div>
+                    <div class="card-desc">The CA's cryptographic signature means the cert can't be forged or tampered with. Any modification invalidates the signature.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Expiry</div>
+                    <div class="card-desc">Certificates have a validity period (e.g. 365 days). Expired certs are rejected even if everything else is valid.</div>
+                </div>
+            </div>
+
+            <h3>The Certificate Hierarchy</h3>
+
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+flowchart TB
+    RCA["🔐 Root CA\n(Self-signed, kept OFFLINE)\ncacert.pem"]
+    ICA["🔑 Intermediate CA\n(Signed by Root CA)\n— Optional but common in enterprise —"]
+    LEAF["📄 Leaf Certificate\n(What your server presents)\ncert.pem"]
+    CLIENT["🖥️ Client\nVerifies using CA Bundle"]
+
+    RCA -->|"signs"| ICA
+    ICA -->|"signs"| LEAF
+    LEAF -->|"presented to"| CLIENT
+    RCA -->|"trusted by"| CLIENT
+    ICA -->|"trusted by"| CLIENT
+
+    style RCA fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style ICA fill:#141f35,stroke:#38bdf8,color:#dce8f5
+    style LEAF fill:#141f35,stroke:#22c55e,color:#dce8f5
+    style CLIENT fill:#141f35,stroke:#7a9ab5,color:#dce8f5
+                </div>
+            </div>
+
+            <h3>Key Terms Glossary</h3>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>Term</th><th>What it is</th><th>Analogy</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>CA (Certificate Authority)</strong></td><td>Trusted entity that signs and issues certificates</td><td>The government that issues passports</td></tr>
+                        <tr><td><strong>Root CA</strong></td><td>Top-level CA. Self-signed. Kept offline in production.</td><td>The central government printing office</td></tr>
+                        <tr><td><strong>Intermediate CA</strong></td><td>CA signed by Root CA. Actually issues leaf certs. Protects Root CA.</td><td>Regional passport office</td></tr>
+                        <tr><td><strong>Leaf Certificate</strong></td><td>End certificate the server presents during TLS handshake</td><td>Your actual passport</td></tr>
+                        <tr><td><strong>Private Key</strong></td><td>Secret key — never shared, never leaves the server. Used to decrypt and prove identity.</td><td>Your PIN / signature</td></tr>
+                        <tr><td><strong>Public Key</strong></td><td>Embedded in the certificate. Anyone can use it to encrypt data only the private key can decrypt.</td><td>Your name on the passport (visible to all)</td></tr>
+                        <tr><td><strong>CSR</strong></td><td>Certificate Signing Request — you send this to the CA to request a signed certificate</td><td>Passport application form</td></tr>
+                        <tr><td><strong>CA Bundle</strong></td><td>File containing Root CA + Intermediate CA certs chained together. Clients use this to verify leaf certs.</td><td>The government's public verification database</td></tr>
+                        <tr><td><strong>SAN</strong></td><td>Subject Alternative Names — the domain names this cert is valid for. Modern TLS only checks SANs, ignores CN.</td><td>The names listed on your passport (first, last, aliases)</td></tr>
+                        <tr><td><strong>Self-Signed</strong></td><td>The CA is not a public authority — you created it yourself. Only trusted by clients that explicitly have your CA cert.</td><td>A homemade ID card — only valid where they know you</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 19.2 End-to-End Process -->
+            <div class="section-header" id="e2e-process">
+                <span class="section-num">2</span>
+                <h2>End-to-End Certificate Creation Process</h2>
+            </div>
+
+            <p>Five steps from zero to a working TLS connection. This is what happens under the hood every time you generate certs — whether manually, with cert-manager, or with Istio.</p>
+
+            <ul class="steps">
+                <li class="step">
+                    <span class="step-num">1</span>
+                    <div class="step-content">
+                        <strong>Generate a Private Key</strong>
+                        <p>The private key is the foundation. It never leaves your server. All other steps derive from it.</p>
+                        <pre><code><span class="code-label">bash</span># Generate 2048-bit RSA private key
+openssl genrsa -out server.key 2048
+
+# Or 4096-bit for higher security (slower TLS handshake)
+openssl genrsa -out server.key 4096
+
+# Or ECDSA P-256 (faster, equally secure, preferred in modern setups)
+openssl ecparam -genkey -name prime256v1 -out server.key</code></pre>
+                    </div>
+                </li>
+                <li class="step">
+                    <span class="step-num">2</span>
+                    <div class="step-content">
+                        <strong>Create a CSR (Certificate Signing Request)</strong>
+                        <p>The CSR bundles your public key + identity info and sends it to the CA. Think of it as filling out the passport application form.</p>
+                        <pre><code><span class="code-label">bash</span># Basic CSR — CN = the primary hostname
+openssl req -new -key server.key -out server.csr \
+  -subj "/CN=rabbitmq.confirmation.svc.cluster.local/O=ThomsonReuters/C=AU"
+
+# CSR with SANs (required for Kubernetes — multiple DNS names)
+openssl req -new -key server.key -out server.csr \
+  -subj "/CN=confirmation-rabbitmq-ci" \
+  -addext "subjectAltName=DNS:confirmation-rabbitmq-ci,\
+DNS:confirmation-rabbitmq-ci.207804-rabbitmq-ci,\
+DNS:confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc,\
+DNS:confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc.cluster.local"</code></pre>
+                        <div class="info-box">
+                            <p><strong>What's inside a CSR?</strong> Your public key (derived from private key), the domain name(s) you want, your organisation info, and a digital signature proving you own the private key. The CA only needs the CSR — it never sees your private key.</p>
+                        </div>
+                    </div>
+                </li>
+                <li class="step">
+                    <span class="step-num">3</span>
+                    <div class="step-content">
+                        <strong>CA Signs the CSR → Issues the Certificate</strong>
+                        <p>You send the CSR to the CA. The CA verifies your identity, signs it with its own private key, and returns your leaf certificate.</p>
+
+                        <h4>Option A — You ARE the CA (Self-Signed setup like RabbitMQ)</h4>
+                        <pre><code><span class="code-label">bash</span># First, create your own CA (one-time setup)
+openssl genrsa -out ca.key 2048
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
+  -out cacert.pem -subj "/CN=TR-Internal-CA/O=ThomsonReuters"
+
+# Now sign your server's CSR with your CA
+openssl x509 -req -in server.csr \
+  -CA cacert.pem -CAkey ca.key \
+  -CAcreateserial -out server.crt \
+  -days 365 -sha256 \
+  -extfile <(printf "subjectAltName=DNS:confirmation-rabbitmq-ci,\
+DNS:confirmation-rabbitmq-ci.207804-rabbitmq-ci,\
+DNS:confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc,\
+DNS:confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc.cluster.local")</code></pre>
+
+                        <h4>Option B — External CA (Let's Encrypt / DigiCert)</h4>
+                        <pre><code><span class="code-label">bash</span># Send CSR to Let's Encrypt (via certbot / cert-manager)
+# They verify domain ownership, then return a signed cert
+# You never manage a Root CA yourself in this case</code></pre>
+
+                        <div class="warn-box">
+                            <p><strong>In Kubernetes environments</strong> — Use <strong>cert-manager</strong> (Section 19.8) to automate all of this. Manually running openssl is only for understanding the underlying process or for bootstrapping internal CAs.</p>
+                        </div>
+                    </div>
+                </li>
+                <li class="step">
+                    <span class="step-num">4</span>
+                    <div class="step-content">
+                        <strong>Build the CA Bundle</strong>
+                        <p>The CA bundle chains the intermediate CA and root CA certificates together. You distribute this to all clients so they can verify the leaf certificate's trust chain.</p>
+                        <pre><code><span class="code-label">bash</span># If you have an Intermediate CA:
+cat intermediate.crt root.crt > ca-bundle.crt
+
+# For our RabbitMQ setup (no intermediate, just root CA):
+# cacert.pem IS the CA bundle — clients mount this file</code></pre>
+                    </div>
+                </li>
+                <li class="step">
+                    <span class="step-num">5</span>
+                    <div class="step-content">
+                        <strong>TLS Handshake — How It All Comes Together</strong>
+                        <p>Your server now has three files. When a client connects, this is what happens:</p>
+                        <div class="mermaid-wrapper">
+                            <div class="mermaid">
+sequenceDiagram
+    participant C as .NET Service (Client)
+    participant R as RabbitMQ (Server)
+    participant CA as CA Bundle (cacert.pem)
+
+    C->>R: ClientHello (TLS versions, cipher suites)
+    R->>C: ServerHello + server.crt (leaf certificate)
+    C->>CA: Verify: is server.crt signed by a CA I trust?
+    CA-->>C: ✅ Yes — signature matches cacert.pem
+    C->>R: Generate session key, encrypt with server's public key
+    R->>R: Decrypt session key with server.key (private key)
+    C->>R: ✅ Encrypted AMQP connection established (port 5671)
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+
+            <!-- 19.3 RabbitMQ -->
+            <div class="section-header" id="rabbitmq-certs">
+                <span class="section-num">3</span>
+                <h2>RabbitMQ — Our Self-Signed TLS Setup at TR</h2>
+            </div>
+
+            <p>RabbitMQ at Thomson Reuters uses <strong>self-signed TLS certificates</strong> — not a public CA, not Istio mTLS. The reason: RabbitMQ runs with the Istio sidecar disabled (AMQP is a binary protocol Envoy can't proxy), so it manages its own TLS independently.</p>
+
+            <h3>Why Self-Signed?</h3>
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">No public DNS</div>
+                    <div class="card-desc">RabbitMQ is internal to the cluster — only reachable via Kubernetes DNS. Public CAs like Let's Encrypt require public domain validation.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">No Istio mTLS</div>
+                    <div class="card-desc">RabbitMQ has <code>sidecar.istio.io/inject: "false"</code> because Envoy can't handle the AMQP binary protocol or Erlang cluster distribution.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Full control</div>
+                    <div class="card-desc">We control cert validity, SANs, rotation schedule. No dependency on external CA availability.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Cost</div>
+                    <div class="card-desc">Public CAs cost money for wildcard/internal certs. Internal CA is free and sufficient for internal cluster traffic.</div>
+                </div>
+            </div>
+
+            <h3>Certificate Chain — Our Setup</h3>
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+flowchart TB
+    CA["🔐 Self-Signed Root CA\ncacert.pem + key.pem\n(generated once, stored securely)"]
+    CERT["📄 RabbitMQ Server Certificate\ncert.pem + server-key.pem"]
+    SAN1["DNS.1: confirmation-rabbitmq-ci"]
+    SAN2["DNS.2: confirmation-rabbitmq-ci.207804-rabbitmq-ci"]
+    SAN3["DNS.3: confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc"]
+    SAN4["DNS.4: confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc.cluster.local"]
+    SECRET["🔑 K8s Secret\nconfirmation-rabbitmq-tls-cert\n(tls.crt + tls.key + ca.crt)"]
+    RMQPOD["🐇 RabbitMQ Pod\nMounts Secret → TLS on port 5671"]
+    DOTNET["🖥️ .NET Service Pods\nMount cacert.pem → verify RabbitMQ cert"]
+
+    CA -->|"signs"| CERT
+    CERT --> SAN1
+    CERT --> SAN2
+    CERT --> SAN3
+    CERT --> SAN4
+    CERT -->|"stored in"| SECRET
+    SECRET -->|"mounted by"| RMQPOD
+    CA -->|"distributed via ExternalSecret"| DOTNET
+
+    style CA fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style CERT fill:#141f35,stroke:#22c55e,color:#dce8f5
+    style SECRET fill:#141f35,stroke:#38bdf8,color:#dce8f5
+    style RMQPOD fill:#141f35,stroke:#f87171,color:#dce8f5
+    style DOTNET fill:#141f35,stroke:#a78bfa,color:#dce8f5
+                </div>
+            </div>
+
+            <h3>Why 4 SANs?</h3>
+
+            <blockquote>
+                Kubernetes services can be reached by multiple DNS forms depending on which namespace the caller is in. A .NET service in the same namespace uses the short name. A service in a different namespace uses the namespace-qualified name. Some configs use the full FQDN. Modern TLS completely ignores the CN field — it only validates SANs. If a .NET service connects using <code>confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc.cluster.local</code> but the cert only has the short name in SANs, the TLS handshake fails with "certificate is valid for confirmation-rabbitmq-ci, not confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc.cluster.local." So we include all 4 forms.
+            </blockquote>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>SAN Form</th><th>Used by</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>confirmation-rabbitmq-ci</code></td><td>Services in the same namespace (short name resolution)</td></tr>
+                        <tr><td><code>confirmation-rabbitmq-ci.207804-rabbitmq-ci</code></td><td>Services in different namespaces (namespace-qualified)</td></tr>
+                        <tr><td><code>confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc</code></td><td>Some client libraries add .svc automatically</td></tr>
+                        <tr><td><code>confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc.cluster.local</code></td><td>Fully qualified Kubernetes DNS (FQDN) — always works</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Full Certificate Generation Script</h3>
+            <div class="info-box">
+                <p><strong>File:</strong> <code>scripts/certificates/ci/certs.sh</code> — Run this once to generate all certs for an environment. Store outputs in AWS Secrets Manager, not in Git.</p>
+            </div>
+
+            <pre><code><span class="code-label">bash — certs.sh</span>#!/bin/bash
+set -euo pipefail
+
+CLUSTER_NAME="confirmation-rabbitmq-ci"
+NAMESPACE="207804-rabbitmq-ci"
+K8S_SECRET_NAMESPACE="207804-confirmation-ci"
+CERT_DIR="./certs-ci"
+
+mkdir -p "$CERT_DIR"
+cd "$CERT_DIR"
+
+echo "=== Step 1: Generate CA private key ==="
+openssl genrsa -out key.pem 2048
+
+echo "=== Step 2: Create self-signed CA certificate ==="
+openssl req -x509 -new -nodes \
+  -key key.pem \
+  -sha256 \
+  -days 365 \
+  -out cacert.pem \
+  -subj "/CN=${CLUSTER_NAME}-ca/O=ThomsonReuters/C=AU"
+
+echo "=== Step 3: Generate server private key ==="
+openssl genrsa -out server-key.pem 2048
+
+echo "=== Step 4: Create CSR with all 4 SANs ==="
+openssl req -new \
+  -key server-key.pem \
+  -out cert.csr \
+  -subj "/CN=${CLUSTER_NAME}"
+
+echo "=== Step 5: Sign the CSR with our CA (include SANs) ==="
+openssl x509 -req \
+  -in cert.csr \
+  -CA cacert.pem \
+  -CAkey key.pem \
+  -CAcreateserial \
+  -out cert.pem \
+  -days 365 \
+  -sha256 \
+  -extfile <(cat <<EOF
+subjectAltName=DNS:${CLUSTER_NAME},\
+DNS:${CLUSTER_NAME}.${NAMESPACE},\
+DNS:${CLUSTER_NAME}.${NAMESPACE}.svc,\
+DNS:${CLUSTER_NAME}.${NAMESPACE}.svc.cluster.local
+EOF
+)
+
+echo "=== Step 6: Verify the certificate ==="
+openssl verify -CAfile cacert.pem cert.pem
+openssl x509 -in cert.pem -text -noout | grep -A5 "Subject Alternative Name"
+
+echo "=== Step 7: Create Kubernetes TLS Secret ==="
+kubectl create secret generic confirmation-rabbitmq-tls-cert \
+  --from-file=tls.crt=cert.pem \
+  --from-file=tls.key=server-key.pem \
+  --from-file=ca.crt=cacert.pem \
+  -n "${K8S_SECRET_NAMESPACE}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+echo "=== Done! Files generated: ==="
+echo "  cacert.pem   — CA certificate (PUBLIC — give to clients)"
+echo "  key.pem      — CA private key (SECRET — never share)"
+echo "  cert.pem     — Server certificate (PUBLIC)"
+echo "  server-key.pem — Server private key (SECRET — mount in RabbitMQ only)"
+echo ""
+echo "⚠️  Store key.pem and server-key.pem in AWS Secrets Manager — NOT in Git"</code></pre>
+
+            <h3>File Roles — What Goes Where</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>File</th><th>Secret?</th><th>Who Uses It</th><th>Purpose</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>cacert.pem</code></td>
+                            <td><span class="td-public">PUBLIC</span></td>
+                            <td>All .NET services</td>
+                            <td>CA certificate — clients mount this to verify RabbitMQ's cert</td>
+                        </tr>
+                        <tr>
+                            <td><code>key.pem</code></td>
+                            <td><span class="td-secret">SECRET ⚠️</span></td>
+                            <td>Nobody at runtime</td>
+                            <td>CA private key — only used to sign new certs. Keep offline.</td>
+                        </tr>
+                        <tr>
+                            <td><code>cert.pem</code></td>
+                            <td><span class="td-public">PUBLIC</span></td>
+                            <td>RabbitMQ pod</td>
+                            <td>Server certificate — RabbitMQ presents this during TLS handshake</td>
+                        </tr>
+                        <tr>
+                            <td><code>server-key.pem</code></td>
+                            <td><span class="td-secret">SECRET ⚠️</span></td>
+                            <td>RabbitMQ pod only</td>
+                            <td>Server private key — mounted into RabbitMQ pod via K8s Secret</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="danger-box">
+                <p><strong>⚠️ Key.pem (CA private key) must NEVER be committed to Git and NEVER be stored in a running pod.</strong> If it leaks, anyone can issue trusted certificates in your name. Store it in AWS Secrets Manager or HashiCorp Vault — only pull it when you need to sign new certs.</p>
+            </div>
+
+            <!-- 19.4 How .NET Trusts It -->
+            <div class="section-header" id="dotnet-trust">
+                <span class="section-num">4</span>
+                <h2>How .NET Services Trust the Self-Signed CA</h2>
+            </div>
+
+            <p>Out of the box, .NET doesn't trust our internal CA because it's not in the OS certificate store (unlike DigiCert or Let's Encrypt which are pre-trusted everywhere). We solve this in two ways:</p>
+
+            <h3>Method 1 — Mount CA cert + configure RabbitMQ client</h3>
+            <pre><code><span class="code-label">yaml — Helm values / pod spec</span># ExternalSecret fetches cacert.pem from AWS Secrets Manager
+# and makes it available as a volume in every .NET service pod
+volumes:
+  - name: rabbitmq-ca
+    secret:
+      secretName: confirmation-rabbitmq-tls-cert
+      items:
+        - key: ca.crt
+          path: ca.crt
+
+volumeMounts:
+  - name: rabbitmq-ca
+    mountPath: /etc/ssl/rabbitmq
+    readOnly: true</code></pre>
+
+            <pre><code><span class="code-label">C# — RabbitMQ client configuration</span>var factory = new ConnectionFactory
+{
+    HostName = "confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc.cluster.local",
+    Port = 5671,
+    Ssl = new SslOption
+    {
+        Enabled = true,
+        ServerName = "confirmation-rabbitmq-ci",
+        CertPath = "/etc/ssl/rabbitmq/ca.crt",   // our CA cert
+        AcceptablePolicyErrors = SslPolicyErrors.None
+    }
+};</code></pre>
+
+            <h3>Method 2 — Inject CA into OS trust store at container startup</h3>
+            <pre><code><span class="code-label">Dockerfile / initContainer</span># Add our CA to the OS-level trust store
+# Then .NET uses it automatically — no code changes needed
+COPY cacert.pem /usr/local/share/ca-certificates/tr-internal-ca.crt
+RUN update-ca-certificates</code></pre>
+
+            <div class="info-box">
+                <p><strong>Which method do we use at TR?</strong> The ExternalSecret + volume mount approach (Method 1). It keeps the CA cert centralised in AWS Secrets Manager and doesn't require rebuilding Docker images when the CA cert rotates.</p>
+            </div>
+
+            <!-- 19.5 ArgoCD PreSync Injection -->
+            <div class="section-header" id="argocd-injection">
+                <span class="section-num">5</span>
+                <h2>CA Bundle Injection via ArgoCD PreSync Hooks</h2>
+            </div>
+
+            <p>The CA certificate must exist in the namespace <strong>before</strong> any service tries to connect to RabbitMQ. If you deploy a .NET service before the CA cert Secret exists, the pod starts, tries to connect to RabbitMQ, fails cert validation, and crashes. ArgoCD sync waves solve this ordering problem.</p>
+
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+flowchart LR
+    A["ArgoCD Sync Starts"] --> B["Sync Wave -2\nExternalSecret created\n(fetches cacert.pem from AWS SM)"]
+    B --> C["Sync Wave -1\nK8s Secret confirmed present\n(ca.crt available in namespace)"]
+    C --> D["Sync Wave 0\nRabbitMQ Cluster CR deployed\n(mounts tls.crt + tls.key)"]
+    D --> E["Sync Wave 1\n.NET Services deployed\n(mount ca.crt → trust RabbitMQ)"]
+    E --> F["✅ All services connect\non port 5671 with TLS"]
+
+    style A fill:#141f35,stroke:#7a9ab5,color:#dce8f5
+    style B fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style C fill:#141f35,stroke:#f59e0b,color:#dce8f5
+    style D fill:#141f35,stroke:#f87171,color:#dce8f5
+    style E fill:#141f35,stroke:#38bdf8,color:#dce8f5
+    style F fill:#141f35,stroke:#22c55e,color:#dce8f5
+                </div>
+            </div>
+
+            <pre><code><span class="code-label">yaml — ExternalSecret with sync wave annotation</span>apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: confirmation-rabbitmq-tls-cert
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"   # runs before everything else
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: a207804-cn-aws
+    kind: SecretStore
+  target:
+    name: confirmation-rabbitmq-tls-cert
+  data:
+    - secretKey: tls.crt
+      remoteRef:
+        key: a207804-rabbitmq-ci-tls
+        property: cert
+    - secretKey: tls.key
+      remoteRef:
+        key: a207804-rabbitmq-ci-tls
+        property: server-key
+    - secretKey: ca.crt
+      remoteRef:
+        key: a207804-rabbitmq-ci-tls
+        property: cacert</code></pre>
+
+            <blockquote>
+                "I onboarded RabbitMQ with self-signed TLS using ArgoCD PreSync hooks to inject the CA bundle. The key insight was ordering — the CA cert Secret has to exist before the RabbitMQ cluster CR and before any consumer service deploys. I used sync wave -2 for the ExternalSecret, wave 0 for RabbitMQ, and wave 1 for the .NET services. Without this ordering, services would start with no CA cert to validate against and fail immediately."
+            </blockquote>
+
+            <!-- 19.6 mTLS -->
+            <div class="section-header" id="mtls">
+                <span class="section-num">6</span>
+                <h2>TLS vs mTLS — The Difference</h2>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>Aspect</th><th>TLS (one-way)</th><th>mTLS (mutual)</th></tr></thead>
+                    <tbody>
+                        <tr><td>Who presents a cert?</td><td>Server only</td><td>Both server AND client</td></tr>
+                        <tr><td>What does it prove?</td><td>Client verifies the server is who it says</td><td>Both sides verify each other's identity</td></tr>
+                        <tr><td>Use case</td><td>HTTPS websites, RabbitMQ TLS</td><td>Service-to-service in zero-trust (Istio)</td></tr>
+                        <tr><td>Client needs a cert?</td><td>No</td><td>Yes — issued by the same CA</td></tr>
+                        <tr><td>In our stack</td><td>RabbitMQ on port 5671</td><td>Istio sidecar-to-sidecar traffic</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+sequenceDiagram
+    participant A as Service A (client)
+    participant B as Service B (server)
+    Note over A,B: mTLS — both sides authenticate
+    A->>B: ClientHello + Client Certificate
+    B->>A: ServerHello + Server Certificate
+    A->>A: Verify B's cert against CA
+    B->>B: Verify A's cert against CA
+    A->>B: ✅ Encrypted + Authenticated connection
+    Note over A,B: TLS only — client doesn't present a cert
+    A->>B: ClientHello (no client cert)
+    B->>A: ServerHello + Server Certificate
+    A->>A: Verify B's cert (client trusts the CA)
+    A->>B: ✅ Encrypted connection (server identity proven)
+                </div>
+            </div>
+
+            <!-- 19.7 Istio / SPIFFE -->
+            <div class="section-header" id="istio-certs">
+                <span class="section-num">7</span>
+                <h2>Istio &amp; SPIFFE — Automatic mTLS Certificates</h2>
+            </div>
+
+            <p>For services inside the Istio mesh, you never run openssl manually. Istiod acts as the CA and automatically issues certificates to every Envoy sidecar using the <strong>SPIFFE</strong> (Secure Production Identity Framework For Everyone) standard.</p>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">SPIFFE Identity Format</div>
+                    <div class="card-desc"><code>spiffe://cluster.local/ns/{namespace}/sa/{service-account}</code><br><br>Every pod gets a unique cryptographic identity based on its Kubernetes ServiceAccount — not its IP or hostname.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Auto-Rotation</div>
+                    <div class="card-desc">Istiod rotates all sidecar certificates every <strong>24 hours by default</strong> with zero pod restarts. No manual intervention needed.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Istiod = the CA</div>
+                    <div class="card-desc">Istiod maintains an internal Root CA. When a pod starts, the sidecar requests a cert from Istiod using the pod's ServiceAccount token as proof of identity.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">AuthorizationPolicy</div>
+                    <div class="card-desc">Because every pod has a SPIFFE identity, you can write policies like "only pods with identity <code>.../sa/istio-ingressgateway</code> can call <code>pricing-be</code>."</div>
+                </div>
+            </div>
+
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+sequenceDiagram
+    participant P as New Pod (pricing-be)
+    participant K as Kubernetes API
+    participant I as Istiod (CA)
+    participant S as Envoy Sidecar
+
+    P->>K: Pod starts, gets ServiceAccount token
+    S->>I: Certificate Signing Request + ServiceAccount token
+    I->>K: Verify ServiceAccount token
+    K-->>I: ✅ Token valid (this is pricing-be in confirmation-ci ns)
+    I->>S: Issue X.509 cert with SPIFFE SAN:\nspiffe://cluster.local/ns/207804-confirmation-ci/sa/pricing-be
+    S->>S: Store cert in memory (not on disk)
+    Note over S: Cert rotates every 24h automatically
+                </div>
+            </div>
+
+            <!-- 19.8 cert-manager -->
+            <div class="section-header" id="cert-manager">
+                <span class="section-num">8</span>
+                <h2>cert-manager — Automating Certificate Lifecycle in K8s</h2>
+            </div>
+
+            <p><strong>cert-manager</strong> is the Kubernetes-native way to automate all the manual openssl steps above. It handles issuance, renewal, and secret management automatically.</p>
+
+            <pre><code><span class="code-label">yaml — cert-manager Certificate resource</span># Define an Issuer (your internal CA)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: tr-internal-ca
+spec:
+  ca:
+    secretName: tr-root-ca-secret   # K8s secret containing cacert.pem + key.pem
+
+---
+# Request a certificate — cert-manager does all the openssl steps automatically
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rabbitmq-tls
+  namespace: 207804-rabbitmq-ci
+spec:
+  secretName: confirmation-rabbitmq-tls-cert
+  duration: 8760h     # 1 year
+  renewBefore: 720h   # renew 30 days before expiry
+  issuerRef:
+    name: tr-internal-ca
+    kind: ClusterIssuer
+  dnsNames:
+    - confirmation-rabbitmq-ci
+    - confirmation-rabbitmq-ci.207804-rabbitmq-ci
+    - confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc
+    - confirmation-rabbitmq-ci.207804-rabbitmq-ci.svc.cluster.local</code></pre>
+
+            <div class="success-box">
+                <p><strong>cert-manager handles:</strong> Private key generation → CSR creation → CA signing → storing the cert in a K8s Secret → automatic renewal before expiry → updating the Secret (which Kubernetes propagates to mounted volumes automatically). You never run openssl again.</p>
+            </div>
+
+            <!-- 19.9 Interview Scenarios -->
+            <div class="section-header" id="interview-scenarios">
+                <span class="section-num">9</span>
+                <h2>Interview Scenarios &amp; Answers</h2>
+            </div>
+
+            <div class="interview-q">
+                <div class="q">Q: "What is a CA bundle and why do you need it?"</div>
+                <div class="a">
+                    "A CA bundle is a file containing the chain of CA certificates — root and any intermediate CAs — that a client uses to verify a server's certificate. When a server presents its leaf certificate, the client checks whether it was signed by a CA it trusts. Without the CA bundle, the client has nothing to verify against and rejects the connection with 'certificate signed by unknown authority.' At TR, when I set up RabbitMQ TLS, I distributed our internal CA certificate to every .NET service via ExternalSecret. Each service mounts it and uses it to verify RabbitMQ's certificate during the TLS handshake."
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <div class="q">Q: "Walk me through how you set up RabbitMQ TLS at TR."</div>
+                <div class="a">
+                    "RabbitMQ at TR uses self-signed certificates because it's internal to the cluster and can't use Istio mTLS — the Envoy sidecar can't handle AMQP binary protocol. I wrote a shell script using openssl to: generate a CA key pair, create a self-signed CA certificate, generate a server key and CSR with 4 SANs covering all Kubernetes DNS forms of the service, sign the server cert with our CA, and create a Kubernetes TLS Secret with the cert, server key, and CA cert. I stored the outputs in AWS Secrets Manager and used ExternalSecret to sync them into the cluster. The CA bundle is then mounted into every .NET service that connects to RabbitMQ. I used ArgoCD sync waves to ensure the Secret exists before any service tries to connect."
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <div class="q">Q: "Why did you need 4 SANs in your RabbitMQ certificate?"</div>
+                <div class="a">
+                    "Modern TLS ignores the CN field entirely — it only checks Subject Alternative Names. Kubernetes services can be reached by multiple DNS forms: the short name within the same namespace, the namespace-qualified name from other namespaces, and the full FQDN. Different .NET services and environments were connecting using different forms. If the cert only listed one form and a client connected using a different form, the TLS handshake would fail with a hostname mismatch error even though the cert is valid. So I included all four DNS forms as SANs to cover every possible way a client might resolve and connect to RabbitMQ."
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <div class="q">Q: "What is the difference between TLS and mTLS?"</div>
+                <div class="a">
+                    "In regular TLS — which is what HTTPS and our RabbitMQ setup uses — only the server presents a certificate. The client verifies the server's identity but the server doesn't verify the client. In mTLS, both sides present certificates and verify each other. This is what Istio implements between all sidecars in the mesh. The benefit of mTLS is zero-trust — every service proves its identity cryptographically before any traffic is allowed. Combined with AuthorizationPolicy, you can enforce that only specific services with known SPIFFE identities can call each other, regardless of network-level controls."
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <div class="q">Q: "A .NET service is getting 'certificate signed by unknown authority' when connecting to RabbitMQ. How do you debug it?"</div>
+                <div class="a">
+                    "First I check whether the CA certificate is actually mounted in the pod: <code>kubectl exec -it &lt;pod&gt; -- ls /etc/ssl/rabbitmq/</code>. If the file is missing, the ExternalSecret or volume mount is misconfigured. If it's there, I verify the cert is valid: <code>openssl verify -CAfile /etc/ssl/rabbitmq/ca.crt /path/to/server.crt</code>. I also check the SANs on the server cert match the hostname the .NET client is using to connect: <code>openssl s_client -connect rabbitmq-host:5671 | openssl x509 -text -noout | grep -A5 SAN</code>. Common causes are: wrong CA cert mounted, SAN mismatch between what the client connects to and what's in the cert, or the cert has expired."
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <div class="q">Q: "The RabbitMQ certificate expires in 2 days. How do you rotate it with zero downtime?"</div>
+                <div class="a">
+                    "If using cert-manager, it auto-renews — no action needed. If using our manual script approach: regenerate the cert using the same CA, update the Kubernetes Secret (<code>kubectl create secret generic ... --dry-run=client -o yaml | kubectl apply -f -</code>), and update the value in AWS Secrets Manager. The ExternalSecret will re-sync within its refresh interval. RabbitMQ picks up the new cert on its next restart — so I'd do a rolling restart of RabbitMQ pods. For .NET services, they don't need to restart because they re-read the CA bundle from the mounted volume on each new connection. The key lesson I learned: set up cert expiry monitoring — add a Datadog check on cert expiry dates so you get alerted 30 days out, not 2 days out."
+                </div>
+            </div>
+
+            <!-- Nav Footer -->
+            <div class="nav-footer">
+                <a href="18-mock-interview-session-1.html">&#8592; 18: Mock Interview Session 1</a>
+                <a href="index.html" class="nav-index">&#8962; Index</a>
+                <a href="11-security.html">11: Security &#8594;</a>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: document.documentElement.dataset.theme === 'light' ? 'default' : 'dark',
+            darkMode: document.documentElement.dataset.theme !== 'light',
+            themeVariables: {
+                primaryColor: '#141f35',
+                primaryTextColor: '#dce8f5',
+                primaryBorderColor: '#1d2d4f',
+                lineColor: '#38bdf8',
+                secondaryColor: '#0f1826',
+                tertiaryColor: '#090d1a',
+                edgeLabelBackground: '#141f35',
+                fontSize: '13px'
+            }
+        });
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+            html.dataset.theme = next;
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-icon').innerHTML = next === 'light' ? '&#9728;' : '&#9789;';
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: next === 'light' ? 'default' : 'dark',
+                darkMode: next !== 'light'
+            });
+        }
+
+        const saved = localStorage.getItem('theme');
+        if (saved) {
+            document.documentElement.dataset.theme = saved;
+            document.getElementById('theme-icon').innerHTML = saved === 'light' ? '&#9728;' : '&#9789;';
+        }
+
+        const tocLinks = document.querySelectorAll('.toc a');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    tocLinks.forEach(l => l.classList.remove('active'));
+                    const id = entry.target.id;
+                    const match = document.querySelector(`.toc a[href="#${id}"]`);
+                    if (match) match.classList.add('active');
+                }
+            });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+
+        document.querySelectorAll('[id]').forEach(el => observer.observe(el));
+    </script>
+</body>
+</html>
