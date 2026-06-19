@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 8b: PostgreSQL Internals — Pod Anatomy · Buffers · MVCC · WAL · INSERT Flow · Patroni FSM · Fivetran · PITR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #090d1a; --surface: #0f1826; --surface2: #141f35; --border: #1d2d4f;
+      --text: #dce8f5; --text-muted: #7a9ab5;
+      --accent: #22c55e; --accent-dim: rgba(34,197,94,0.12);
+      --accent2: #38bdf8; --accent2-dim: rgba(56,189,248,0.12);
+      --accent3: #f59e0b; --accent3-dim: rgba(245,158,11,0.12);
+      --accent4: #a78bfa; --accent4-dim: rgba(167,139,250,0.12);
+      --code-bg: #060a13; --code-text: #7dd3fc;
+      --font-body: 'DM Sans', sans-serif; --font-mono: 'Fira Code', monospace; --radius: 8px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+    .hero { background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%); border-bottom: 1px solid var(--border); padding: 3rem 2rem 2.5rem; }
+    .hero-inner { max-width: 1240px; margin: 0 auto; }
+    .hero-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge { font-family: var(--font-mono); font-size: 0.68rem; padding: 0.2rem 0.55rem; border-radius: 4px; letter-spacing: 0.05em; }
+    .badge-green  { background: var(--accent-dim);  color: var(--accent);  border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue   { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(56,189,248,0.3); }
+    .badge-amber  { background: var(--accent3-dim); color: var(--accent3); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-purple { background: var(--accent4-dim); color: var(--accent4); border: 1px solid rgba(167,139,250,0.3); }
+    .hero h1 { font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; letter-spacing: -0.025em; }
+    .hero-sub { color: var(--text-muted); font-size: 0.95rem; }
+    .hero-meta { display: flex; gap: 2.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .hero-meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); font-family: var(--font-mono); }
+    .hero-meta-value { font-size: 0.875rem; font-weight: 500; }
+
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: var(--radius); padding: 0.35rem 0.7rem; cursor: pointer; font-family: var(--font-mono); font-size: 0.72rem; z-index: 100; transition: border-color 0.15s, color 0.15s; }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    .layout { display: flex; max-width: 1240px; margin: 0 auto; padding: 2rem; gap: 2.5rem; }
+    .toc { width: 220px; flex-shrink: 0; }
+    .toc-inner { position: sticky; top: 2rem; }
+    .toc-title { font-family: var(--font-mono); font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 0.65rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.05rem; }
+    .toc-list a { display: block; padding: 0.28rem 0.6rem; color: var(--text-muted); text-decoration: none; font-size: 0.78rem; border-radius: 4px; border-left: 2px solid transparent; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+    .toc-list a:hover, .toc-list a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+    .toc-sub { padding-left: 1.1rem !important; font-size: 0.73rem !important; }
+
+    .main-content { flex: 1; min-width: 0; }
+    .section { margin-bottom: 3.5rem; }
+    .section-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.25rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border); }
+    .section-num { font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent); background: var(--accent-dim); padding: 0.15rem 0.4rem; border-radius: 3px; flex-shrink: 0; }
+    .section h2 { font-size: 1.3rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+    .section h3 { font-size: 0.93rem; font-weight: 600; color: var(--accent2); margin: 1.5rem 0 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--font-mono); }
+    .section p { color: var(--text-muted); margin-bottom: 1rem; }
+    .section p strong { color: var(--text); }
+
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
+    thead th { background: var(--surface2); color: var(--accent); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); font-family: var(--font-mono); }
+    tbody td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    table code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+    .td-green  { color: var(--accent)  !important; font-weight: 500; }
+    .td-blue   { color: var(--accent2) !important; }
+    .td-amber  { color: var(--accent3) !important; }
+    .td-purple { color: var(--accent4) !important; }
+
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; overflow-x: auto; margin-bottom: 1.25rem; white-space: pre-wrap; word-break: break-all; }
+    pre code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); background: none; padding: 0; }
+    .code-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.4rem; display: block; }
+
+    .diagram-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; margin-bottom: 1.5rem; }
+    .diagram-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .diagram-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+    .zoom-controls { display: flex; gap: 0.25rem; }
+    .zoom-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s, color 0.15s; }
+    .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .diagram-content { display: flex; justify-content: center; overflow-x: auto; width: 100%; }
+    .mermaid-wrap { transform-origin: top center; transition: transform 0.2s; width: 100%; }
+    .mermaid { width: 100%; }
+    .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+
+    .info-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .info-box strong { color: var(--accent2); }
+    .warn-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent3); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .warn-box strong { color: var(--accent3); }
+    .success-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .success-box strong { color: var(--accent); }
+
+    .qa-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1.25rem; }
+    .qa-question { font-weight: 600; color: var(--accent); font-size: 0.88rem; margin-bottom: 0.6rem; font-family: var(--font-mono); }
+    .qa-answer { color: var(--text-muted); font-size: 0.85rem; line-height: 1.65; }
+    .qa-answer strong { color: var(--text); }
+    .qa-answer ol, .qa-answer ul { padding-left: 1.2rem; margin: 0.4rem 0; }
+    .qa-answer li { margin-bottom: 0.25rem; }
+    .qa-answer code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-text); background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+    .analogy-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent4); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); }
+    .analogy-box strong { color: var(--accent4); }
+    .analogy-label { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent4); margin-bottom: 0.35rem; display: block; }
+
+    .component-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .component-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; transition: border-color 0.15s; }
+    .component-card:hover { border-color: var(--accent2); }
+    .card-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.3rem; }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+    .card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num { flex-shrink: 0; width: 26px; height: 26px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(34,197,94,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; margin-top: 0.15rem; }
+    .step-body {}
+    .step-title { font-weight: 600; color: var(--text); font-size: 0.875rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+    .gap-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.15rem 0.45rem; border-radius: 3px; margin-left: 0.5rem; vertical-align: middle; }
+    .gap-high     { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .gap-medium   { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .gap-senior   { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+    .gap-outpost  { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+
+    .bottom-nav { max-width: 1240px; margin: 0 auto; padding: 1.5rem 2rem 3rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); gap: 1rem; flex-wrap: wrap; }
+    .bottom-nav a { color: var(--accent2); text-decoration: none; font-size: 0.82rem; font-family: var(--font-mono); padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); transition: border-color 0.15s, color 0.15s; }
+    .bottom-nav a:hover { border-color: var(--accent2); color: var(--accent); }
+    .bottom-nav .nav-index { color: var(--text-muted); font-size: 0.75rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    @media (max-width: 860px) { .toc { display: none; } .layout { padding: 1rem; } .hero h1 { font-size: 1.5rem; } .bottom-nav { flex-direction: column; text-align: center; } }
+    body.light { --bg: #f2f6fc; --surface: #ffffff; --surface2: #eaeff8; --border: #c8d6e8; --text: #1a2535; --text-muted: #4f6880; --code-bg: #e2eaf5; --code-text: #1d5fa0; }
+  </style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle">light</button>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badges">
+      <span class="badge badge-green">Interview Prep</span>
+      <span class="badge badge-blue">PostgreSQL</span>
+      <span class="badge badge-amber">Internals</span>
+      <span class="badge badge-purple">Companion to 08</span>
+    </div>
+    <h1>Section 8b: PostgreSQL Internals</h1>
+    <p class="hero-sub">Pod Anatomy &middot; Buffers &amp; work_mem &middot; MVCC &amp; Autovacuum &middot; WAL &amp; Checkpoints &middot; INSERT Flow &middot; Connection Pool &middot; Patroni FSM &middot; Fivetran Slots &amp; PITR</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Sections</span>
+        <span class="hero-meta-value">9 internals topics</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Audience</span>
+        <span class="hero-meta-value">Cognizant / Westpac (banking)</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Companion to</span>
+        <span class="hero-meta-value">08-postgresql-ha.html</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-label">Grounded in</span>
+        <span class="hero-meta-value">PGO &middot; Patroni &middot; pgBackRest &middot; Fivetran</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-inner">
+      <div class="toc-title">8b Contents</div>
+      <ul class="toc-list">
+        <li><a href="#s-overview">8b.1 · Why this companion</a></li>
+        <li><a href="#s-pod-anatomy">8b.2 · Pod anatomy (4-container)</a></li>
+        <li><a href="#s-buffer-workmem">8b.3 · Buffers &amp; work_mem trap</a></li>
+        <li><a href="#s-buffer-workmem" class="toc-sub">clock-sweep, 25% rule</a></li>
+        <li><a href="#s-mvcc-vacuum">8b.4 · MVCC &amp; autovacuum deadlock</a></li>
+        <li><a href="#s-mvcc-vacuum" class="toc-sub">stale stats, XID wraparound</a></li>
+        <li><a href="#s-wal-checkpoint">8b.5 · WAL &amp; checkpoint I/O</a></li>
+        <li><a href="#s-wal-checkpoint" class="toc-sub">LSN, fsync, completion target</a></li>
+        <li><a href="#s-insert-flow">8b.6 · INSERT end-to-end flow</a></li>
+        <li><a href="#s-conn-patroni">8b.7 · Connections &amp; Patroni FSM</a></li>
+        <li><a href="#s-conn-patroni" class="toc-sub">PgBouncer, pg_rewind</a></li>
+        <li><a href="#s-fivetran-pitr">8b.8 · Fivetran slots &amp; PITR</a></li>
+        <li><a href="#s-fivetran-pitr" class="toc-sub">Mar 2026 DR data gap</a></li>
+        <li><a href="#s-cheatsheet">8b.9 · Diagnostic cheat sheet</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- ============================================================ -->
+    <!-- 8b.1 · OVERVIEW                                                -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-overview">
+      <div class="section-header">
+        <span class="section-num">8b.1</span>
+        <h2>Why This Companion <span class="gap-badge gap-senior">Senior</span></h2>
+      </div>
+
+      <p>Section 08 covers PostgreSQL <strong>HA topology</strong> — Patroni clusters, pgBackRest backups, PGO operator, primary/replica services, the 24h/6h/2min RPO ladder. That's the operational view: what the system looks like from the outside.</p>
+
+      <p>This companion (8b) goes <strong>inside</strong> a single PostgreSQL instance and explains the mechanics that show up in interview questions about <em>"why is the database slow?"</em>, <em>"what does VACUUM actually do?"</em>, <em>"what's a checkpoint?"</em>. Banking interviewers (Cognizant, Westpac) drill these because losing one transaction in audit/payments is a regulatory event — they want engineers who understand the durability boundary, not just the cluster boundary.</p>
+
+      <h3>The 9 Sections</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Topic</th><th>What it answers</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green">8b.2</td><td>Pod anatomy</td><td>Why is pgBackRest a sidecar, not a CronJob?</td></tr>
+            <tr><td class="td-green">8b.3</td><td>Buffers &amp; work_mem</td><td>Why is 25% the magic number? Why did 256MB work_mem OOM?</td></tr>
+            <tr><td class="td-green">8b.4</td><td>MVCC &amp; autovacuum</td><td>What's bloat and why does autovacuum stop working?</td></tr>
+            <tr><td class="td-green">8b.5</td><td>WAL &amp; checkpoints</td><td>What's an LSN? Why spread writes over 90% of the interval?</td></tr>
+            <tr><td class="td-green">8b.6</td><td>INSERT flow</td><td>End-to-end: client to <code>fsync</code> to ACK.</td></tr>
+            <tr><td class="td-green">8b.7</td><td>Connections &amp; Patroni</td><td>Why do 200 idle connections cost 4-10 GB? How does failover actually work?</td></tr>
+            <tr><td class="td-green">8b.8</td><td>Fivetran &amp; PITR</td><td>How do logical slots pin WAL? How do you recover to a point in time?</td></tr>
+            <tr><td class="td-green">8b.9</td><td>Cheat sheet</td><td>The 7 diagnostic queries to memorise.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What's the difference between PostgreSQL HA and PostgreSQL internals from your platform's perspective?"</div>
+        <div class="qa-answer">
+          "HA is the <strong>cluster topology</strong>: two Patroni nodes (primary + replica) with a repo-host for backups, fronted by a <code>-primary</code> service. Patroni handles leader election via the DCS, pgBackRest handles full/diff backups plus continuous WAL archive, and PGO is the Kubernetes operator that wires it all together. RPO is bounded by <code>archive_timeout=120s</code> for WAL-archive recovery, sub-second for streaming-replica failover.
+          <br><br>
+          Internals is what happens <strong>inside one of those nodes</strong>: a query arrives, <code>postmaster</code> forks a backend, the backend reads pages from <code>shared_buffers</code> (with OS page cache as a second layer), modifies tuples in MVCC fashion, writes WAL on commit and waits for <code>fsync</code> before returning to the client, then later checkpoint flushes dirty pages to data files in spread I/O. When the platform has a slow query or a connection storm or bloat, <strong>that's where you debug</strong> — not at the Patroni layer."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8b.2 · POD ANATOMY                                             -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-pod-anatomy">
+      <div class="section-header">
+        <span class="section-num">8b.2</span>
+        <h2>Pod Anatomy: 4-Container Primary <span class="gap-badge gap-high">Critical</span></h2>
+      </div>
+
+      <p>Every PGO-managed PostgreSQL instance pod (primary or replica) runs <strong>4 containers</strong>. Interviewers ask "what's in the pod?" because it tests whether you understand the operational boundary between PostgreSQL itself and the surrounding ops tooling.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <div class="diagram-title">Primary Instance Pod (PGO)</div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('mm-pod', 1.15)">+</button>
+            <button class="zoom-btn" onclick="zoom('mm-pod', 0.87)">-</button>
+            <button class="zoom-btn" onclick="reset('mm-pod')">&#x21bb;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="mm-pod">
+            <div class="mermaid">
+flowchart TB
+  subgraph POD["instance-2-twlq-0 (Primary Pod)"]
+    direction TB
+    DB["database<br/>PostgreSQL 16 + Patroni<br/>postmaster · checkpointer · bgwriter<br/>walwriter · autovacuum · archiver<br/>walsender · N backends"]
+    BR["pgbackrest (sidecar)<br/>TLS server<br/>archive_command target<br/>backup data source"]
+    CFG["pgbackrest-config<br/>(config watcher)"]
+    INIT["replication-cert-copy<br/>(init container)<br/>Copies TLS certs"]
+  end
+  PVC1[("PVC: /pgdata<br/>data + WAL")]
+  REPO[("repo-host PVC<br/>backups + archive")]
+
+  INIT -.->|runs once<br/>before main| DB
+  DB -- fsync writes --> PVC1
+  DB -- archive_command<br/>WAL push --> BR
+  BR -- TLS --> REPO
+  CFG -.-> BR
+  CFG -.-> DB
+
+  classDef main fill:#0f1826,stroke:#22c55e,color:#dce8f5
+  classDef side fill:#0f1826,stroke:#38bdf8,color:#dce8f5
+  classDef init fill:#0f1826,stroke:#a78bfa,color:#dce8f5
+  classDef store fill:#141f35,stroke:#f59e0b,color:#dce8f5
+  class DB main
+  class BR,CFG side
+  class INIT init
+  class PVC1,REPO store
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>The 4 Containers</h3>
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="card-label">main · always running</div>
+          <div class="card-title">database</div>
+          <div class="card-desc">PostgreSQL 16 + Patroni in one image. Holds <code>postmaster</code>, <code>checkpointer</code>, <code>bgwriter</code>, <code>walwriter</code>, <code>autovacuum launcher</code>, <code>archiver</code>, <code>walsender</code>, plus one <code>backend</code> process per client connection. Patroni runs alongside as the HA controller.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">init · runs once</div>
+          <div class="card-title">replication-cert-copy</div>
+          <div class="card-desc">Init container that copies TLS certs into the shared volume so streaming replication between primary and replica can use mTLS. Exits before main containers start.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">sidecar · always running</div>
+          <div class="card-title">pgbackrest</div>
+          <div class="card-desc">Long-running pgBackRest TLS server. Receives <code>archive_command</code> pushes from PostgreSQL (one WAL segment at a time) and serves data to the repo-host during backups. <strong>Not</strong> a CronJob.</div>
+        </div>
+        <div class="component-card">
+          <div class="card-label">sidecar · always running</div>
+          <div class="card-title">pgbackrest-config</div>
+          <div class="card-desc">Watches the pgBackRest ConfigMap and reloads the sidecar when config changes. Negligible memory.</div>
+        </div>
+      </div>
+
+      <h3>Why pgBackRest Is a Sidecar, Not a CronJob</h3>
+      <div class="info-box">
+        <strong>WAL archival is event-driven, not scheduled.</strong> Every time PostgreSQL fills a 16 MB WAL segment (or hits <code>archive_timeout=120s</code> with partial WAL), it invokes <code>archive_command</code>. That command pushes the segment to the pgBackRest sidecar over a UNIX socket / TLS — instantly, in the same pod. A CronJob would have to start a fresh container, mount the data PVC, run the archive, and exit — multiple times per minute on a busy primary. Sidecar pattern keeps the connection warm and the latency bounded.
+      </div>
+
+      <div class="warn-box">
+        <strong>Common confusion:</strong> The full and diff backups <em>are</em> CronJobs (created by PGO, scheduled via Helm). Those CronJobs talk to the sidecar to read data files. The sidecar handles both jobs: continuous WAL archival (push from PG) and on-demand backups (pull by CronJob).
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why does <code>kubectl top</code> show the pgBackRest sidecar using 30 GB of memory when its actual process RSS is ~8 MB?"</div>
+        <div class="qa-answer">
+          "That's <strong>OS page cache, not application memory</strong>. <code>kubectl top</code> shows working set memory, which on Linux includes file-backed page cache that the kernel attributes to the cgroup. When pgBackRest reads the PostgreSQL data files for backups, the kernel caches those pages — and because the sidecar is in the same pod (same cgroup) as the database, the cache shows up under either container depending on which process touched the page first.
+          <br><br>
+          The actual pgBackRest server process is tiny (~8 MB RSS). The 30 GB is reclaimable — if another process needs RAM, the kernel drops these pages. So <code>memory.working_set_bytes</code> looks scary, but <code>memory.usage_bytes - memory.cache</code> is what matters for OOM risk. We learnt this when an alert fired on the sidecar at 31 GB and the pod was perfectly healthy."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8b.3 · BUFFERS & WORK_MEM                                      -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-buffer-workmem">
+      <div class="section-header">
+        <span class="section-num">8b.3</span>
+        <h2>Shared Buffers, Clock-Sweep, work_mem Trap <span class="gap-badge gap-high">Critical</span></h2>
+      </div>
+
+      <p>PostgreSQL has <strong>two memory regions you must understand</strong>: <code>shared_buffers</code> (one big pool allocated at startup, shared by all backends) and <code>work_mem</code> (per-operation, per-backend, allocated on demand). Mixing them up is the most common interview blunder — and it's also how production OOMs happen.</p>
+
+      <h3>Two-Layer Cache Architecture</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Owner</th><th>Algorithm</th><th>Size hint</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><code>shared_buffers</code></td>
+              <td>PostgreSQL (allocated once at startup)</td>
+              <td>Clock-sweep with <code>usage_count</code> 0-5</td>
+              <td><strong>~25% of RAM</strong> (e.g. 16 GB on a 64 GB pod)</td>
+            </tr>
+            <tr>
+              <td class="td-blue">OS page cache</td>
+              <td>Linux kernel (uses any free RAM)</td>
+              <td>LRU with active/inactive lists</td>
+              <td>Whatever's left after PG + work_mem + other processes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Every page read by PostgreSQL is checked in <code>shared_buffers</code> first (~0.001 ms hit). Miss falls through to the OS page cache (~0.01 ms hit). Miss again hits the actual disk (~0.1-1 ms on SSD). PostgreSQL's docs explicitly say <em>"a reasonable starting value for shared_buffers is 25% of the memory in your system"</em> — beyond that, you starve the OS cache, which is actually a smarter LRU than PG's clock-sweep.</p>
+
+      <h3>Clock-Sweep Eviction</h3>
+      <span class="code-label">How a Page Gets Evicted</span>
+      <pre><code>shared_buffers is a circular array. There's a "clock hand" pointer.
+
+  [Page A · usage=3] [Page B · usage=0] [Page C · usage=1] [Page D · usage=5]
+                       ^ hand here
+
+When a backend needs to load a new page and the buffer is full:
+  1. Hand moves clockwise.
+  2. At each page, decrement usage_count by 1.
+  3. If usage_count reaches 0 → EVICT this page, write back if dirty,
+     load the new page in its slot, set usage_count=1.
+  4. If usage_count > 0 → skip, move on.
+
+Pages touched often (hot working set) keep their counts high → survive.
+Pages touched once (one-off scans) drop to 0 quickly → evicted fast.</code></pre>
+
+      <div class="info-box">
+        <strong><code>effective_cache_size</code> is a hint, not an allocation.</strong> It tells the planner how much OS page cache it can <em>assume</em> exists, so it can pick index scans over seq scans on data that's likely cached. Setting it to <code>0.5 * RAM</code> doesn't reserve memory — it just changes plan choices. People conflate this with <code>shared_buffers</code> all the time.
+      </div>
+
+      <h3>The work_mem Multiplication Trap</h3>
+      <p><code>work_mem</code> is the limit for <strong>each sort, hash, or merge operation, in each backend, separately</strong>. It's not a per-query budget. It's not a global limit. A single query with 4 join nodes plus a sort runs 5 separate <code>work_mem</code> allocations. Multiply by concurrent connections and you get terrifying numbers.</p>
+
+      <span class="code-label">Real Math From Our QA Cluster</span>
+      <pre><code>work_mem = 256 MB
+
+Query plan: Hash Join → Hash Join → Sort  (3 operators that allocate work_mem)
+  One query                          → 3 × 256 MB = 768 MB
+
+Concurrent connections running similar plans:
+  5 connections × 768 MB             = 3.8 GB
+  146 peak connections × 3 ops × 256 = 112 GB ← exceeds total RAM
+
+Reduced to work_mem = 128 MB:
+  146 × 3 × 128 MB                   = 56 GB (still alarming, halved)</code></pre>
+
+      <div class="warn-box">
+        <strong>Spill behaviour:</strong> When an operator exceeds <code>work_mem</code>, it spills to <code>$PGDATA/base/pgsql_tmp/</code> as temporary files. The query still completes, but ~10-100x slower because it's now disk-bound. Watch for <code>log_temp_files = 0</code> in <code>postgresql.conf</code> — anything logged there is a sort or hash that didn't fit. If you see lots of spill, either lower <code>work_mem</code> (cheaper queries, fewer OOM risk) or raise it for specific roles only (<code>ALTER ROLE reporting SET work_mem = '512MB'</code>).
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "How would you size <code>shared_buffers</code> and <code>work_mem</code> for a 64 GB Postgres pod that handles ~150 connections?"</div>
+        <div class="qa-answer">
+          "Starting baseline:
+          <ul>
+            <li><strong><code>shared_buffers = 16 GB</code></strong> (25% of pod RAM). Holds the hot working set. Going higher than ~40% of RAM hurts because OS page cache is a smarter LRU and we'd be starving it.</li>
+            <li><strong><code>effective_cache_size = 32 GB</code></strong> (~50% of RAM). Hint to the planner that ~half of RAM is available as OS page cache. Doesn't allocate anything.</li>
+            <li><strong><code>work_mem = 32 MB</code></strong> as the safe default. A bad query with 4 hash/sort operators × 150 connections × 32 MB = 19 GB worst case — still survivable.</li>
+            <li><strong><code>maintenance_work_mem = 1 GB</code></strong> for VACUUM, CREATE INDEX, etc. Only 3 autovacuum workers run by default, so worst case is 3 GB.</li>
+          </ul>
+          Then I'd <strong>profile</strong>: turn on <code>log_temp_files = 0</code>, watch for spill, and bump <code>work_mem</code> selectively per role for known reporting workloads. The mistake we hit on QA was setting 256 MB globally — looked fine in dev (5 connections), exploded under load (140+ connections × multi-operator plans)."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What's the difference between <code>shared_buffers</code> and <code>effective_cache_size</code>?"</div>
+        <div class="qa-answer">
+          "<code>shared_buffers</code> is <strong>real memory PostgreSQL allocates at startup</strong> for its own page cache. It's a fixed allocation — the OS sees the full block as used by the postmaster. Backends read and write into it; the clock-sweep evicts pages from it.
+          <br><br>
+          <code>effective_cache_size</code> is <strong>not memory at all</strong>. It's a number you tell the planner so it can guess how much of your data is likely cached either in <code>shared_buffers</code> <em>or</em> the OS page cache. The planner uses it to decide between an index scan (cheap if cached) and a seq scan (cheap if you already need lots of pages). Setting it too low makes the planner pessimistic and pick seq scans; too high makes it optimistic and pick indexes that hit cold disk. Common rule: set it to ~50-75% of total RAM."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8b.4 · MVCC & VACUUM                                           -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-mvcc-vacuum">
+      <div class="section-header">
+        <span class="section-num">8b.4</span>
+        <h2>MVCC, VACUUM, Autovacuum Circular Deadlock <span class="gap-badge gap-high">Critical</span></h2>
+      </div>
+
+      <p>PostgreSQL never deletes rows in place. <strong>Every UPDATE creates a new tuple version; every DELETE marks the old one dead.</strong> Dead tuples accumulate until VACUUM reclaims them. This is MVCC — and understanding the cleanup loop is what separates a junior who knows VACUUM exists from a senior who can debug why the database is slowly suffocating.</p>
+
+      <h3>Tuple Visibility — xmin / xmax</h3>
+      <p>Every row in a heap page has a header containing two transaction IDs:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Meaning</th><th>Set when</th></tr></thead>
+          <tbody>
+            <tr><td class="td-green"><code>xmin</code></td><td>The XID of the transaction that <em>created</em> this version</td><td>INSERT or UPDATE</td></tr>
+            <tr><td class="td-amber"><code>xmax</code></td><td>The XID of the transaction that <em>deleted/superseded</em> this version (0 if still live)</td><td>DELETE or UPDATE (writes new row, marks old)</td></tr>
+            <tr><td class="td-blue"><code>ctid</code></td><td>Physical location: <code>(page, offset)</code></td><td>Set on insert</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>A reading transaction with snapshot XID 1000 only "sees" tuples where <code>xmin &lt; 1000 AND (xmax = 0 OR xmax &gt; 1000)</code>. That's how concurrent readers and writers don't block each other — readers walk the heap and skip versions that aren't visible to them.</p>
+
+      <h3>Bloat = Dead Tuples That Nobody Cleaned Up</h3>
+      <span class="code-label">Why a 1 GB Table Becomes a 10 GB Table</span>
+      <pre><code>UPDATE users SET last_login = now() WHERE id = 42;
+
+What actually happens on disk:
+  1. Old tuple (xmin=500) gets xmax=1234 → still on page, marked superseded
+  2. New tuple (xmin=1234, xmax=0) inserted, possibly on a different page
+  3. Both index entries now exist (HOT update may avoid this; assume not)
+
+After 10 million updates with no VACUUM:
+  Heap pages full of dead tuples (90% dead, 10% live)
+  Index entries pointing to dead tuple ctids
+  Sequential scans read 10x more pages than needed
+  Random reads waste cache slots on dead data → cache miss rate climbs
+
+VACUUM reclaims the space inside the page (returns it to FSM)
+VACUUM FULL rewrites the table file entirely (locks table, dangerous)</code></pre>
+
+      <h3>Autovacuum Trigger Math</h3>
+      <p>The autovacuum daemon checks <code>pg_stat_user_tables</code> stats and fires per-table when this is true:</p>
+      <span class="code-label">Default Autovacuum Trigger Formula</span>
+      <pre><code>n_dead_tup &gt; autovacuum_vacuum_threshold
+            + autovacuum_vacuum_scale_factor × n_live_tup
+
+Defaults:
+  autovacuum_vacuum_threshold     = 50      (rows)
+  autovacuum_vacuum_scale_factor  = 0.2     (20% of live rows)
+
+So a table with 1,000,000 live rows triggers VACUUM at:
+  50 + 0.2 × 1,000,000 = 200,050 dead rows
+
+A table with 100 live rows triggers at:
+  50 + 0.2 × 100 = 70 dead rows</code></pre>
+
+      <h3>The Circular Deadlock</h3>
+      <div class="warn-box">
+        <strong>This is the senior-level scenario interviewers love.</strong> A long-running query holds an MVCC snapshot. While that snapshot is open, autovacuum cannot reclaim dead tuples that are <em>still visible</em> to the snapshot — even if those rows are dead to every other transaction. Bloat grows. The query gets slower (more pages to scan). The query takes longer to finish. The snapshot stays open longer. More bloat. The DB is now slowly suffocating itself, and a restart-the-pod fix doesn't help because the bloat is on disk.
+      </div>
+
+      <span class="code-label">The Loop</span>
+      <pre><code>1. Reporting query starts → opens snapshot at XID 5000
+2. UPDATE traffic creates dead tuples with xmax > 5000 → autovacuum can't touch them
+3. After 30 min, dead_tup count = millions
+4. Query at step 1 still scanning → now reads bloated pages → 10x slower
+5. Query takes 4 hours instead of 30 min
+6. Even more dead tuples accumulate → next query slower still
+7. idle_in_transaction connections from app pool extend this further
+
+Mitigations:
+  • idle_in_transaction_session_timeout = 5min → kill stuck transactions
+  • statement_timeout per role for reporting queries
+  • Move heavy reads to a replica (logical separation)
+  • For one-off cleanup: VACUUM (not VACUUM FULL — too disruptive)</code></pre>
+
+      <h3>Stale Stats Trap (135 Tables in QA)</h3>
+      <p>A subtler failure: autovacuum's <em>analyze</em> phase updates <code>pg_statistic</code> with row counts and column histograms. If those stats are stale, the planner makes wrong choices — and if the stats say "0 rows" the trigger formula above never fires, locking in the staleness.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Database (QA)</th><th>Tables wrong</th><th>Worst correction</th><th>Impact</th></tr></thead>
+          <tbody>
+            <tr><td><code>cfm_datalake_qa</code></td><td>75 (all showed 0)</td><td>0 → 797,175</td><td>Analytics queries chose wrong plans</td></tr>
+            <tr><td><code>cfm_authorization_qa</code></td><td>13 (never analyzed)</td><td>3 → 586 (195×)</td><td>Every authz query affected</td></tr>
+            <tr><td><code>cfm_pricing_qa</code></td><td>23</td><td>70 → 202,380 (2,891×)</td><td>Billing plans wrong</td></tr>
+            <tr><td><code>cfm_forms_qa</code></td><td>8</td><td>0 → 205,571 (∞)</td><td><code>form_type</code> had 85.9M lookups but 0 in stats</td></tr>
+            <tr><td><code>cfm_record_qa</code></td><td>7</td><td>1,223 → 69,528 (57×)</td><td>Permission queries</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Common cause: bulk-load patterns (Liquibase initial seed, dbt <code>CREATE TABLE AS</code>) populate a table in one transaction; the autoanalyze trigger watches "row modifications since last analyze" and treats CTAS as a single event. The fix is a manual <code>ANALYZE</code> after bulk load.</p>
+
+      <h3>Diagnosis Queries</h3>
+      <span class="code-label">Find Bloated Tables and Stale Stats</span>
+      <pre><code>-- Tables with most dead tuples (live bloat)
+SELECT schemaname, relname,
+       n_live_tup, n_dead_tup,
+       round(100.0 * n_dead_tup / nullif(n_live_tup,0), 1) AS pct_dead,
+       last_autovacuum, last_autoanalyze
+FROM pg_stat_user_tables
+WHERE n_dead_tup &gt; 1000
+ORDER BY n_dead_tup DESC
+LIMIT 20;
+
+-- Tables that have NEVER been analyzed (stale stats trap)
+SELECT schemaname, relname, n_live_tup, last_autoanalyze
+FROM pg_stat_user_tables
+WHERE last_autoanalyze IS NULL
+  AND last_analyze IS NULL
+ORDER BY relname;</code></pre>
+
+      <h3>Transaction ID Wraparound — The Doomsday Scenario</h3>
+      <div class="warn-box">
+        <strong>XIDs are 32-bit. After ~4 billion transactions they wrap around.</strong> If VACUUM never freezes old tuples, an old XID 1000 starts looking like a future XID after wraparound — those rows become invisible (effectively data loss). PostgreSQL prevents this by FORCING an emergency shutdown when a database is within 1 million XIDs of wraparound. We have monitoring on <code>pg_database.datfrozenxid</code> for exactly this. <strong>"VACUUM never optional"</strong> is the lesson.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "A table is 90% dead tuples. Should you run <code>VACUUM</code> or <code>VACUUM FULL</code>?"</div>
+        <div class="qa-answer">
+          "<strong>Default to <code>VACUUM</code>.</strong> It scans the table, marks dead tuples free in the Free Space Map (FSM), and updates visibility maps — all <em>online</em>, with only a brief <code>SHARE UPDATE EXCLUSIVE</code> lock that doesn't block reads or writes. The table file size doesn't shrink, but new writes will reuse the freed space.
+          <br><br>
+          <code>VACUUM FULL</code> rewrites the entire table into a new file, releases the old file, and shrinks disk usage. But it takes an <strong><code>ACCESS EXCLUSIVE</code> lock</strong> — the table is unreadable and unwritable for the duration. On a 100 GB table that's potentially hours of downtime. Banking-grade ops never run <code>VACUUM FULL</code> during business hours.
+          <br><br>
+          The right pattern for serious bloat: <code>pg_repack</code> (extension) — rewrites the table online, no exclusive lock, copy-and-swap. We'd schedule that during a maintenance window with a CHG ticket."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Why might autovacuum not be cleaning a table even though it has millions of dead rows?"</div>
+        <div class="qa-answer">
+          "Five common causes, in order of likelihood:
+          <ol>
+            <li><strong>A long-running transaction is holding a snapshot</strong> — autovacuum can't reclaim tuples still visible to that snapshot. Check <code>pg_stat_activity</code> for <code>state='idle in transaction'</code> with old <code>xact_start</code>.</li>
+            <li><strong>Stale stats</strong> say the table has 0 live rows so the threshold never trips. Run a manual <code>ANALYZE</code>.</li>
+            <li><strong>Table is locked</strong> by a long DDL or a bulk operation — autovacuum politely backs off when contended.</li>
+            <li><strong>maintenance_work_mem is too small</strong>, vacuum needs many passes, takes too long, doesn't complete before the next workload spike.</li>
+            <li><strong>autovacuum is disabled</strong> per-table via <code>ALTER TABLE ... SET (autovacuum_enabled = false)</code> — sometimes left over from a debugging session.</li>
+          </ol>
+          The diagnostic flow: <code>SELECT * FROM pg_stat_progress_vacuum</code> to see if it's running, <code>SELECT * FROM pg_stat_activity WHERE state LIKE 'idle%'</code> for blockers, <code>SELECT relname, last_autovacuum FROM pg_stat_user_tables WHERE n_dead_tup &gt; 100000</code> to see when it last ran."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8b.5 · WAL & CHECKPOINTS                                        -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-wal-checkpoint">
+      <div class="section-header">
+        <span class="section-num">8b.5</span>
+        <h2>WAL Mechanics + Checkpoint I/O Spreading <span class="gap-badge gap-high">Critical</span></h2>
+      </div>
+
+      <p>The Write-Ahead Log is the durability boundary. <strong>"COMMIT" doesn't mean the data file is updated — it means the WAL record is on disk and <code>fsync</code> returned.</strong> Everything else (data file flush, replication, backup) happens later, asynchronously.</p>
+
+      <h3>WAL Segments and LSN</h3>
+      <p>WAL is stored as <strong>16 MB segment files</strong> in <code>$PGDATA/pg_wal/</code>. Each file has a 24-character hex name encoding timeline + log file + segment number:</p>
+
+      <span class="code-label">WAL Segment Naming</span>
+      <pre><code>/pgdata/pg16_wal/
+├── 000000010000502C00000001   ← 16 MB segment
+├── 000000010000502C00000002
+├── 000000010000502C00000003
+
+Naming: TTTTTTTTSSSSSSSSXXXXXXXX
+        │       │       │
+        │       │       └── Segment number within log (hex)
+        │       └── Log file number (hex)
+        └── Timeline ID (hex, increments after promote/failover)
+
+LSN format: XXXXXXXX/YYYYYYYY  e.g.  502C/DFF50F18
+            │        │
+            │        └── Byte offset within segment
+            └── Segment number
+
+Bytes from start = (segment × 4 GB) + offset</code></pre>
+
+      <p>An LSN is a monotonically increasing byte position across the entire WAL stream. <strong>The replica is "X bytes behind"</strong> means <code>primary_LSN - replica_LSN</code>. <strong>"Slot has 6 GB of WAL retained"</strong> means <code>current_LSN - slot.restart_lsn</code>.</p>
+
+      <h3>fsync — The Durability Boundary</h3>
+      <span class="code-label">What COMMIT Actually Does</span>
+      <pre><code>1. Backend writes WAL record to wal_buffers (16 MB shared memory)
+2. On COMMIT:
+     a. WAL buffer flushed to /pgdata/pg16_wal/&lt;segment&gt;
+     b. fdatasync() syscall → kernel flushes from page cache to physical disk
+     c. Disk controller confirms persistent write (~0.5-2 ms on SSD)
+3. ONLY after fdatasync returns success:
+     → Backend sends "INSERT 0 1" / commit ACK to the client
+     → Transaction is durable: survives power loss, OS crash, container kill
+
+At this point the actual data file STILL has the old data.
+The dirty page sits in shared_buffers until the next checkpoint.
+But the WAL has every change needed to rebuild it — that's the contract.</code></pre>
+
+      <h3>WAL Retention Parameters</h3>
+      <p>Three settings control WAL recycling — and they're often misunderstood. <code>min_wal_size</code> is a <em>floor</em> on retained WAL even after archival, not a checkpoint trigger.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Parameter</th><th>Prod value</th><th>QA value</th><th>What it actually controls</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><code>min_wal_size</code></td>
+              <td>1 GB</td>
+              <td>32 MB</td>
+              <td>Floor: PG keeps at least this much WAL on disk by recycling filenames rather than deleting. <strong>Why QA shows 5 GB of WAL despite max=256MB</strong> — replication slots override.</td>
+            </tr>
+            <tr>
+              <td class="td-amber"><code>max_wal_size</code></td>
+              <td>16 GB</td>
+              <td>256 MB</td>
+              <td>(1) Trigger checkpoint when WAL since last checkpoint hits this. (2) Try to keep total WAL on disk below this by aggressive recycling after checkpoint.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><code>wal_keep_size</code></td>
+              <td>4 GB</td>
+              <td>16 MB</td>
+              <td>Minimum WAL retained for <strong>physical streaming replication</strong> to a replica that fell behind. Independent of archive.</td>
+            </tr>
+            <tr>
+              <td class="td-purple"><code>max_slot_wal_keep_size</code></td>
+              <td>15 GB (CI)</td>
+              <td>unset</td>
+              <td>Cap on WAL retained for <strong>logical replication slots</strong> (Fivetran). If a slot lags past this, slot is invalidated → consumer must re-sync.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>The order of overrides matters.</strong> Replication slots (logical) > <code>wal_keep_size</code> (physical replica) > <code>max_wal_size</code> > <code>min_wal_size</code>. If any consumer needs a WAL segment, it stays — even past <code>max_wal_size</code>. That's why QA shows 5+ GB on disk: 5 Fivetran slots each pinning ~6 GB of WAL behind them. PG would happily delete the WAL but a slot says "I haven't read past LSN X yet".
+      </div>
+
+      <h3>Checkpoint = Random I/O Across Many Files</h3>
+      <p>WAL writes are <strong>sequential</strong> (append to one file, ~500 MB/s). Checkpoint writes are <strong>random</strong> — every dirty page in <code>shared_buffers</code> goes to its home position in its data file, scattered across hundreds of files (~50 MB/s on the same disk). If you flushed all dirty pages instantly, every commit would suffer a tail-latency spike.</p>
+
+      <span class="code-label">Why Spread Over 90% of the Interval</span>
+      <pre><code>checkpoint_timeout              = 30 min
+checkpoint_completion_target    = 0.9
+max_wal_size                    = 16 GB
+
+Checkpoint triggers:
+  • timer: every 30 minutes, OR
+  • WAL volume: when WAL since last checkpoint reaches 16 GB
+  whichever comes first.
+
+Once triggered, PG identifies all dirty pages in shared_buffers.
+It then SPREADS the writes over (30 min × 0.9) = 27 minutes.
+
+  Time:  0min      9min      18min     27min     30min
+         │          │          │         │         │
+         ▼          ▼          ▼         ▼         ▼
+  I/O:  ████████████████████████████████      [idle]
+         [── spread over 90% of interval ──]
+                                          └─ checkpoint complete
+                                             buffer for next checkpoint
+
+Without spreading (immediate flush):
+  I/O:  ████████████████████████████████████████████
+         all at once — 100% disk → query latency spikes</code></pre>
+
+      <h3>Timed vs Requested Checkpoints</h3>
+      <span class="code-label">pg_stat_bgwriter — The Health Indicator</span>
+      <pre><code>SELECT checkpoints_timed, checkpoints_req,
+       round(100.0 * checkpoints_req / nullif(checkpoints_timed + checkpoints_req, 0), 1)
+         AS pct_requested
+FROM pg_stat_bgwriter;
+
+Healthy:   95%+ timed, &lt;5% requested
+Unhealthy: 30%+ requested → max_wal_size too small, checkpoints firing
+           on WAL volume, not on timer. Bursty I/O, not spread.
+
+Fix: raise max_wal_size, raise checkpoint_timeout (with corresponding
+recovery-time tradeoff — more WAL to replay on crash).</code></pre>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What's the relationship between WAL, fsync, and a successful COMMIT?"</div>
+        <div class="qa-answer">
+          "COMMIT in PostgreSQL means: <strong>the WAL record describing this transaction has been flushed to physical disk via <code>fdatasync</code>, and the syscall returned success</strong>. Until that returns, the client is blocked. After it returns, the transaction is durable — the database can crash, the pod can be killed, the disk can be unmounted-and-remounted, and on restart PostgreSQL will replay the WAL from the last checkpoint and the row will exist.
+          <br><br>
+          What COMMIT explicitly does <strong>not</strong> guarantee: that the data file (table heap, index pages) has been updated on disk. Those dirty pages sit in <code>shared_buffers</code> potentially for the full <code>checkpoint_timeout</code> (30 minutes) before being flushed — but this is fine, because the WAL has every byte needed to rebuild them on recovery.
+          <br><br>
+          This is also why <code>fsync = off</code> is dangerous (and never used in prod): it lets COMMIT return without forcing the WAL to disk. Massive throughput improvement, zero durability — a power loss can lose the last several seconds of committed transactions."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Your <code>pg_stat_bgwriter</code> shows 70% requested checkpoints. What does that mean and how do you fix it?"</div>
+        <div class="qa-answer">
+          "It means <strong>checkpoints are firing because <code>max_wal_size</code> is too small for the write rate</strong>, not because the timer expired. Symptoms:
+          <ul>
+            <li>I/O is bursty, not spread — checkpoint storms during peak.</li>
+            <li>Query p99 latency spikes during those storms.</li>
+            <li>WAL is being recycled aggressively — replication slots and <code>wal_keep_size</code> get squeezed.</li>
+          </ul>
+          Fix sequence:
+          <ol>
+            <li>Raise <code>max_wal_size</code> (e.g. 1 GB → 16 GB). Costs disk space but pushes timer-driven checkpoints back.</li>
+            <li>Optionally raise <code>checkpoint_timeout</code> from 5 min to 30 min — same idea: longer interval, more spread, less frequent storms. Tradeoff: longer crash recovery (more WAL to replay).</li>
+            <li>Confirm <code>checkpoint_completion_target = 0.9</code> (the modern default). Lower values mean checkpoint finishes early and idle disk afterwards — wasted spreading window.</li>
+            <li>Re-check <code>pg_stat_bgwriter</code> after a few hours. Goal: 95%+ timed."
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8b.6 · INSERT FLOW                                              -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-insert-flow">
+      <div class="section-header">
+        <span class="section-num">8b.6</span>
+        <h2>INSERT End-to-End Flow <span class="gap-badge gap-senior">Senior</span></h2>
+      </div>
+
+      <p>One sequence diagram that ties everything together: a client INSERT from the .NET service all the way through to the durability ACK and the three asynchronous post-WAL paths.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <div class="diagram-title">INSERT: Client to Durable to Replicated</div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('mm-insert', 1.15)">+</button>
+            <button class="zoom-btn" onclick="zoom('mm-insert', 0.87)">-</button>
+            <button class="zoom-btn" onclick="reset('mm-insert')">&#x21bb;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="mm-insert">
+            <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant C as .NET service<br/>(Npgsql pool)
+  participant I as Istio sidecar<br/>(mTLS)
+  participant PM as postmaster
+  participant B as backend<br/>process
+  participant SB as shared_buffers
+  participant W as WAL buffer<br/>+ pg_wal/
+  participant CK as checkpointer
+  participant AR as pgBackRest<br/>sidecar
+  participant R as replica<br/>(walreceiver)
+
+  C->>I: INSERT INTO price_plan ...
+  I->>PM: TCP 5432 (mTLS)
+  PM->>B: fork() backend (~5-10 MB)
+  Note over B: parse · analyze · rewrite · plan
+  B->>SB: load page · insert tuple<br/>xmin=1234, xmax=0
+  B->>SB: update index pages
+  B->>W: write WAL record
+  Note over B,W: COMMIT requested
+  B->>W: fdatasync() WAL to disk
+  W-->>B: fsync OK (~1 ms)
+  B-->>I: INSERT 0 1 (durable)
+  I-->>C: ACK to client
+
+  par Path A · checkpoint
+    Note over CK: every 30 min OR<br/>16 GB of WAL
+    CK->>SB: scan dirty pages
+    CK->>CK: spread writes over 27 min
+  and Path B · archive (120s)
+    W->>AR: archive_command pushes 16 MB segment<br/>(or partial after archive_timeout)
+    AR->>AR: ship to repo-host
+  and Path C · replication
+    W->>R: walsender streams WAL bytes (async)
+    R->>R: walreceiver applies → hot standby
+  end
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Phase Breakdown</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Connection to backend fork</div><div class="step-desc"><code>postmaster</code> accepts the TCP connection, forks a dedicated <strong>backend process</strong> for the session (~5-10 MB RSS, more under load). Each Npgsql pool slot maps to one backend.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Parse, analyze, rewrite, plan</div><div class="step-desc">SQL text → tokens → AST → semantic check (table OIDs, column types, permissions) → plan tree. For a simple INSERT, planner cost is trivial.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Heap + index modifications</div><div class="step-desc">Backend loads the target page into <code>shared_buffers</code> (cache hit or disk read), inserts the new tuple with <code>xmin=current XID</code>, <code>xmax=0</code>. Marks page dirty. Updates every index. Constraints (UNIQUE, FK, CHECK) verified.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">WAL write → fdatasync → ACK</div><div class="step-desc">A WAL record describing the change goes into <code>wal_buffers</code>. On COMMIT, the buffer is flushed to the active <code>pg_wal/</code> segment file, then <code>fdatasync</code> forces the kernel page cache to physical disk. <strong>Only when fsync returns success does the backend send the ACK back to the client.</strong></div></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Three parallel post-WAL paths</div><div class="step-desc"><strong>(A)</strong> Checkpoint — checkpointer wakes every 30 min (or on WAL volume), flushes the still-dirty page in <code>shared_buffers</code> to the actual data file, spreads over 27 min. <strong>(B)</strong> Archive — pgBackRest sidecar receives the 16 MB segment via <code>archive_command</code> when full or after <code>archive_timeout=120s</code>. <strong>(C)</strong> Replication — <code>walsender</code> streams WAL bytes to the replica's <code>walreceiver</code> (async by default; sync mode possible for stricter RPO).</div></div></div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "A client commits an INSERT and gets ACK at t=0. The pod is killed at t=1ms. The new primary is promoted at t=30s. Did the row survive?"</div>
+        <div class="qa-answer">
+          "<strong>It depends on whether the WAL bytes had streamed to the replica before t=1ms.</strong>
+          <ul>
+            <li>The WAL record was definitely on the primary's disk at t=0 (that's what ACK means). When the primary comes back, it would replay from its WAL — but in this scenario the primary is gone and the replica is being promoted.</li>
+            <li>With <strong>asynchronous replication (default)</strong>, the WAL bytes may or may not have reached the replica. Typical lag is sub-millisecond on a healthy LAN, but it's not <em>guaranteed</em> at the moment of ACK. If the WAL wasn't streamed yet, the row is gone after promotion — small data loss, bounded by the streaming lag (typically &lt;1s).</li>
+            <li>With <strong>synchronous replication</strong> (<code>synchronous_commit = on</code>, <code>synchronous_standby_names</code> set), COMMIT doesn't return until the replica has the WAL too. Zero loss at the cost of latency proportional to network round-trip.</li>
+            <li>For longer outages (both nodes gone), recovery falls back to the WAL archive on the repo-host. Bounded by <code>archive_timeout=120s</code> — anything written in the last 2 minutes that wasn't archived yet is lost.</li>
+          </ul>
+          For our platform: async replication for performance + accepting sub-second loss tolerance for non-financial paths. Banking/payments would push for sync replication on the critical tables, accepting the latency tax."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8b.7 · CONNECTIONS & PATRONI                                    -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-conn-patroni">
+      <div class="section-header">
+        <span class="section-num">8b.7</span>
+        <h2>Connection Pool Exhaustion + Patroni State Machine <span class="gap-badge gap-high">Critical</span> <span class="gap-badge gap-senior">Senior</span></h2>
+      </div>
+
+      <h3>Every Connection Costs Memory</h3>
+      <p>PostgreSQL is a <strong>process-per-connection</strong> system, not thread-per-connection. Each backend is a full Unix process with its own memory pages.</p>
+
+      <span class="code-label">Per-Connection Memory Footprint</span>
+      <pre><code>Idle backend:
+  Process stack + heap         ~5-10 MB
+  Catalog cache                ~2-5 MB     (table/column metadata)
+  Relcache                     ~5-20 MB    (relation metadata)
+  ───────────────────────────────────
+  Per idle connection:         ~12-35 MB
+
+Active backend running a sort/hash query:
+  Above + work_mem allocations ~128 MB per sort/hash node
+  ───────────────────────────────────
+  Per active connection:       ~150-500 MB
+
+200 idle connections × 25 MB avg  = 5 GB (just sitting there)
+200 connections, 20 active query  = 5 GB idle + 4 GB active = 9-10 GB</code></pre>
+
+      <div class="warn-box">
+        <strong>idle_in_transaction is the worst kind of idle.</strong> A connection that issued <code>BEGIN</code> and never committed holds (1) a snapshot — blocks autovacuum from reclaiming visible-to-it dead tuples, and (2) any locks acquired during the transaction — blocks DDL and other writers. Always set <code>idle_in_transaction_session_timeout = 5min</code> to kill these. Saw this exact pattern in <strong>INC-010 (ReportPortal exhausted PG connections)</strong> — a runaway service held connections open in idle-in-transaction state, autovacuum got blocked, <code>pg_stat_activity</code> filled up to <code>max_connections</code>, every other service got "FATAL: too many clients".
+      </div>
+
+      <h3>PgBouncer — The Pooler Pattern</h3>
+      <span class="code-label">Why PgBouncer Saves Real Money</span>
+      <pre><code>Without PgBouncer:
+  100 .NET pods → 100 PG connections → 100 × 25 MB = 2.5 GB idle
+                                       100 backend processes context-switching
+
+With PgBouncer (transaction mode):
+  100 .NET pods → PgBouncer → 15 PG connections → 15 × 25 MB = 375 MB idle
+                              15 backends that the pooler shares
+
+  Memory saved:                ~2.1 GB
+  Connection overhead saved:   85 fewer fork()s
+  Connection-establishment latency: amortised across many app requests</code></pre>
+
+      <p>PgBouncer modes: <em>session</em> (one PG conn per client, useful for long-lived sessions but offers no pooling benefit), <em>transaction</em> (PG conn returned to pool at each COMMIT — most common), <em>statement</em> (returned at each statement, breaks transactions — rarely used). For Confirmation, transaction-mode pooling is the right default; the only gotcha is that prepared statements and SET statements need careful handling.</p>
+
+      <h3>Patroni Failover State Machine</h3>
+      <p>Patroni is a Python process running <strong>alongside</strong> PostgreSQL inside the database container. It uses a Distributed Configuration Store (DCS — etcd, Consul, or in our case the Kubernetes API as a backend) to elect a leader.</p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-header">
+          <div class="diagram-title">Patroni Failover Sequence</div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoom('mm-patroni', 1.15)">+</button>
+            <button class="zoom-btn" onclick="zoom('mm-patroni', 0.87)">-</button>
+            <button class="zoom-btn" onclick="reset('mm-patroni')">&#x21bb;</button>
+          </div>
+        </div>
+        <div class="diagram-content">
+          <div class="mermaid-wrap" id="mm-patroni">
+            <div class="mermaid">
+flowchart TB
+  subgraph T0["t=0  ·  Healthy state"]
+    P0["Primary (instance-2)<br/>holds DCS leader key<br/>TTL=30s"]
+    R0["Replica (instance-1)<br/>following · streaming"]
+    DCS0[("DCS<br/>leader=instance-2<br/>TTL countdown")]
+    P0 -. heartbeat every loop_wait=10s .-> DCS0
+    P0 -- WAL stream --> R0
+  end
+
+  subgraph T1["t=10s  ·  Primary loses heartbeat"]
+    P1["Primary CRASHED<br/>or unreachable"]
+    R1["Replica still<br/>streaming · waits"]
+    DCS1[("DCS<br/>leader key<br/>about to expire"):::expiring]
+  end
+
+  subgraph T2["t=30s  ·  Key expires"]
+    DCS2[("DCS<br/>leader key EXPIRED<br/>candidates can race"):::expired]
+    R2["Replica detects<br/>no leader<br/>checks own LSN"]
+  end
+
+  subgraph T3["t=30-45s  ·  Election"]
+    R3["Replica WINS race<br/>writes new leader key<br/>pg_promote()"]
+    SVC["K8s Service<br/>endpoints<br/>repointed"]
+    OLD["Old primary<br/>(when it returns)<br/>pg_rewind to align"]
+  end
+
+  T0 --> T1 --> T2 --> T3
+  R3 --> SVC
+
+  classDef expiring fill:#0f1826,stroke:#f59e0b,color:#dce8f5
+  classDef expired fill:#0f1826,stroke:#f87171,color:#dce8f5
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Failover Step by Step</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Healthy state</div><div class="step-desc">Primary holds the DCS leader key with a TTL (default 30s). Patroni renews the key every <code>loop_wait</code> (default 10s) — the key never expires while the primary is healthy. Replica streams WAL.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Primary fails</div><div class="step-desc">Pod crashes, network partition, or kubelet kills it. No more heartbeats to DCS.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Leader key expires</div><div class="step-desc">After TTL (30s) the key disappears from the DCS. Surviving Patronis see "no leader" — they're allowed to race for the key.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Race + LSN check</div><div class="step-desc">Each candidate replica checks its own LSN versus what's recorded in DCS. The candidate with the highest LSN (closest to what the primary had) wins. It writes its name as the new leader key.</div></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Promotion</div><div class="step-desc">The winner calls <code>pg_promote()</code> on its local PostgreSQL — the replica becomes a primary, starts a new timeline, opens for writes.</div></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">Service repoint</div><div class="step-desc">PGO watches Patroni state via the Kubernetes API and updates the Service endpoints to point to the new primary. Apps reconnect (Npgsql retries).</div></div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-body"><div class="step-title">Old primary returns</div><div class="step-desc">When the failed pod restarts, Patroni notices someone else is leader. It runs <code>pg_rewind</code> against the new primary to discard any divergent WAL it had buffered, then rejoins as a streaming replica.</div></div></div>
+      </div>
+
+      <h3>What If the DCS Itself Fails?</h3>
+      <div class="warn-box">
+        <strong>If the DCS (etcd / Kubernetes API) becomes unreachable, Patroni demotes the primary to read-only as a safety measure.</strong> The reasoning: if the primary can't reach the DCS, it can't tell whether it's still leader — and if a replica somewhere has assumed leadership in a partition, both writing would be split-brain. The conservative choice is "stop accepting writes until I can confirm I'm still leader". This is why DCS availability is treated as critical infrastructure — losing the K8s API server (our DCS backend) means writes pause everywhere on the cluster, not just for one app.
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Your application logs show 'FATAL: too many clients already'. How do you respond?"</div>
+        <div class="qa-answer">
+          "Triage in this order — INC-010 was exactly this pattern:
+          <ol>
+            <li><strong>Confirm</strong>: <code>SELECT count(*), state FROM pg_stat_activity GROUP BY state;</code> — is it really at <code>max_connections</code>? What's the breakdown of active vs idle vs idle_in_transaction?</li>
+            <li><strong>Find the offender</strong>: <code>SELECT application_name, count(*) FROM pg_stat_activity GROUP BY application_name ORDER BY 2 DESC;</code> — usually one runaway service.</li>
+            <li><strong>Look for idle_in_transaction</strong>: <code>SELECT pid, application_name, state, xact_start, query FROM pg_stat_activity WHERE state = 'idle in transaction' ORDER BY xact_start;</code> — these are the silent killers. Old <code>xact_start</code> = stuck transaction.</li>
+            <li><strong>Immediate mitigation</strong>: <code>SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state='idle in transaction' AND xact_start &lt; now() - interval '5 minutes';</code> — kill the stuck ones to free slots.</li>
+            <li><strong>Tactical fix</strong>: restart the offending service pod (its connection pool is probably leaking). Confirm count drops.</li>
+            <li><strong>Strategic fix</strong>: introduce PgBouncer in front of Postgres for that service. Set <code>idle_in_transaction_session_timeout = 5min</code> in <code>postgresql.conf</code> so this can never fully exhaust again. Add a Datadog monitor on <code>pg_stat_activity</code> count &gt; 70% of max_connections.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "Walk me through what happens during a Patroni failover from the application's perspective."</div>
+        <div class="qa-answer">
+          "From the .NET service's view:
+          <ol>
+            <li><strong>t=0</strong>: Primary dies. Active queries hang (TCP FIN never arrives, connections in CLOSE_WAIT or just stuck).</li>
+            <li><strong>t=10-30s</strong>: TCP keepalive on existing connections starts seeing failures. Npgsql's connection-validation logic kicks in — the next time the pool tries to lease a connection, the validate fails and the pool starts opening new ones.</li>
+            <li><strong>t=10-30s in parallel</strong>: Patroni observes leader-key expiry, replica wins the race, calls <code>pg_promote()</code>, writes itself as new leader. PGO updates the K8s Service endpoints.</li>
+            <li><strong>t=30-60s</strong>: New connections from Npgsql resolve <code>confirmation-pgdatabase-qa-primary.207804-postgres-qa.svc</code> via the now-updated Service endpoints — they land on the new primary. Reads and writes resume.</li>
+            <li><strong>What the user sees</strong>: a 30-60s window of errors (or retries with exponential backoff if the app has them). Confirmation services use Polly retry policies for this — most of the user-visible impact is masked.</li>
+            <li><strong>Old primary returns</strong>: <code>pg_rewind</code> runs against the new primary to align any WAL it had locally that didn't make it across. Rejoins as replica. The cluster is back to 1+1.</li>
+          </ol>
+          The critical detail: the Service repoint happens at the K8s networking layer — DNS resolution doesn't change, but the endpoint backing that DNS does. Apps that use long-lived connections without validation logic won't notice the failover until they try to use a stale connection."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8b.8 · FIVETRAN & PITR                                          -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-fivetran-pitr">
+      <div class="section-header">
+        <span class="section-num">8b.8</span>
+        <h2>Fivetran Logical Slots + PITR Recovery <span class="gap-badge gap-high">Critical</span></h2>
+      </div>
+
+      <h3>Logical Replication Slots — The Anchor That Pins WAL</h3>
+      <p>Fivetran uses PostgreSQL <strong>logical replication slots</strong> to stream change events to its data lake. A slot is a server-side bookmark with two LSN positions:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Slot field</th><th>What it tracks</th><th>Effect on WAL retention</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="td-green"><code>restart_lsn</code></td>
+              <td>Earliest LSN the consumer might still need (e.g. start of an open transaction)</td>
+              <td><strong>PostgreSQL cannot recycle WAL beyond this LSN.</strong> WAL files older than restart_lsn stay on disk forever, regardless of <code>max_wal_size</code>.</td>
+            </tr>
+            <tr>
+              <td class="td-blue"><code>confirmed_flush_lsn</code></td>
+              <td>LSN that the consumer has confirmed it processed</td>
+              <td>Reporting only — used to compute lag.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The Five Confirmation Slots</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Slot name</th><th>Source DB</th><th>Status</th><th>WAL retained</th></tr></thead>
+          <tbody>
+            <tr><td><code>fivetran_core_slot</code></td><td>cfm_core_qa</td><td>Active (sync ~8 min)</td><td>6,352 MB</td></tr>
+            <tr><td><code>fivetran_core_rel_slot</code></td><td>cfm_core_rel_qa</td><td>Active</td><td>6,336 MB</td></tr>
+            <tr><td><code>fivetran_forms_slot</code></td><td>cfm_forms_qa</td><td>Active</td><td>6,336 MB</td></tr>
+            <tr><td><code>fivetran_pricing_slot</code></td><td>cfm_pricing_qa</td><td>Active</td><td>6,336 MB</td></tr>
+            <tr><td><code>fivetran_record_slot</code></td><td>cfm_record_qa</td><td>Active</td><td>6,336 MB</td></tr>
+            <tr><td colspan="3"><strong>Total WAL pinned by slots</strong></td><td><strong>~31 GB</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The Failure Mode</h3>
+      <div class="warn-box">
+        <strong>If a Fivetran consumer falls behind, WAL piles up on disk.</strong> The chain: producer (PG) writes WAL faster than consumer (Fivetran agent) reads → <code>restart_lsn</code> doesn't advance → WAL files accumulate → <code>$PGDATA/pg_wal/</code> fills up → at some point disk runs out and PostgreSQL stops accepting writes (read-only mode). The defence is <code>max_slot_wal_keep_size</code>: when a slot retains more than this, PG marks the slot <code>invalidated</code> and starts recycling WAL again — but the cost is that Fivetran has to do a full re-sync from the source tables (slow, expensive on large datasets).
+      </div>
+
+      <h3>Slot Manager CronJob — Heals After Failover</h3>
+      <p>Logical slots <strong>only exist on the primary</strong> (they're not replicated to the replica). When Patroni failover happens, the new primary has zero slots — Fivetran can't reconnect, and re-sync would be required.</p>
+
+      <span class="code-label">Slot Manager (runs every 5 min)</span>
+      <pre><code>schedule: "*/5 * * * *"
+
+What it does:
+  1. Connects to current primary (via -primary service)
+  2. Checks if all 5 expected logical slots exist
+  3. If any missing → creates them (CREATE_REPLICATION_SLOT logical)
+  4. If Fivetran connectors need re-syncing → calls Fivetran API to reset
+
+Net effect: Fivetran experiences a small lag but no full re-sync</code></pre>
+
+      <h3>Point-in-Time Recovery (PITR)</h3>
+      <p>PITR combines a base backup with a WAL replay to restore the database to <strong>any second within the retention window</strong>.</p>
+
+      <span class="code-label">PITR Recovery Sequence</span>
+      <pre><code>Goal: restore to "Apr 14 14:23:17 UTC" (pre-incident timestamp)
+
+Step 1: Restore base backup
+  pgbackrest restore --type=time --target='2026-04-14 14:23:17 UTC'
+   → reads latest full + diff (e.g. full from 14 Apr 21:00 prior day)
+   → writes data files to /pgdata
+   → leaves recovery.conf with target_time set
+
+Step 2: Replay WAL from archive
+  PostgreSQL starts in recovery mode
+   → reads WAL segments from pgBackRest archive
+   → replays each record: BEGIN, INSERT, COMMIT, INSERT, ...
+   → STOPS at the first transaction whose commit_time > target_time
+
+Step 3: Promote
+  pg_promote() (or recovery_target_action = 'promote')
+   → DB becomes a normal primary on a new timeline
+
+Recovery time = (data restore I/O) + (WAL replay rate × WAL volume since base)
+RPO = bounded by archive_timeout = 120 seconds</code></pre>
+
+      <h3>March 2026 DR Data Gap — The Lesson</h3>
+      <div class="warn-box">
+        <strong>What happened:</strong> An incident in DR required PITR to a specific second. The team kicked off the restore — base backup applied cleanly, WAL replay started — and replay <strong>halted at a missing WAL segment</strong>. Some segments in the band of interest had simply never been archived. The <code>archive_command</code> had been silently failing for hours; <code>pg_stat_archiver.last_failed_wal</code> was set but no monitor was firing on it. PG itself was healthy (writes succeeded locally), but the archive was incomplete.
+        <br><br>
+        <strong>The lesson:</strong>
+        <ul>
+          <li>A successful local <code>fsync</code> does <strong>not</strong> mean the WAL has been archived. The archive is an <em>asynchronous</em>, separate-failure-mode pipeline.</li>
+          <li>Always alert on <code>pg_stat_archiver.last_failed_wal IS NOT NULL</code> — and on the <code>archived_count</code> rate going to zero.</li>
+          <li>Always alert on <code>pg_stat_archiver.last_archived_time</code> growing stale (e.g. &gt; 10 min behind <code>now()</code>).</li>
+          <li>Periodically test a PITR restore end-to-end — a backup you've never restored is not a backup.</li>
+        </ul>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "How does Fivetran avoid losing data when Patroni fails the primary over?"</div>
+        <div class="qa-answer">
+          "Logical replication slots only exist on the primary — when the replica gets promoted, the slots don't come along. Fivetran would normally need to do a full re-sync from the source tables (potentially hours, depending on size).
+          <br><br>
+          Our platform mitigates this with a <strong>Slot Manager CronJob</strong> that runs every 5 minutes. It connects to whoever is currently the primary, checks for the 5 expected logical slots, and recreates any that are missing. After a failover, within 5 minutes the slots are back. Fivetran reconnects and resumes from the slot's <code>confirmed_flush_lsn</code> — which is at most 5 minutes of lag, not a full re-sync.
+          <br><br>
+          The tradeoff: any WAL events generated <em>between</em> failover and slot recreation are lost from Fivetran's perspective. For our analytics use case that's acceptable. If we needed strict zero-loss CDC, we'd run synchronous replication and use a slot-replication extension like <code>pg_failover_slots</code> — but that's not free, especially on Fivetran which doesn't natively integrate with it (this came up in INC-012)."
+        </div>
+      </div>
+
+      <div class="qa-box">
+        <div class="qa-question">Q: "What's the difference between RPO from a streaming replica vs from the WAL archive?"</div>
+        <div class="qa-answer">
+          "<strong>Streaming replica RPO is sub-second</strong> — the replica receives WAL bytes via a TCP stream as soon as the primary writes them. Lag is typically &lt;100ms on a healthy LAN. If the primary dies and Patroni promotes the replica, you lose at most the in-flight bytes between primary's last <code>fsync</code> and the replica's last applied LSN.
+          <br><br>
+          <strong>WAL archive RPO is bounded by <code>archive_timeout</code></strong> — in our case 120 seconds. The archive pipeline ships completed 16 MB segments to the repo-host. If a segment hasn't filled and 120 seconds have elapsed, PG forces a partial switch and archives what's there. Worst case: the primary dies just before that switch — you lose up to 120 seconds of transactions.
+          <br><br>
+          The recovery hierarchy:
+          <ol>
+            <li>Streaming replica (sub-second RPO) — Patroni promotes automatically.</li>
+            <li>WAL archive (120s RPO) — used when both nodes are gone.</li>
+            <li>Last diff backup (6h RPO) — used if WAL archive is also gone or corrupt.</li>
+            <li>Last full backup (24h RPO) — last-ditch option.</li>
+          </ol>
+          The <strong>March 2026 DR gap</strong> was specifically a tier-2 failure: streaming replica was unavailable (DR scenario), and the WAL archive had silent <code>archive_command</code> failures, leaving us with sub-tier-3 recovery only. Now we monitor archive health as a top-tier alert."
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8b.9 · CHEAT SHEET                                              -->
+    <!-- ============================================================ -->
+    <section class="section" id="s-cheatsheet">
+      <div class="section-header">
+        <span class="section-num">8b.9</span>
+        <h2>Diagnostic Cheat Sheet <span class="gap-badge gap-senior">Senior</span></h2>
+      </div>
+
+      <p>Memorise these seven queries. Every PostgreSQL incident on a managed cluster starts with one of them.</p>
+
+      <span class="code-label">1. pg_stat_activity — Who's Connected and What Are They Doing</span>
+      <pre><code>SELECT pid, usename, application_name, client_addr,
+       state, xact_start, query_start, wait_event_type, wait_event,
+       left(query, 80) AS query
+FROM pg_stat_activity
+WHERE state &lt;&gt; 'idle'
+ORDER BY xact_start NULLS LAST;
+-- First check during connection storms, slow queries, idle_in_transaction.</code></pre>
+
+      <span class="code-label">2. pg_stat_user_tables — Bloat and Vacuum Health</span>
+      <pre><code>SELECT schemaname, relname,
+       n_live_tup, n_dead_tup,
+       round(100.0 * n_dead_tup / nullif(n_live_tup,0), 1) AS pct_dead,
+       last_autovacuum, last_autoanalyze
+FROM pg_stat_user_tables
+WHERE n_dead_tup &gt; 1000
+ORDER BY n_dead_tup DESC LIMIT 20;
+-- Find tables with most bloat, when autovacuum last ran.</code></pre>
+
+      <span class="code-label">3. pg_stat_bgwriter — Checkpoint Health</span>
+      <pre><code>SELECT checkpoints_timed, checkpoints_req,
+       round(100.0 * checkpoints_req /
+             nullif(checkpoints_timed + checkpoints_req, 0), 1) AS pct_requested,
+       buffers_checkpoint, buffers_clean, buffers_backend,
+       maxwritten_clean
+FROM pg_stat_bgwriter;
+-- 95%+ timed = healthy. High pct_requested → max_wal_size too small.</code></pre>
+
+      <span class="code-label">4. pg_replication_slots — Logical Slot Lag and WAL Pinning</span>
+      <pre><code>SELECT slot_name, slot_type, active, wal_status,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn))
+         AS retained_wal,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn))
+         AS lag
+FROM pg_replication_slots
+ORDER BY retained_wal DESC;
+-- Watch for wal_status = 'extended' or 'lost' — slots about to be invalidated.</code></pre>
+
+      <span class="code-label">5. pg_stat_archiver — WAL Archive Health (DR-Critical)</span>
+      <pre><code>SELECT archived_count, last_archived_wal, last_archived_time,
+       failed_count, last_failed_wal, last_failed_time,
+       now() - last_archived_time AS staleness
+FROM pg_stat_archiver;
+-- last_failed_wal NOT NULL = silent archive failure. Alert on this.
+-- staleness &gt; 10 min on a busy DB = pipeline broken.</code></pre>
+
+      <span class="code-label">6. pg_stats Freshness — Stale Statistics Trap</span>
+      <pre><code>SELECT n.nspname AS schema, c.relname AS table,
+       c.reltuples::bigint AS planner_estimate,
+       s.n_live_tup AS actual_live,
+       s.last_analyze, s.last_autoanalyze
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_stat_user_tables s ON s.relname = c.relname AND s.schemaname = n.nspname
+WHERE c.relkind = 'r'
+  AND (s.last_analyze IS NULL AND s.last_autoanalyze IS NULL
+       OR abs(c.reltuples - s.n_live_tup) &gt; 0.5 * greatest(c.reltuples, 1))
+ORDER BY abs(c.reltuples - s.n_live_tup) DESC LIMIT 20;
+-- Tables where planner estimate diverges from actual → bad query plans.</code></pre>
+
+      <span class="code-label">7. pg_locks — Blocking and Deadlock Investigation</span>
+      <pre><code>SELECT blocked.pid AS blocked_pid,
+       blocked.query AS blocked_query,
+       blocking.pid AS blocking_pid,
+       blocking.query AS blocking_query,
+       blocked.wait_event_type, blocked.wait_event
+FROM pg_stat_activity blocked
+JOIN pg_stat_activity blocking
+  ON blocking.pid = ANY(pg_blocking_pids(blocked.pid))
+WHERE blocked.wait_event_type = 'Lock';
+-- Identifies who's blocking whom. Use pg_terminate_backend(blocking_pid) carefully.</code></pre>
+
+      <div class="success-box">
+        <strong>Memorise the order of triage:</strong> #1 to see who's there, #7 to find blockers, #2 to check vacuum health, #4 if logical replication or Fivetran involved, #5 if PITR/DR involved, #3 if checkpoint storms suspected, #6 if planner is making bad choices on a known-good schema.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<nav class="bottom-nav">
+  <a href="08-postgresql-ha.html">&larr; Previous: PostgreSQL HA &amp; Patroni</a>
+  <span class="nav-index">Section 8b — PostgreSQL Internals</span>
+  <a href="09-rabbitmq.html">Next: RabbitMQ &amp; MassTransit &rarr;</a>
+</nav>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true, theme: 'base',
+    themeVariables: { primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#22c55e', lineColor: '#7a9ab5', secondaryColor: '#0f1826', tertiaryColor: '#090d1a', background: '#090d1a', mainBkg: '#141f35', nodeBorder: '#1d2d4f', clusterBkg: '#0f1826', titleColor: '#dce8f5', edgeLabelBackground: '#0f1826', fontFamily: 'DM Sans, sans-serif', fontSize: '15px' },
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true }
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  const scales = {};
+  function zoom(id, f) { scales[id] = (scales[id] || 1) * f; document.getElementById(id).style.transform = `scale(${scales[id]})`; }
+  function reset(id) { scales[id] = 1; document.getElementById(id).style.transform = 'scale(1)'; }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? 'dark' : 'light';
+  });
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#${id}`));
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
