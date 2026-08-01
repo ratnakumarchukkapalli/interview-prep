@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Section 20: The FDE &amp; AI Engineer Role Decoded | Interview Prep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #090d1a; --surface: #0f1826; --surface2: #141f35;
+            --border: #1d2d4f; --text: #dce8f5; --text-muted: #7a9ab5;
+            --accent: #22c55e; --accent2: #38bdf8; --accent3: #f59e0b;
+            --code-bg: #060a13; --shadow: 0 2px 16px rgba(0,0,0,0.3); --radius: 12px;
+        }
+        [data-theme="light"] {
+            --bg: #f2f6fc; --surface: #ffffff; --surface2: #eaeff8;
+            --border: #c8d6e5; --text: #1a2332; --text-muted: #5a6a7a;
+            --accent: #16a34a; --accent2: #0284c7; --accent3: #d97706;
+            --code-bg: #e8edf5; --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; scroll-padding-top: 32px; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; transition: background 0.3s, color 0.3s; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+        .theme-toggle { position: fixed; top: 20px; right: 24px; z-index: 1000; background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.3s; box-shadow: var(--shadow); }
+        .theme-toggle:hover { border-color: var(--accent2); transform: scale(1.1); }
+        .layout { display: flex; max-width: 1400px; margin: 0 auto; }
+        .toc { position: sticky; top: 0; left: 0; width: 280px; min-width: 280px; height: 100vh; overflow-y: auto; padding: 32px 20px; border-right: 1px solid var(--border); background: var(--surface); }
+        .toc-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+        .toc a { display: block; padding: 8px 12px; margin: 2px 0; color: var(--text-muted); text-decoration: none; font-size: 13.5px; border-radius: 6px; border-left: 2px solid transparent; transition: all 0.2s; }
+        .toc a:hover { color: var(--text); background: var(--surface2); }
+        .toc a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(34,197,94,0.06); font-weight: 500; }
+        .content { flex: 1; min-width: 0; padding: 0 48px 80px; }
+        .hero { padding: 56px 0 40px; margin-bottom: 40px; border-bottom: 1px solid var(--border); }
+        .hero-badges { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .badge { display: inline-flex; align-items: center; padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
+        .badge-green { background: rgba(34,197,94,0.12); color: var(--accent); border: 1px solid rgba(34,197,94,0.25); }
+        .badge-blue { background: rgba(56,189,248,0.12); color: var(--accent2); border: 1px solid rgba(56,189,248,0.25); }
+        .badge-amber { background: rgba(245,158,11,0.12); color: var(--accent3); border: 1px solid rgba(245,158,11,0.25); }
+        .hero h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+        .hero .subtitle { font-size: 1.1rem; color: var(--text-muted); max-width: 640px; }
+        .hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+        .hero-meta span { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); display: inline-block; }
+        .section-header { display: flex; align-items: center; gap: 14px; margin: 52px 0 24px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+        .section-num { width: 36px; height: 36px; border-radius: 10px; background: rgba(34,197,94,0.12); color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(34,197,94,0.2); }
+        .section-header h2 { font-size: 1.55rem; font-weight: 600; }
+        h3 { font-size: 1.12rem; font-weight: 600; margin: 32px 0 14px; color: var(--text); }
+        p { margin-bottom: 16px; line-height: 1.8; }
+        .info-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent2); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; line-height: 1.8; }
+        .warn-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent3); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; line-height: 1.8; }
+        .success-box { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 20px 24px; margin: 20px 0; line-height: 1.8; }
+        strong { color: var(--accent2); font-weight: 600; }
+        code { font-family: 'Fira Code', monospace; font-size: 0.88em; background: var(--code-bg); color: var(--accent2); padding: 2px 7px; border-radius: 5px; border: 1px solid var(--border); }
+        pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; overflow-x: auto; margin: 20px 0; font-family: 'Fira Code', monospace; font-size: 0.88em; line-height: 1.7; color: #a8c4d8; }
+        pre code { background: none; border: none; padding: 0; font-size: inherit; color: inherit; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin: 24px 0; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; transition: border-color 0.2s; }
+        .card:hover { border-color: var(--accent2); }
+        .card-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 8px; color: var(--accent2); }
+        .card-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+        .qa-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 20px 0; overflow: hidden; }
+        .qa-q { background: rgba(56,189,248,0.06); padding: 16px 20px; font-weight: 600; font-size: 0.95rem; border-bottom: 1px solid var(--border); color: var(--accent2); }
+        .qa-a { padding: 16px 20px; font-size: 0.93rem; line-height: 1.8; }
+        .mermaid-wrapper { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin: 24px 0; overflow-x: auto; width: 100%; }
+        .mermaid { width: 100%; }
+        .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9rem; }
+        th { background: var(--surface2); color: var(--accent2); padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); }
+        td { padding: 11px 16px; border-bottom: 1px solid var(--border); }
+        tr:hover td { background: var(--surface); }
+        ul, ol { padding-left: 24px; margin-bottom: 16px; }
+        li { margin-bottom: 8px; line-height: 1.7; }
+        .pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 600; }
+        .pill-strong { background: rgba(34,197,94,0.14); color: var(--accent); }
+        .pill-gap { background: rgba(245,158,11,0.14); color: var(--accent3); }
+        .pill-crit { background: rgba(239,68,68,0.14); color: #f87171; }
+        @media (max-width: 860px) { .toc { display: none; } .content { padding: 0 20px 60px; } .hero h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme"><span id="theme-icon">&#9789;</span></button>
+
+    <div class="layout">
+        <nav class="toc">
+            <div class="toc-title">On This Page</div>
+            <a href="#what-is" class="active">20.1 What an FDE Actually Is</a>
+            <a href="#vs">20.2 FDE vs AI Engineer vs SA</a>
+            <a href="#rounds">20.3 Anatomy of the Three Rounds</a>
+            <a href="#hackerrank">20.4 The TR HackerRank Gate</a>
+            <a href="#skills">20.5 The Skill Matrix</a>
+            <a href="#gaps">20.6 Your Honest Gap Map</a>
+            <a href="#moat">20.7 DevOps as the Moat</a>
+            <a href="#tr">20.8 The Thomson Reuters Context</a>
+            <a href="#plan">20.9 The 8-Week Plan</a>
+            <a href="#selftest">20.10 Self-Test Questions</a>
+        </nav>
+
+        <main class="content">
+            <div class="hero">
+                <div class="hero-badges">
+                    <span class="badge badge-green">Interview Prep</span>
+                    <span class="badge badge-blue">Forward Deployed Engineer</span>
+                    <span class="badge badge-amber">Orientation</span>
+                </div>
+                <h1>Section 20: The FDE &amp; AI Engineer Role Decoded</h1>
+                <p class="subtitle">What the job actually is, how the interview is structured, where your eight years of platform engineering is an advantage rather than a detour, and exactly what to fix in the next eight weeks.</p>
+                <div class="hero-meta">
+                    <span><span class="dot"></span> Section 20 &mdash; Week 1, Day 1</span>
+                    <span><span class="dot"></span> ~30 min read</span>
+                    <span><span class="dot"></span> Read this before anything else</span>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Read this guide once, carefully, before you touch any technical material.</strong> The most common way a strong engineer fails an FDE loop is not a knowledge gap &mdash; it is preparing for the wrong interview. The FDE loop weights problem decomposition and customer communication roughly as heavily as it weights code, and almost nobody prepares for those.
+            </div>
+
+            <!-- 20.1 -->
+            <div class="section-header" id="what-is">
+                <span class="section-num">1</span>
+                <h2>What a Forward Deployed Engineer Actually Is</h2>
+            </div>
+
+            <p>Palantir invented the role in 2005. Their first customers &mdash; intelligence agencies &mdash; had problems that traditional consultants could not solve, because the consultants could not write code, and problems that traditional product engineers could not solve, because the product engineers were not allowed near the data. So Palantir put engineers <em>inside the customer</em> and gave them full accountability for the outcome.</p>
+
+            <p>In 2026 the model has been copied wholesale by the AI labs. OpenAI and Anthropic both run FDEs as post-sale embedded engineers who own the entire path from &ldquo;customer has API access&rdquo; to &ldquo;system is in production inside the customer's infrastructure, working, and being used.&rdquo; At Anthropic the function sits under the Applied AI team.</p>
+
+            <div class="info-box">
+                <strong>The one-sentence definition:</strong> a Forward Deployed Engineer is a software engineer who is embedded in a customer's environment, writes production code against that customer's real data, and is personally accountable for whether the AI system delivers a business outcome &mdash; not for whether it was delivered on spec.
+            </div>
+
+            <h3>The three jobs collapsed into one</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">Software Engineer</div>
+                    <div class="card-desc">You write and ship production code. In someone else's codebase, in a language you may not have picked, with tests you did not write.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Solutions Architect</div>
+                    <div class="card-desc">You scope the problem, choose the architecture, and decide what <em>not</em> to build. Nobody hands you a design doc.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Customer Success</div>
+                    <div class="card-desc">You sit with the actual users, discover that the stated problem is not the real problem, and manage the politics of saying so.</div>
+                </div>
+            </div>
+
+            <h3>What the day actually looks like</h3>
+
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+flowchart TD
+    A["Customer states a problem<br/>(usually the wrong one)"] --> B["Scope: talk to real users,<br/>look at real data"]
+    B --> C{"Is the stated problem<br/>the real problem?"}
+    C -->|No| D["Reframe with the stakeholder<br/>— hardest part of the job"]
+    C -->|Yes| E["Decompose into 3-4 components"]
+    D --> E
+    E --> F["Build the thinnest slice<br/>that delivers value"]
+    F --> G["Deploy inside customer infra<br/>— security, network, compliance"]
+    G --> H["Watch real usage.<br/>Instrument. Evaluate."]
+    H --> I{"Did the business<br/>metric move?"}
+    I -->|No| B
+    I -->|Yes| J["Harden, hand off,<br/>extract reusable pattern"]
+                </div>
+            </div>
+
+            <p>Two things in that loop are worth staring at. First, the loop <strong>starts and ends with the customer, not with a ticket</strong>. Second, step G &mdash; deploying inside the customer's infrastructure, past their security team, their network, their compliance requirements &mdash; is where most AI projects actually die. That step is your existing job description.</p>
+
+            <div class="warn-box">
+                <strong>The uncomfortable part of the role.</strong> FDEs travel, sit in rooms with frustrated non-engineers, do unglamorous data cleanup, and get judged on outcomes they only partly control. If you interview for this role and describe yourself as someone who likes deep focused work on clean systems, you will not get it &mdash; and you probably shouldn't. Be honest with yourself about this before week 8.
+            </div>
+
+            <!-- 20.2 -->
+            <div class="section-header" id="vs">
+                <span class="section-num">2</span>
+                <h2>FDE vs AI Engineer vs Solutions Architect vs Platform Engineer</h2>
+            </div>
+
+            <p>Thomson Reuters has multiple AI-adjacent roles open, and the titles blur. Knowing exactly which one you're in front of changes your answers. Here is the honest differentiation:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dimension</th>
+                        <th>Forward Deployed Engineer</th>
+                        <th>AI Engineer</th>
+                        <th>Solutions Architect</th>
+                        <th>Platform / DevOps Engineer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Owns</strong></td>
+                        <td>A customer outcome</td>
+                        <td>A product capability</td>
+                        <td>A design</td>
+                        <td>A platform's reliability</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Writes production code?</strong></td>
+                        <td>Yes, in the customer's codebase</td>
+                        <td>Yes, in the product codebase</td>
+                        <td>Rarely &mdash; PoCs and diagrams</td>
+                        <td>Yes, infrastructure and tooling</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Time with non-engineers</strong></td>
+                        <td>~50%</td>
+                        <td>~15%</td>
+                        <td>~60%</td>
+                        <td>~10%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Success measured by</strong></td>
+                        <td>Did the customer's metric move</td>
+                        <td>Did the feature ship and perform</td>
+                        <td>Was the deal won / design accepted</td>
+                        <td>SLOs, uptime, deploy velocity</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ambiguity tolerance needed</strong></td>
+                        <td>Extreme</td>
+                        <td>Moderate</td>
+                        <td>High</td>
+                        <td>Low&ndash;moderate</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Depth of ML required</strong></td>
+                        <td>Applied &mdash; use models well</td>
+                        <td>Applied&ndash;deep &mdash; may fine-tune</td>
+                        <td>Conversational</td>
+                        <td>None expected</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Your current fit</strong></td>
+                        <td><span class="pill pill-gap">Strong technically, needs narrative work</span></td>
+                        <td><span class="pill pill-gap">Needs RAG/eval depth</span></td>
+                        <td><span class="pill pill-strong">Already qualified</span></td>
+                        <td><span class="pill pill-strong">Current role</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="success-box">
+                <strong>Strategic read for your situation.</strong> You are chasing two roles at once, and they share about 70% of a technical core: LLM fundamentals, RAG, agents, evaluation, and production deployment. Study that core once. The divergent 30% is decomposition and stakeholder skill for FDE, and modelling depth plus inference optimisation for AI Engineer. The 8-week plan covers the shared core in weeks 1&ndash;6 and splits in weeks 7&ndash;8.
+            </div>
+
+            <p>Neither role expects an ML PhD. This is the single most common mis-preparation: candidates spend three weeks on backpropagation derivations and then cannot explain why their chunking strategy loses cross-reference context. <strong>Nobody will ask you to derive a gradient. Everyone will ask you why the retrieval returned the wrong passage.</strong></p>
+
+            <!-- 20.3 -->
+            <div class="section-header" id="rounds">
+                <span class="section-num">3</span>
+                <h2>Anatomy of the Three Rounds</h2>
+            </div>
+
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+flowchart LR
+    HR["HackerRank Gate<br/>Python + ML + SQL<br/>pass/fail"] --> R1["Round 1<br/>Behavioral / Fit<br/>45 min"]
+    R1 --> R2["Round 2<br/>Technical Deep Dive<br/>coding + system design<br/>60-90 min"]
+    R2 --> R3["Round 3<br/>Decomposition Case<br/>60 min<br/>THE FILTER"]
+    R3 --> O["Offer / hiring committee"]
+                </div>
+            </div>
+
+            <h3>Round 1 &mdash; Behavioral / Fit</h3>
+
+            <p>Tests ownership and communication. The signature questions are <em>&ldquo;Why an FDE?&rdquo;</em>, <em>&ldquo;Tell me about a demanding stakeholder&rdquo;</em>, and <em>&ldquo;Describe a complex 0-to-1 project you owned.&rdquo;</em> Use STAR, and weight your stories toward <strong>shipping code</strong> and <strong>solving problems without being told to</strong>.</p>
+
+            <div class="warn-box">
+                <strong>Your specific risk here.</strong> You have excellent stories &mdash; the Ops Assistant, PostgreSQL incidents, the Outposts work &mdash; but they are currently told as <em>infrastructure</em> stories. &ldquo;I built a multi-agent system with 30 tools and CIAM M2M auth&rdquo; is an architecture statement. An FDE panel wants: &ldquo;Engineers were spending 40 minutes triaging a failing service by hand. I sat with three of them, watched what they actually typed, and built an assistant that does the first 80% of that triage. It's now used by N engineers and the median triage is under X minutes.&rdquo; Same project. Completely different signal. Guide 28 rebuilds all your stories this way.
+            </div>
+
+            <h3>Round 2 &mdash; Technical Deep Dive</h3>
+
+            <p>Two halves. The coding half is deliberately <em>not</em> LeetCode-flavoured: expect practical tasks like <strong>parsing a messy data file and building a query API over it</strong>. That is a real FDE Tuesday. The design half is data-heavy: real-time analytics pipelines, RAG architecture, extraction pipelines.</p>
+
+            <p>What separates a 3 from a 5 here is production instinct. Anyone can sketch <code>documents &rarr; embeddings &rarr; vector DB &rarr; LLM</code>. The follow-up is always some version of <em>&ldquo;now the customer has 40 million documents, a 2-second p95 SLO, and a compliance rule that every answer must cite a verifiable source.&rdquo;</em> That is the actual interview.</p>
+
+            <h3>Round 3 &mdash; The Decomposition / Case Study Round</h3>
+
+            <p>This is the Palantir-invented round, the highest-weighted, and the one you have never practised. You get a massive ambiguous problem and 60 minutes. There is no correct answer. They are watching <em>how you think when nothing is defined.</em></p>
+
+            <div class="mermaid-wrapper">
+                <div class="mermaid">
+flowchart TD
+    A["1. CLARIFY<br/>Do not solve yet.<br/>Who are the users? What is<br/>success? What is the data really like?"] --> B["2. SCOPE<br/>Name what you are<br/>explicitly NOT solving"]
+    B --> C["3. DECOMPOSE<br/>3-4 components with clear<br/>interfaces and independent<br/>failure modes"]
+    C --> D["4. MVP<br/>Thinnest slice that delivers value<br/>AND de-risks the biggest unknown"]
+    D --> E["5. TRADE-OFFS<br/>Compare options. Name the one<br/>you would reject, and why."]
+    E --> F["6. MEASURE<br/>Specific metric, baseline,<br/>target, instrumentation"]
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr><th>Behaviour</th><th>Fails the round</th><th>Passes the round</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Opening move</td><td>Starts designing in minute two</td><td>Spends 8&ndash;12 minutes asking questions</td></tr>
+                    <tr><td>Scope</td><td>Tries to solve all of it</td><td>Explicitly cuts 80% and says why</td></tr>
+                    <tr><td>Data</td><td>Assumes the data is fine</td><td>Asks about quality, volume, format, freshness, who owns it</td></tr>
+                    <tr><td>Unknowns</td><td>Hides them</td><td>Names them and sequences work to resolve the riskiest first</td></tr>
+                    <tr><td>Communication</td><td>Silent thinking</td><td>Narrates reasoning continuously</td></tr>
+                    <tr><td>Success</td><td>&ldquo;It would be more accurate&rdquo;</td><td>&ldquo;Lawyer review time per contract, currently ~40 min, target under 15, measured by X&rdquo;</td></tr>
+                </tbody>
+            </table>
+
+            <div class="info-box">
+                <strong>The good news:</strong> this round is the most learnable of the three, because it is a repeatable framework applied to unfamiliar content. Guide 36 contains five fully worked cases with transcripts. Drill it with <code>/fde-interview decomp</code> until the framework is automatic &mdash; then the content of the case stops mattering.
+            </div>
+
+            <!-- 20.4 -->
+            <div class="section-header" id="hackerrank">
+                <span class="section-num">4</span>
+                <h2>The Thomson Reuters HackerRank Gate</h2>
+            </div>
+
+            <p>Before any human speaks to you, TR's internal process puts an automated assessment in front of you. For AI/ML-tagged roles it is a blend, and the mix shifts by role:</p>
+
+            <table>
+                <thead>
+                    <tr><th>Component</th><th>What appears</th><th>Time pressure</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Python DS&amp;A</strong> (1&ndash;2 problems)</td>
+                        <td>LeetCode easy/medium: string manipulation and regex, sliding window, matrix traversal, graph traversal, dynamic programming, greedy, intervals</td>
+                        <td>High</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Applied ML case</strong> (1)</td>
+                        <td>Implement a basic recommender, perform model evaluation, or select features from noisy data</td>
+                        <td>Moderate</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SQL</strong></td>
+                        <td>Joins, <code>GROUP BY</code>, and <strong>window functions</strong> &mdash; <code>ROW_NUMBER</code>, <code>RANK</code>, <code>LAG</code>/<code>LEAD</code>, running totals</td>
+                        <td>Moderate</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Domain math</strong> (sometimes)</td>
+                        <td>TR is a financial and legal data company: CAGR, NPV, tax impact calculations</td>
+                        <td>Low</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="warn-box">
+                <strong>This is the gate that actually eliminates senior infrastructure engineers</strong>, and it does so for a boring reason: DS&amp;A speed is a perishable skill, and platform work does not exercise it. You write excellent YAML, Terraform, and FastAPI handlers. None of that keeps you fast at &ldquo;longest substring without repeating characters&rdquo; under a 20-minute clock.
+                <br><br>
+                It also cannot be crammed. This is why the plan puts a <strong>20-minute coding drill at the start of every single day for eight weeks</strong> &mdash; 40 sessions, roughly 80 problems. That is the entire intervention. Do not move it to the end of the session, because that is where it will get skipped.
+            </div>
+
+            <p>The same applies to SQL window functions. You know PostgreSQL internals better than most application developers &mdash; WAL, replication slots, PITR, vacuum. But <code>LAG(...) OVER (PARTITION BY ... ORDER BY ...)</code> is a different muscle, and it is the one they test. Weeks 2 and 3 each carry 15 queries.</p>
+
+            <!-- 20.5 -->
+            <div class="section-header" id="skills">
+                <span class="section-num">5</span>
+                <h2>The Skill Matrix &mdash; What They Actually Screen For</h2>
+            </div>
+
+            <p>FDE hiring looks for a <strong>T-shape, or more precisely an I-shape with a wide bar</strong>: real depth in one technical vertical, plus a broad set of execution skills that most deep engineers lack.</p>
+
+            <h3>The vertical &mdash; deep technical competence</h3>
+
+            <table>
+                <thead>
+                    <tr><th>Area</th><th>Expected</th><th>You</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Languages</td><td>Fluent Python; familiarity with Java, Go, or TypeScript</td><td><span class="pill pill-strong">Solid</span> Python via FastAPI</td></tr>
+                    <tr><td>Data</td><td>SQL fundamentals, Spark, Airflow, database architecture</td><td><span class="pill pill-strong">DB architecture strong</span> <span class="pill pill-gap">window fns, Spark/Airflow thin</span></td></tr>
+                    <tr><td>Systems</td><td>AWS/GCP/Azure, Docker, Kubernetes, Terraform, IaC</td><td><span class="pill pill-strong">Well past bar</span></td></tr>
+                    <tr><td>AI/ML (2026 focus)</td><td>RAG systems, fine-tuning, vector databases, agentic orchestration (LangGraph, CrewAI), evaluation frameworks, observability</td><td><span class="pill pill-gap">Agents yes, RAG/evals/fine-tuning are the gap</span></td></tr>
+                </tbody>
+            </table>
+
+            <p>Anthropic's FDE specification asks explicitly for <em>&ldquo;production experience with LLMs including advanced prompt engineering, agent development, evaluation frameworks, and deployment at scale.&rdquo;</em> Read that list again: you have agent development and deployment at scale. You need prompt engineering as a discipline and evaluation frameworks. That is a six-week problem, not a two-year one.</p>
+
+            <h3>The horizontal bar &mdash; execution skills</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">Customer empathy</div>
+                    <div class="card-desc">Can you explain a vector index to a tax partner without condescension, and hear what they actually need?</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Radical ownership</div>
+                    <div class="card-desc">The problem is yours until the outcome exists. &ldquo;That's the platform team's job&rdquo; is a failing answer.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Decomposition under chaos</div>
+                    <div class="card-desc">Turning &ldquo;make our lawyers faster&rdquo; into four buildable components in an hour.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Product sense</div>
+                    <div class="card-desc">Spotting when a one-off customer hack is actually a product feature &mdash; and when it isn't.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Autonomy in unfamiliar code</div>
+                    <div class="card-desc">Making progress on day two in a 400K-line codebase with no docs and no one to ask.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Security awareness</div>
+                    <div class="card-desc">Table stakes. Also your home turf &mdash; use it.</div>
+                </div>
+            </div>
+
+            <h3>Background predictors they look for</h3>
+
+            <ol>
+                <li><strong>Early-stage startup engineer</strong> &mdash; the top predictor, because scope ambiguity was the default condition</li>
+                <li><strong>Hands-on solutions architect</strong> who built real PoCs, not slideware</li>
+                <li><strong>Data/ML engineer</strong> with production deployment experience</li>
+                <li><strong>Full-stack developer</strong> with product intuition</li>
+            </ol>
+
+            <p>You match none of these four cleanly &mdash; and that is fine, because what these four have in common is <em>breadth plus accountability</em>, and platform engineering at a regulated financial-data company is a legitimate fifth path to the same thing. You have owned production incidents where the buck stopped with you. That is the underlying signal. Say so directly rather than hoping they infer it.</p>
+
+            <!-- 20.6 -->
+            <div class="section-header" id="gaps">
+                <span class="section-num">6</span>
+                <h2>Your Honest Gap Map</h2>
+            </div>
+
+            <p>No flattery here &mdash; this is the map that determines where 110 hours go.</p>
+
+            <h3>Already at or above bar &mdash; do not over-study</h3>
+
+            <table>
+                <thead><tr><th>Asset</th><th>Why it counts for FDE</th></tr></thead>
+                <tbody>
+                    <tr><td>Kubernetes / EKS incl. Outposts, Istio, Helm, ArgoCD</td><td>Table stakes for FDE, and you are far past bar. Also directly relevant: on-prem and air-gapped AI deployments are a real TR customer requirement.</td></tr>
+                    <tr><td>Terraform, AWS CDK, GitHub Actions</td><td>&ldquo;Deploy it in the customer's infra&rdquo; is half the job.</td></tr>
+                    <tr><td>OpenTelemetry, Datadog</td><td>Reframes almost perfectly as LLM observability &mdash; traces, spans, token counters, latency attribution.</td></tr>
+                    <tr><td>PostgreSQL HA + internals</td><td><strong>Your single biggest technical leverage.</strong> pgvector means the AI-critical vector store is a database you understand at the WAL level. Most AI engineers treat their vector DB as a black box.</td></tr>
+                    <tr><td>FastAPI / Python services</td><td>Every AI system you build will be served behind one.</td></tr>
+                    <tr><td>Security: JWT RS256, mTLS, WAF, layered defence</td><td>Maps onto AI guardrails, prompt-injection defence, and multi-tenant context isolation.</td></tr>
+                    <tr><td>K8s AI Ops Assistant &mdash; multi-agent, agentic loop, ~30 tools, M2M auth</td><td>Your best asset and currently your most underexploited. Guide 28 is dedicated to retelling it.</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Real gaps &mdash; where the hours go</h3>
+
+            <table>
+                <thead><tr><th>Gap</th><th>Severity</th><th>Why it matters</th><th>Week</th></tr></thead>
+                <tbody>
+                    <tr><td>RAG as a discipline &mdash; chunking, hybrid search, reranking, citations</td><td><span class="pill pill-crit">Critical</span></td><td>The single most common thing an FDE builds</td><td>2&ndash;3</td></tr>
+                    <tr><td>Evaluation frameworks</td><td><span class="pill pill-crit">Critical</span></td><td>Named explicitly in FDE specs. Most candidates hand-wave it &mdash; so it is a cheap differentiator</td><td>3</td></tr>
+                    <tr><td>DS&amp;A speed under a timer</td><td><span class="pill pill-crit">Critical</span></td><td>Hard pass/fail gate before any human sees you</td><td>1&ndash;8 daily</td></tr>
+                    <tr><td>Decomposition round technique</td><td><span class="pill pill-crit">Critical</span></td><td>Highest-weight round, zero reps so far</td><td>7</td></tr>
+                    <tr><td>SQL window functions</td><td><span class="pill pill-gap">High</span></td><td>On the assessment; platform work never exercises it</td><td>2&ndash;3</td></tr>
+                    <tr><td>Classical ML fundamentals + metrics</td><td><span class="pill pill-gap">High</span></td><td>The HackerRank ML case and AI Engineer interviews</td><td>5</td></tr>
+                    <tr><td>Recommender systems</td><td><span class="pill pill-gap">High</span></td><td>Explicitly cited as a TR assessment case type</td><td>5</td></tr>
+                    <tr><td>Customer-outcome narrative</td><td><span class="pill pill-gap">High</span></td><td>FDE is ~50% communication; your stories are infra-framed</td><td>1, 8</td></tr>
+                    <tr><td>Inference economics &mdash; tokens, caching, latency, cost</td><td><span class="pill pill-gap">Medium</span></td><td>FDEs own the customer's bill and SLOs</td><td>6</td></tr>
+                    <tr><td>Fine-tuning vs RAG vs prompting judgement</td><td><span class="pill pill-gap">Medium</span></td><td>Standard senior AI-engineer question</td><td>6</td></tr>
+                    <tr><td>TR AI product landscape</td><td><span class="pill pill-gap">Medium</span></td><td>It is an <em>internal</em> interview &mdash; they expect business awareness</td><td>8</td></tr>
+                    <tr><td>Spark / Airflow</td><td><span class="pill pill-gap">Low</span></td><td>Listed on specs but rarely probed deeply for FDE; conversational depth suffices</td><td>opportunistic</td></tr>
+                </tbody>
+            </table>
+
+            <!-- 20.7 -->
+            <div class="section-header" id="moat">
+                <span class="section-num">7</span>
+                <h2>DevOps as the Moat, Not the Handicap</h2>
+            </div>
+
+            <p>The instinct when moving from platform engineering into AI roles is to feel behind &mdash; to treat eight years of Kubernetes as a detour from the ML career you should have had. That instinct is wrong, and if it leaks into your interview it will cost you the offer.</p>
+
+            <p>Here is the actual market reality. There are a great many engineers who can build a working RAG demo in a notebook in an afternoon. Of those, the number who can do the following is small:</p>
+
+            <ul>
+                <li>Run it multi-tenant on Kubernetes with mTLS and hard per-tenant isolation</li>
+                <li>Put an evaluation gate in the deploy pipeline so a prompt change cannot ship a quality regression</li>
+                <li>Trace a p99 latency spike from the ingress through to a slow ANN query and prove where the time went</li>
+                <li>Reason about the cost curve when the customer's corpus grows 50&times; and the bill grows 200&times;</li>
+                <li>Perform a point-in-time recovery when someone truncates the embeddings table on a Friday</li>
+                <li>Get the whole thing through a customer's security review</li>
+            </ul>
+
+            <div class="success-box">
+                <strong>That list is not adjacent to the FDE job description. It <em>is</em> the FDE job description.</strong> The gap between an AI demo and an AI system in production is overwhelmingly infrastructure, security, and evaluation. That is the gap you have spent eight years living in.
+            </div>
+
+            <h3>Your positioning line</h3>
+
+            <div class="qa-block">
+                <div class="qa-q">&ldquo;You're a DevOps engineer. Why should we hire you for an AI role?&rdquo;</div>
+                <div class="qa-a">
+                    &ldquo;I've spent eight years making distributed systems work in production under real constraints &mdash; regulated environments, on-prem Outposts deployments, security reviews, 3am incidents where the buck stopped with me. And for the last stretch I've been building an agentic assistant that engineers use to operate Kubernetes: multi-step tool calling, real write access to production, real consequences for getting it wrong.
+                    <br><br>
+                    What I've learned from that is that the hard part of an AI system in production isn't the model. It's the retrieval quality nobody's measuring, the token bill nobody's modelled, the tenant isolation nobody's tested, and the fact that there's no gate stopping a prompt change from shipping a regression. Those are infrastructure and evaluation problems, and they're the ones I'm good at.
+                    <br><br>
+                    I'm not going to tell you I'm an ML researcher. I'm telling you I'm the person who gets the thing actually working inside the customer's environment &mdash; which as I understand it is what this role is.&rdquo;
+                </div>
+            </div>
+
+            <div class="warn-box">
+                <strong>Two failure modes to avoid.</strong><br>
+                <em>Apologising:</em> &ldquo;I don't have a formal ML background, but&hellip;&rdquo; &mdash; never open here. FDE is not an ML research role and the apology invents a bar that doesn't exist.<br>
+                <em>Deflecting:</em> when asked an AI question, retreating to Kubernetes because it's comfortable. If they ask how you'd fix poor retrieval recall, do not answer with observability architecture. Answer the retrieval question, <em>then</em> add the infrastructure dimension as a bonus. The `/fde-interview` skill is instructed to catch you doing this.
+            </div>
+
+            <!-- 20.8 -->
+            <div class="section-header" id="tr">
+                <span class="section-num">8</span>
+                <h2>The Thomson Reuters Context</h2>
+            </div>
+
+            <p>You are interviewing internally, which is an advantage you should exploit rather than a formality. Internal candidates who demonstrate business awareness materially outperform external candidates with better raw AI credentials, because the panel already knows the hard part is understanding the domain.</p>
+
+            <p>TR's AI surface area sits across legal, tax, and news. The products to be able to speak about: <strong>CoCounsel</strong> (the legal AI assistant), <strong>Westlaw</strong> (legal research), <strong>Practical Law</strong> (know-how and templates), <strong>ONESOURCE</strong> and <strong>Checkpoint</strong> (tax and accounting), and the Reuters news wire. Guide 38 covers this properly in week 8.</p>
+
+            <h3>The constraint that shapes every technical answer</h3>
+
+            <div class="info-box">
+                <strong>In legal and tax AI, a confident wrong answer is worse than no answer.</strong> A hallucinated case citation can get a lawyer sanctioned. A wrong tax treatment can trigger a filing error. This is not an abstract safety concern &mdash; it is the product requirement.
+                <br><br>
+                Practically, this means: <strong>every claim must be traceable to a retrieved source</strong>, retrieval quality matters more than generation fluency, abstention (&ldquo;I couldn't find this&rdquo;) is a feature not a failure, and evaluation must measure <em>groundedness</em>, not just helpfulness.
+            </div>
+
+            <p>Carry this into every technical answer you give. When you're asked to design a RAG system, the fact that you volunteer &ldquo;and because this is legal content, I'd architecturally guarantee that every cited passage actually contains the claim &mdash; I'd verify the citation post-generation rather than trusting the model to quote correctly&rdquo; is the difference between a competent answer and an answer that sounds like it came from someone who works here.</p>
+
+            <!-- 20.9 -->
+            <div class="section-header" id="plan">
+                <span class="section-num">9</span>
+                <h2>The 8-Week Plan</h2>
+            </div>
+
+            <p>Full detail lives in <code>docs/FDE-PLAN.md</code>. The shape:</p>
+
+            <table>
+                <thead><tr><th>Week</th><th>Focus</th><th>Guides</th><th>Build</th></tr></thead>
+                <tbody>
+                    <tr><td>1</td><td>Foundations &amp; narrative</td><td>20, 21, 22</td><td>SDK client, tokens, streaming, structured output</td></tr>
+                    <tr><td>2</td><td>Retrieval part 1</td><td>23, 24</td><td>RAG on Postgres + pgvector with citations</td></tr>
+                    <tr><td>3</td><td>Retrieval part 2 &amp; evaluation</td><td>25, 26</td><td>Eval harness with golden set, judge, CI gate</td></tr>
+                    <tr><td>4</td><td>Agents</td><td>27, 28</td><td>Agent from scratch, LangGraph version, MCP server</td></tr>
+                    <tr><td>5</td><td>Classical ML for the assessment</td><td>29, 30, 31</td><td>5 timed HackerRank-style ML cases</td></tr>
+                    <tr><td>6</td><td>Cost, safety, LLMOps</td><td>32, 33, 34</td><td>Tracing, guardrails, eval-gated K8s rollout</td></tr>
+                    <tr><td>7</td><td>System design &amp; decomposition</td><td>35, 36</td><td>3 full timed assessment simulations</td></tr>
+                    <tr><td>8</td><td>Behavioral, TR context, mocks</td><td>37, 38, 39</td><td>2 full interview loops</td></tr>
+                </tbody>
+            </table>
+
+            <h3>The daily two hours</h3>
+
+            <pre><code>0:00 - 0:20   Coding drill      2 problems, timed. Non-negotiable. Every day.
+0:20 - 1:20   Topic block       Read the week's guide section
+1:20 - 1:50   Hands-on          Build in code/ — type it, don't read it
+1:50 - 2:00   Active recall     3 interview questions, out loud, no notes</code></pre>
+
+            <p>Four rules that make this work:</p>
+
+            <ol>
+                <li><strong>Never skip the coding drill.</strong> It is first in the session precisely because anything at the end of a session gets skipped. 40 sessions &times; 2 problems clears the gate.</li>
+                <li><strong>Type all the code by hand.</strong> Reading a RAG pipeline teaches you nothing about debugging one, and the interview is entirely about debugging one.</li>
+                <li><strong>Active recall beats re-reading.</strong> If you cannot say it out loud without notes, you do not know it. Re-reading feels like progress and isn't.</li>
+                <li><strong>Every guide ends in interview questions.</strong> Write your answers first, then compare. The gap between what you thought you knew and what you could produce is the actual study signal.</li>
+            </ol>
+
+            <!-- 20.10 -->
+            <div class="section-header" id="selftest">
+                <span class="section-num">10</span>
+                <h2>Self-Test Questions</h2>
+            </div>
+
+            <p>Answer these out loud, from memory, before moving to Guide 21. If any answer takes more than 60 seconds to start, re-read the relevant section.</p>
+
+            <div class="qa-block">
+                <div class="qa-q">1. In one sentence, what is a Forward Deployed Engineer accountable for?</div>
+                <div class="qa-a">A business outcome inside a customer's environment &mdash; not a delivered spec, not a shipped feature. If the customer's metric didn't move, the FDE didn't succeed, regardless of what was built.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">2. Which of the three rounds carries the most weight, and what is it actually measuring?</div>
+                <div class="qa-a">The decomposition case study. It measures how you think when nothing is defined: whether you clarify before solving, cut scope explicitly, decompose into components with independent failure modes, propose a value-delivering MVP that de-risks the biggest unknown, and define measurable success.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">3. Why can't the HackerRank gate be crammed in week 8?</div>
+                <div class="qa-a">Because it tests speed, and speed is built by repetition spaced over time, not by volume in a burst. It is also a hard pass/fail before any human evaluates you &mdash; so it is the highest-consequence, lowest-glamour item in the plan.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">4. Name three things you can do that a typical strong AI-notebook engineer cannot.</div>
+                <div class="qa-a">Any three from: multi-tenant deployment with real isolation; an eval gate wired into the deploy pipeline; end-to-end latency attribution through the stack; cost modelling as the corpus scales; PITR when the vector store is damaged; passing a customer security review.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">5. What is the constraint that shapes every technical answer you give at Thomson Reuters?</div>
+                <div class="qa-a">A confident wrong answer is worse than no answer. Citations must be verifiable, retrieval quality dominates generation fluency, abstention is a feature, and evaluation measures groundedness rather than helpfulness.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">6. What are your two failure modes in an AI interview, given your background?</div>
+                <div class="qa-a">Apologising for not having an ML background (invents a bar that doesn't exist for this role), and deflecting AI questions into infrastructure answers because infrastructure is comfortable. Answer the question asked, then add the infrastructure dimension as a bonus.</div>
+            </div>
+
+            <div class="qa-block">
+                <div class="qa-q">7. Rewrite this as an FDE would: &ldquo;I built a multi-agent Kubernetes assistant with 30 tools and CIAM M2M authentication.&rdquo;</div>
+                <div class="qa-a">Lead with the human problem and the measured change: who was doing what by hand, how long it took, what you observed by sitting with them, what the assistant now does, how many people use it, and what the before/after number is. The architecture comes second, and only if asked. If you cannot produce the before/after number, that is your homework this week.</div>
+            </div>
+
+            <div class="success-box">
+                <strong>Next:</strong> Guide 21 &mdash; LLM Internals for Engineers. Before you start it, do the Week 1 deliverable: rewrite your two-minute story and your &ldquo;Why FDE?&rdquo; answer in customer-outcome language, and go find the actual usage numbers for the Ops Assistant. Those numbers are worth more in this loop than any single technical topic.
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'dark', themeVariables: { background: '#0f1826', primaryColor: '#141f35', primaryTextColor: '#dce8f5', primaryBorderColor: '#1d2d4f', lineColor: '#38bdf8', secondaryColor: '#141f35', tertiaryColor: '#090d1a', fontFamily: 'DM Sans, sans-serif', fontSize: '15px' }, flowchart: { useMaxWidth: true, htmlLabels: true }, sequence: { useMaxWidth: true }, gantt: { useMaxWidth: true } });
+
+        // Force SVGs to fill container after Mermaid renders
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new MutationObserver(() => {
+                document.querySelectorAll('.mermaid svg').forEach(svg => {
+                    svg.style.width = '100%';
+                    svg.style.height = 'auto';
+                    svg.removeAttribute('width');
+                    svg.removeAttribute('height');
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+            html.dataset.theme = next;
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-icon').innerHTML = next === 'light' ? '&#9788;' : '&#9789;';
+        }
+        const saved = localStorage.getItem('theme');
+        if (saved) { document.documentElement.dataset.theme = saved; document.getElementById('theme-icon').innerHTML = saved === 'light' ? '&#9788;' : '&#9789;'; }
+
+        const sections = document.querySelectorAll('[id]');
+        const tocLinks = document.querySelectorAll('.toc a');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    tocLinks.forEach(l => l.classList.remove('active'));
+                    const active = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+                    if (active) active.classList.add('active');
+                }
+            });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+        sections.forEach(s => observer.observe(s));
+    </script>
+</body>
+</html>
